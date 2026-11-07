@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {
@@ -11,6 +10,10 @@ const nextConfig: NextConfig = {
         as: "*.css",
       },
     },
+  },
+  // Phase 1A has no console yet; send "/" to the connection test page.
+  async redirects() {
+    return [{ source: "/", destination: "/status", permanent: false }];
   },
 };
 

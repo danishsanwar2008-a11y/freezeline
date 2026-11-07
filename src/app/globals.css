@@ -1,26 +1,42 @@
 @import "tailwindcss";
 
+/* FreezeLine design tokens: the only place colors live. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0b1016;
+  --surface: #121a23;
+  --border: #1f2b38;
+  --text: #e6edf3;
+  --muted: #8a9bae;
+  --accent: #7dd3fc; /* ice */
+  --warn: #fbbf24; /* simulated-data tag */
+  --danger: #f87171;
+  --ok: #4ade80;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --color-ok: var(--ok);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --radius-panel: 10px;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Signature detail: the "freeze line" frost rule. */
+.freeze-rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent) 20%, var(--accent) 80%, transparent);
+  opacity: 0.6;
 }
