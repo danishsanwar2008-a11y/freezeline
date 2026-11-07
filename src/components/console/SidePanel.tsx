@@ -6,42 +6,35 @@ import type { CityPlan } from "@/lib/planner";
 import { LEVEL_BG } from "@/lib/riskScale";
 import type { DisplayLevel } from "@/lib/steps";
 import { fmtF, formatHour } from "./format";
-import PressureGauge from "./PressureGauge";
+import { AreaBreakdown, ComparisonCard } from "./PressureCompare";
+import { compareFutures } from "@/lib/summary";
 import AreaPanel from "./AreaPanel";
 import PlanCard from "./PlanCard";
 
 const LEGEND: DisplayLevel[] = ["Low", "Watch", "High"];
 
-/** City view: one idea. Who acts tonight, and that the plan keeps the water on. */
-function CityPanel({ model, plan, hour }: { model: ReplayModel; plan: CityPlan; hour: number }) {
+/** City view, readable in 3 seconds: two futures, then the one action. */
+function CityPanel({ model, plan, hour, agent }: { model: ReplayModel; plan: CityPlan; hour: number; agent?: React.ReactNode }) {
   const w = model.hours[hour];
-  const dripping = plan.zones.reduce((s, z) => s + z.dripping, 0);
-  const protectOnly = plan.homes.filter((h) => h.level !== "Low" && h.action === "no_drip").length;
-
-  let headline: React.ReactNode;
-  if (dripping > 0)
-    headline = (
-      <>
-        <span className="text-accent">{dripping.toLocaleString()} homes</span> should drip one tap tonight. Everyone else: don&apos;t drip.
-      </>
-    );
-  else if (protectOnly > 0)
-    headline = (
-      <>
-        <span className="text-accent">{protectOnly.toLocaleString()} homes</span> should protect their pipes tonight. Nobody needs to drip.
-      </>
-    );
-  else headline = <>No freeze risk right now. Nobody needs to drip.</>;
+  const { needMessage } = compareFutures(plan);
 
   return (
-    <div className="flex flex-1 flex-col gap-8">
+    <div className="flex flex-1 flex-col gap-6">
       <p className="font-mono text-sm text-muted tabular-nums">
         {formatHour(w.time)} · <span className="text-text">{fmtF(w.temperature_f)}</span>
       </p>
-      <div>
-        <h2 className="text-2xl font-semibold leading-snug tracking-tight">{headline}</h2>
-      </div>
-      <PressureGauge plan={plan} />
+      <ComparisonCard plan={plan} />
+      <p className="text-lg font-medium">
+        {needMessage > 0 ? (
+          <>
+            Send the drip plan to <span className="text-accent">{needMessage.toLocaleString()} homes</span>.
+          </>
+        ) : (
+          <span className="text-muted">No homes need a message right now.</span>
+        )}
+      </p>
+      {agent}
+      <AreaBreakdown plan={plan} />
       <div className="mt-auto space-y-3 border-t border-border pt-5">
         <p className="text-sm">Click an area on the map to see who needs to act.</p>
         <ul className="flex gap-4 text-xs text-muted" aria-label="Map colors">
