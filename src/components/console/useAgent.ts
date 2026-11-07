@@ -27,6 +27,8 @@ export function useAgent() {
   const [runs, setRuns] = useState<Record<string, AgentRun>>({});
   const [mode, setMode] = useState<AgentMode>("auto");
   const [approving, setApproving] = useState<string | null>(null);
+  /** Bumps after every agent run or approval, so City Operations data refetches. */
+  const [version, setVersion] = useState(0);
 
   const update = (time: string, fn: (r: AgentRun) => AgentRun) =>
     setRuns((all) => ({ ...all, [time]: fn(all[time] ?? { status: "done", entries: [] }) }));
@@ -48,6 +50,8 @@ export function useAgent() {
         }));
       } catch (err) {
         update(time, (r) => ({ ...r, status: "error", error: err instanceof Error ? err.message : String(err) }));
+      } finally {
+        setVersion((v) => v + 1);
       }
     },
     [mode],
@@ -74,6 +78,7 @@ export function useAgent() {
       }));
     } finally {
       setApproving(null);
+      setVersion((v) => v + 1);
     }
   }, []);
 
@@ -81,5 +86,5 @@ export function useAgent() {
     update(time, (r) => ({ ...r, entries: r.entries.map((e) => (e.id === entry.id ? { ...e, status: "failed", summary: `Skipped: ${e.summary}`, input: undefined } : e)) }));
   }, []);
 
-  return { runs, mode, setMode, run, approve, skip, approving };
+  return { runs, mode, setMode, run, approve, skip, approving, version };
 }

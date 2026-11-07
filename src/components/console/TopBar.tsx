@@ -31,11 +31,57 @@ function InfoTip() {
   );
 }
 
-export default function TopBar({ mode, onMode }: { mode: Mode; onMode: (m: Mode) => void }) {
+export type Audience = "city" | "home";
+
+/** Audience tabs: officials (City Operations) vs one household (Homeowner). Never mixed. */
+function AudienceTabs({ audience, homeHref, cityHref }: { audience: Audience; homeHref: string; cityHref: string }) {
+  const tabs: { id: Audience; label: string; href: string }[] = [
+    { id: "city", label: "City Operations", href: cityHref },
+    { id: "home", label: "Homeowner", href: homeHref },
+  ];
   return (
-    <header className="flex items-center gap-3 border-b border-border bg-surface px-4 py-2.5">
+    <nav aria-label="Audience" className="flex gap-1">
+      {tabs.map((t) => (
+        <a
+          key={t.id}
+          href={t.href}
+          aria-current={audience === t.id ? "page" : undefined}
+          className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+            audience === t.id ? "bg-border text-text" : "text-muted hover:text-text"
+          }`}
+        >
+          {t.label}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
+interface Props {
+  audience: Audience;
+  /** Link for the Homeowner tab (a home page in the console). */
+  homeHref: string;
+  cityHref?: string;
+  /** City Operations only. */
+  mode?: Mode;
+  onMode?: (m: Mode) => void;
+}
+
+export default function TopBar({ audience, homeHref, cityHref = "/console", mode, onMode }: Props) {
+  return (
+    <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border bg-surface px-4 py-2.5">
       <p className="hidden font-mono text-xs tracking-[0.2em] text-accent sm:block">FREEZELINE</p>
-      <div role="radiogroup" aria-label="Data mode" className="mx-auto flex min-w-0 rounded-full border border-border bg-bg p-1">
+      <AudienceTabs audience={audience} homeHref={homeHref} cityHref={cityHref} />
+      <span className="flex-1" />
+      {audience === "city" && mode && onMode && <ModeToggle mode={mode} onMode={onMode} />}
+      <InfoTip />
+    </header>
+  );
+}
+
+function ModeToggle({ mode, onMode }: { mode: Mode; onMode: (m: Mode) => void }) {
+  return (
+      <div role="radiogroup" aria-label="Data mode" className="flex min-w-0 rounded-full border border-border bg-bg p-1">
         {MODES.map((m) => {
           const active = mode === m.id;
           return (
@@ -56,7 +102,5 @@ export default function TopBar({ mode, onMode }: { mode: Mode; onMode: (m: Mode)
           );
         })}
       </div>
-      <InfoTip />
-    </header>
   );
 }

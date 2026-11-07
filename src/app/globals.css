@@ -74,3 +74,19 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .panel-enter { animation: none; }
 }
+
+/* Home status colors (both tabs; mirror STATUS_RGB in src/lib/riskScale.ts) */
+:root {
+  --status-ready: #4caf7d;
+  --status-help: #e5484d;
+  --status-waiting: #f2c94c;
+  --status-none: #0c0e12;
+  --status-gray: #8a9bae;
+}
+@theme inline {
+  --color-status-ready: var(--status-ready);
+  --color-status-help: var(--status-help);
+  --color-status-waiting: var(--status-waiting);
+  --color-status-none: var(--status-none);
+  --color-status-gray: var(--status-gray);
+}

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { fetchConsoleHomes, fetchConsoleZones } from "@/lib/homes";
+import { getCity } from "@/lib/server/cityState";
 import ConsoleShell from "@/components/console/ConsoleShell";
 
 export const metadata = { title: "Utility console · FreezeLine" };
@@ -21,14 +21,14 @@ async function ConsoleData() {
   await connection(); // read homes at request time
   let homes, zones;
   try {
-    [homes, zones] = await Promise.all([fetchConsoleHomes(), fetchConsoleZones()]);
+    ({ homes, zones } = await getCity()); // cached on the server; same home order as /api/ops
   } catch (err) {
     return (
       <FullScreenMessage title="Couldn't load homes" tone="danger">
         <p className="font-mono text-text">{err instanceof Error ? err.message : String(err)}</p>
         <p className="mt-2">
           Check <code className="font-mono text-text">.env.local</code> and that{" "}
-          <code className="font-mono text-text">supabase/001_schema.sql</code> has been run. See{" "}
+          <code className="font-mono text-text">supabase/003_phase35.sql</code> has been run and <code className="font-mono text-text">npm run seed</code> done. See{" "}
           <a className="text-accent underline" href="/status">/status</a>.
         </p>
       </FullScreenMessage>

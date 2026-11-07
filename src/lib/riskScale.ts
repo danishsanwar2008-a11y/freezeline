@@ -44,3 +44,43 @@ export const RISK_GRADIENT = `linear-gradient(90deg, ${RISK_STOPS.map((s) => `rg
 /** Tailwind classes for level dots/text (tokens in globals.css). */
 export const LEVEL_BG: Record<DisplayLevel, string> = { Low: "bg-risk-low", Watch: "bg-risk-mid", High: "bg-risk-high" };
 export const LEVEL_TEXT: Record<DisplayLevel, string> = { Low: "text-risk-low", Watch: "text-risk-mid", High: "text-risk-high" };
+
+// ---------- Home status colors (both tabs; home status only) ----------
+import type { HomeStatus } from "./household";
+
+export const STATUS_ORDER: HomeStatus[] = ["ready", "needs_help", "waiting", "no_answer", "not_contacted"];
+export const STATUS_RGB: Record<HomeStatus, RGB> = {
+  ready: [76, 175, 125], // green  #4caf7d
+  needs_help: [229, 72, 77], // red    #e5484d
+  waiting: [242, 201, 76], // yellow #f2c94c
+  no_answer: [12, 14, 18], // black  #0c0e12 (drawn with a light outline on the dark map)
+  not_contacted: [138, 155, 174], // gray #8a9bae
+};
+export const STATUS_BG: Record<HomeStatus, string> = {
+  ready: "bg-status-ready",
+  needs_help: "bg-status-help",
+  waiting: "bg-status-waiting",
+  no_answer: "bg-status-none ring-1 ring-text/60",
+  not_contacted: "bg-status-gray",
+};
+export const STATUS_TEXT: Record<HomeStatus, string> = {
+  ready: "text-status-ready",
+  needs_help: "text-status-help",
+  waiting: "text-status-waiting",
+  no_answer: "text-text",
+  not_contacted: "text-status-gray",
+};
+/** One-letter codes for the compact per-home status string sent to the console. */
+export const STATUS_CODE: Record<HomeStatus, string> = { ready: "r", needs_help: "h", waiting: "w", no_answer: "n", not_contacted: "c" };
+export const STATUS_FROM_CODE: Record<string, HomeStatus> = { r: "ready", h: "needs_help", w: "waiting", n: "no_answer", c: "not_contacted" };
+
+// ---------- Hex "need" scale: % of homes needing action tonight (its own violet ramp, never a status color) ----------
+const NEED_LOW: RGB = [221, 214, 254]; // #ddd6fe pale violet
+const NEED_HIGH: RGB = [124, 58, 237]; // #7c3aed deep violet
+/** share 0–1 -> RGBA; low shares stay faint so hot spots stand out. */
+export function needRgba(share: number): [number, number, number, number] {
+  const t = Math.min(1, Math.max(0, share));
+  const c = [0, 1, 2].map((k) => Math.round(NEED_LOW[k] + (NEED_HIGH[k] - NEED_LOW[k]) * t)) as RGB;
+  return [...c, Math.round(25 + 190 * t)];
+}
+export const NEED_GRADIENT = `linear-gradient(90deg, rgb(${NEED_LOW.join(" ")} / 0.15), rgb(${NEED_HIGH.join(" ")}))`;
