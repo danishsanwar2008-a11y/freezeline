@@ -4,8 +4,6 @@ import { useMemo } from "react";
 import type { WeatherHour } from "@/lib/weather";
 import { formatDay, formatHour } from "./format";
 
-const T_MIN = 5;
-const T_MAX = 50;
 const H = 56;
 
 interface Props {
@@ -19,6 +17,10 @@ interface Props {
 /** Play button + scrubber drawn over the real Uri temperature curve, with the freeze lines marked. */
 export default function Timeline({ hours, hour, playing, onHour, onTogglePlay }: Props) {
   const n = hours.length;
+  // Fit the curve, but always keep the 20°F and 32°F lines in view.
+  const temps = hours.map((h) => h.temperature_f);
+  const T_MIN = Math.min(5, Math.floor(Math.min(...temps) - 5));
+  const T_MAX = Math.max(50, Math.ceil(Math.max(...temps) + 5));
   const y = (t: number) => H - ((t - T_MIN) / (T_MAX - T_MIN)) * H;
 
   const { path, area, days, labels } = useMemo(() => {

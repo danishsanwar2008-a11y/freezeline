@@ -130,7 +130,7 @@ interface Props {
 
 export default function SidePanel({ model, homes, plan, hour, selectedHex, onClearHex }: Props) {
   return (
-    <aside className="flex min-h-0 flex-col gap-6 border-border bg-surface p-5 lg:h-dvh lg:w-[380px] lg:shrink-0 lg:overflow-y-auto lg:border-l">
+    <aside className="flex min-h-0 flex-col gap-6 border-border bg-surface p-5 lg:h-full lg:w-[380px] lg:shrink-0 lg:overflow-y-auto lg:border-l">
       <header className="flex items-center justify-between">
         <div>
           <p className="font-mono text-xs tracking-[0.2em] text-accent">FREEZELINE</p>
