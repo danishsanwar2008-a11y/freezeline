@@ -49,8 +49,12 @@ Replay Uri hour by hour. Temperatures fall into the teens; the risk engine light
 
 ## Layout
 
-- `src/app` — routes (`/status` = connection test page)
-- `src/lib` — supabase client, weather fetchers
+- `src/app` — routes (`/console` = utility console with Uri replay, `/status` = connection test page)
+- `src/lib/risk.ts` — deterministic risk engine (score 0–100, level, plain-English why)
+- `src/lib/replay.ts` — precomputes H3 hex averages + level counts per hour for the console
+- `src/components/console` — map (deck.gl H3 over MapLibre), timeline, side panel
+- `src/lib` — also supabase client, homes loader, weather fetchers
+- `public/maplibre-gl-worker.mjs` — copied from node_modules on `npm install` (git-ignored); MapLibre 6's worker can't be resolved through Turbopack
 - `supabase/001_schema.sql` — schema to paste into the Supabase SQL Editor
 - `scripts/` — seed + weather download (`npm run seed`, `npm run weather:uri`)
 - `data/uri-2021.json` — hourly Houston weather for Feb 13–19, 2021

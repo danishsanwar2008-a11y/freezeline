@@ -1,0 +1,53 @@
+import { Suspense } from "react";
+import { connection } from "next/server";
+import { fetchConsoleHomes } from "@/lib/homes";
+import ConsoleShell from "@/components/console/ConsoleShell";
+
+export const metadata = { title: "Utility console · FreezeLine" };
+
+function FullScreenMessage({ title, children, tone = "muted" }: { title: string; children?: React.ReactNode; tone?: "muted" | "danger" }) {
+  return (
+    <div className="flex h-dvh items-center justify-center bg-bg px-4">
+      <div className="max-w-md rounded-panel border border-border bg-surface p-6">
+        <p className="font-mono text-xs tracking-[0.2em] text-accent">FREEZELINE</p>
+        <p className={`mt-2 font-medium ${tone === "danger" ? "text-danger" : "text-text"}`}>{title}</p>
+        {children && <div className="mt-2 text-sm leading-relaxed text-muted">{children}</div>}
+      </div>
+    </div>
+  );
+}
+
+async function ConsoleData() {
+  await connection(); // read homes at request time
+  let homes;
+  try {
+    homes = await fetchConsoleHomes();
+  } catch (err) {
+    return (
+      <FullScreenMessage title="Couldn't load homes" tone="danger">
+        <p className="font-mono text-text">{err instanceof Error ? err.message : String(err)}</p>
+        <p className="mt-2">
+          Check <code className="font-mono text-text">.env.local</code> and that{" "}
+          <code className="font-mono text-text">supabase/001_schema.sql</code> has been run. See{" "}
+          <a className="text-accent underline" href="/status">/status</a>.
+        </p>
+      </FullScreenMessage>
+    );
+  }
+  if (homes.length === 0) {
+    return (
+      <FullScreenMessage title="No homes yet">
+        Run <code className="font-mono text-text">npm run seed</code> to load the simulated homes.
+      </FullScreenMessage>
+    );
+  }
+  return <ConsoleShell homes={homes} />;
+}
+
+export default function ConsolePage() {
+  return (
+    <Suspense fallback={<FullScreenMessage title="Loading simulated homes…" />}>
+      <ConsoleData />
+    </Suspense>
+  );
+}

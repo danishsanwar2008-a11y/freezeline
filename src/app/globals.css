@@ -11,6 +11,10 @@
   --warn: #fbbf24; /* simulated-data tag */
   --danger: #f87171;
   --ok: #4ade80;
+  /* Risk ramp (mirrors RISK_STOPS in src/lib/riskScale.ts) */
+  --risk-low: #5ec8f2;
+  --risk-mid: #f2a25c;
+  --risk-high: #e5383b;
 }
 
 @theme inline {
@@ -23,6 +27,9 @@
   --color-warn: var(--warn);
   --color-danger: var(--danger);
   --color-ok: var(--ok);
+  --color-risk-low: var(--risk-low);
+  --color-risk-mid: var(--risk-mid);
+  --color-risk-high: var(--risk-high);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --radius-panel: 10px;
@@ -40,3 +47,20 @@ body {
   background: linear-gradient(90deg, transparent, var(--accent) 20%, var(--accent) 80%, transparent);
   opacity: 0.6;
 }
+
+/* Timeline scrubber: invisible native range over the temperature curve (keeps keyboard + a11y). */
+.timeline-range {
+  appearance: none;
+  background: transparent;
+  margin: 0;
+}
+.timeline-range::-webkit-slider-runnable-track { height: 100%; background: transparent; }
+.timeline-range::-moz-range-track { height: 100%; background: transparent; }
+.timeline-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 100%;
+  background: transparent;
+}
+.timeline-range::-moz-range-thumb { width: 14px; height: 100%; border: 0; background: transparent; }
+.timeline-range:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }

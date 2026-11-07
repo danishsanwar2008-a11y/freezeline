@@ -44,3 +44,6 @@ next-env.d.ts
 
 # claude code worktrees
 .claude/worktrees/
+
+# copied from node_modules on install
+/public/maplibre-gl-worker.mjs

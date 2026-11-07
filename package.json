@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run --passWithNoTests",
     "seed": "tsx scripts/seed.ts",
-    "weather:uri": "tsx scripts/fetch-uri-weather.ts"
+    "weather:uri": "tsx scripts/fetch-uri-weather.ts",
+    "postinstall": "node scripts/copy-maplibre-worker.mjs"
   },
   "dependencies": {
     "@deck.gl/core": "^9.4.1",
