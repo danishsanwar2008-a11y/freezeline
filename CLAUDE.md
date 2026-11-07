@@ -38,6 +38,12 @@ Only build the phase (or sub-phase) currently asked for.
 
 Replay Uri hour by hour. Temperatures fall into the teens; the risk engine lights up older pier-and-beam homes with exterior-wall and attic/crawlspace pipes. A blanket "everyone drip" message would drag zone pressure under 20 psi; a blanket "don't drip" leaves vulnerable homes to burst. FreezeLine instead targets drips to the homes that need them, holds every zone above 20 psi on the gauge, and sends each homeowner a plain-language personal plan.
 
+## UX principles
+
+- Lead with actions, not data. One idea per screen: city (who acts tonight + pressure), area (one sentence + homes that need action), home (plan card).
+- No numeric risk scores, attribute tables or tabs in the UI (they stay in code and tests). Say "Watch", not "Medium".
+- One accent color (ice blue) for actions; Low/Watch/High colors are for status only.
+
 ## Rules
 
 - **The risk engine is deterministic.** Same inputs → same scores, in plain code with tests. Claude explains and chooses actions (later phases); it never computes the risk score.
@@ -53,7 +59,8 @@ Replay Uri hour by hour. Temperatures fall into the teens; the risk engine light
 - `src/lib/risk.ts` — deterministic risk engine (score 0–100, level, plain-English why)
 - `src/lib/planner.ts` — deterministic drip planner + zone pressure model (who drips, which tap, ≥ 20 psi + 3 psi reserve)
 - `src/lib/replay.ts` — precomputes H3 hex averages + level counts per hour for the console
-- `src/components/console` — map (deck.gl H3 over MapLibre), timeline, side panel
+- `src/lib/steps.ts` — homeowner plan card: level headline, exactly 3 steps (from the drip plan + home details), 3 sourced reasons; Medium is shown as "Watch"
+- `src/components/console` — top bar (Live | Replay), map (deck.gl H3 + home markers over MapLibre), timeline, side panel (city → area → plan card)
 - `src/lib` — also supabase client, homes loader, weather fetchers
 - `public/maplibre-gl-worker.mjs` — copied from node_modules on `npm install` (git-ignored); MapLibre 6's worker can't be resolved through Turbopack
 - `supabase/001_schema.sql` — schema to paste into the Supabase SQL Editor

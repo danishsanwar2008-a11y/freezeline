@@ -2,9 +2,9 @@
 
 export type Mode = "live" | "replay";
 
-const MODES: { id: Mode; label: string }[] = [
-  { id: "live", label: "Live forecast" },
-  { id: "replay", label: "Replay: Winter Storm Uri (Feb 2021)" },
+const MODES: { id: Mode; label: string; short: string }[] = [
+  { id: "live", label: "Live forecast", short: "Live" },
+  { id: "replay", label: "Replay: Winter Storm Uri (Feb 2021)", short: "Replay: Uri 2021" },
 ];
 
 function InfoTip() {
@@ -43,12 +43,14 @@ export default function TopBar({ mode, onMode }: { mode: Mode; onMode: (m: Mode)
               type="button"
               role="radio"
               aria-checked={active}
+              aria-label={m.label}
               onClick={() => onMode(m.id)}
               className={`truncate rounded-full px-3 py-1.5 text-xs font-medium transition sm:px-4 sm:text-sm ${
                 active ? "bg-accent text-bg" : "text-muted hover:text-text"
               }`}
             >
-              {m.label}
+              <span className="sm:hidden">{m.short}</span>
+              <span className="hidden sm:inline">{m.label}</span>
             </button>
           );
         })}
