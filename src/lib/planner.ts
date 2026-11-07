@@ -43,6 +43,8 @@ export interface ZonePlan {
   neighborhood: string;
   homes: number;
   basePsi: number;
+  /** Reserve above 20 psi this zone's budget keeps (3 by default; stricter if raised). */
+  reservePsi: number;
   /** Max homes that can drip one tap while staying >= 20 psi + reserve. */
   dripBudget: number;
   dripping: number;
@@ -65,9 +67,14 @@ export function zonePressure(basePsi: number, exposure: number, drippingTaps: nu
   return basePsi - FREEZE_DEMAND_PSI * exposure - dripDrop;
 }
 
+/** Allowed range for a zone's reserve (a stricter budget keeps more pressure in hand). */
+export const MIN_RESERVE_PSI = RESERVE_PSI;
+export const MAX_RESERVE_PSI = 10;
+export const clampReserve = (psi: number) => Math.min(MAX_RESERVE_PSI, Math.max(MIN_RESERVE_PSI, Math.round(psi)));
+
 /** How many homes may drip one tap while the zone stays at or above 20 psi + reserve. */
-export function dripBudget(basePsi: number, exposure: number, homes: number): number {
-  const headroom = basePsi - FREEZE_DEMAND_PSI * exposure - (BOIL_WATER_PSI + RESERVE_PSI);
+export function dripBudget(basePsi: number, exposure: number, homes: number, reservePsi: number = RESERVE_PSI): number {
+  const headroom = basePsi - FREEZE_DEMAND_PSI * exposure - (BOIL_WATER_PSI + reservePsi);
   if (headroom <= 0) return 0;
   return Math.min(homes, Math.floor((headroom / PSI_PER_TAP_SHARE) * homes));
 }
@@ -82,12 +89,14 @@ export function chooseFaucet(home: HomeAttributes): string {
 /**
  * Plan every zone for one hour. `vuln` is precomputed vulnerability per home (same order).
  * `exposure` is one city-wide value, or a value per zone id (zones missing from it use 0).
+ * `options.reservePsi` sets a stricter reserve per zone (clamped to 3–10 psi); others use 3 psi.
  */
 export function planCity(
   zones: PlannerZone[],
   homes: PlannerHome[],
   vuln: ArrayLike<number>,
   exposure: number | Record<string, number>,
+  options: { reservePsi?: Record<string, number> } = {},
 ): CityPlan {
   const exp = (zoneId: string) => (typeof exposure === "number" ? exposure : (exposure[zoneId] ?? 0));
   const plans: HomePlan[] = homes.map((h, i) => {
@@ -106,7 +115,8 @@ export function planCity(
     const idx = byZone.get(z.id) ?? [];
     const n = idx.length;
     const e = exp(z.id);
-    const budget = dripBudget(z.base_pressure_psi, e, n);
+    const reserve = clampReserve(options.reservePsi?.[z.id] ?? RESERVE_PSI);
+    const budget = dripBudget(z.base_pressure_psi, e, n, reserve);
     // Highest risk first; ties broken by input order for determinism.
     const high = idx.filter((i) => plans[i].score >= HIGH_AT).sort((a, b) => plans[b].score - plans[a].score || a - b);
     const drippers = high.slice(0, budget);
@@ -121,6 +131,7 @@ export function planCity(
       neighborhood: z.neighborhood,
       homes: n,
       basePsi: z.base_pressure_psi,
+      reservePsi: reserve,
       dripBudget: budget,
       dripping: drippers.length,
       high: high.length,

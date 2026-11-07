@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { PlanCard } from "@/lib/steps";
+import { isValidSms, templateSms, type SmsFacts } from "@/lib/messages";
 import { cached, cacheKey } from "./aiCache";
 import { getClaude, MODELS } from "./claude";
 
@@ -44,6 +45,40 @@ export function templatePlan(card: PlanCard, lang: Lang = "en"): FriendlyPlan {
     source: "template",
     lang,
   };
+}
+
+const SMS_SYSTEM = `You write one SMS from a water utility to a homeowner during a hard freeze.
+Rewrite the template so it reads warmly and clearly. Keep every fact and instruction exactly (which tap to drip, or don't drip).
+Rules: under 300 characters; keep the literal text "(simulated)" and the literal placeholder "{link}" exactly once each;
+no new facts, numbers, times or promises. Return only the SMS text.`;
+
+/** SMS text for a group of homes with the same facts. Claude-written when available, else the template. */
+export async function smsDraft(facts: SmsFacts, lang: Lang = "en"): Promise<{ text: string; source: "claude" | "template" }> {
+  const template = templateSms(facts);
+  const claude = getClaude();
+  if (!claude) return { text: template, source: "template" };
+  const key = cacheKey("sms", { v: PROMPT_VERSION, lang, template });
+  try {
+    return await cached(key, MODELS.fast, async () => {
+      const res = await claude.messages.create({
+        model: MODELS.fast,
+        max_tokens: 1000,
+        system: SMS_SYSTEM,
+        output_config: { effort: "low" },
+        messages: [{ role: "user", content: `Language: ${lang === "es" ? "Spanish" : "English"}\nTemplate: ${template}` }],
+      });
+      const text = res.content
+        .filter((b) => b.type === "text")
+        .map((b) => (b as { text: string }).text)
+        .join("")
+        .trim();
+      if (res.stop_reason === "refusal" || !isValidSms(text)) return { text: template, source: "template" as const };
+      return { text, source: "claude" as const };
+    });
+  } catch (err) {
+    console.error("[FreezeLine] smsDraft fell back to template:", err instanceof Error ? err.message : err);
+    return { text: template, source: "template" };
+  }
 }
 
 /** Friendly (and optionally Spanish) wording of a plan card. Cached by exact content. */

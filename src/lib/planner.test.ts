@@ -75,3 +75,30 @@ describe("per-zone exposure", () => {
     expect(planCity(zones, homes, vuln, perZone)).toEqual(planCity(zones, homes, vuln, e));
   });
 });
+
+describe("stricter drip budget (per-zone reserve)", () => {
+  const e = ctx[peak].exposure;
+  const base = planCity(zones, homes, vuln, e);
+
+  it("defaults are unchanged when no reserve is given", () => {
+    expect(planCity(zones, homes, vuln, e, { reservePsi: {} })).toEqual(base);
+    expect(base.zones.every((z) => z.reservePsi === RESERVE_PSI)).toBe(true);
+  });
+
+  it("a stricter reserve never adds drippers and keeps at least that much pressure above 20 psi", () => {
+    const strict = planCity(zones, homes, vuln, e, { reservePsi: { "third-ward": 8 } });
+    const a = base.zones.find((z) => z.zoneId === "third-ward")!;
+    const b = strict.zones.find((z) => z.zoneId === "third-ward")!;
+    expect(b.reservePsi).toBe(8);
+    expect(b.dripping).toBeLessThanOrEqual(a.dripping);
+    expect(b.pressurePlan).toBeGreaterThanOrEqual(BOIL_WATER_PSI + 8 - 1e-9);
+    // other zones untouched
+    expect(strict.zones.filter((z) => z.zoneId !== "third-ward")).toEqual(base.zones.filter((z) => z.zoneId !== "third-ward"));
+  });
+
+  it("clamps reserves to the 3–10 psi range", () => {
+    const p = planCity(zones, homes, vuln, e, { reservePsi: { heights: 99, montrose: -5 } });
+    expect(p.zones.find((z) => z.zoneId === "heights")!.reservePsi).toBe(10);
+    expect(p.zones.find((z) => z.zoneId === "montrose")!.reservePsi).toBe(3);
+  });
+});

@@ -25,3 +25,9 @@ alter table public.photo_checks enable row level security;
 revoke all on public.ai_cache, public.photo_checks from anon;
 grant usage on schema public to service_role;
 grant all on public.ai_cache, public.photo_checks to service_role;
+
+-- The agent re-publishes and re-queues safely: one drip plan per home per hour,
+-- one queued message per home per hour per channel.
+create unique index if not exists drip_plans_home_time_uidx on public.drip_plans (home_id, plan_for);
+alter table public.outreach add column if not exists plan_for timestamptz;
+create unique index if not exists outreach_home_plan_channel_uidx on public.outreach (home_id, plan_for, channel);
