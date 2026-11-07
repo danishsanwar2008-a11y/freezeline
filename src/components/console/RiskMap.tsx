@@ -33,7 +33,7 @@ export interface HomeMarker {
 function cityView(hexes: HexBin[]): MapViewState {
   const desktop = window.innerWidth >= 1024;
   const width = desktop ? window.innerWidth - PANEL : window.innerWidth;
-  const height = desktop ? window.innerHeight - TOP_BAR : Math.max(400, window.innerHeight * 0.58);
+  const height = desktop ? window.innerHeight - TOP_BAR : Math.max(400, window.innerHeight * 0.58) /* matches h-[58svh] */;
   let [w, s, e, n] = [180, 90, -180, -90];
   for (const h of hexes) {
     const [lat, lng] = cellToLatLng(h.h3);

@@ -12,9 +12,9 @@
   --danger: #f87171;
   --ok: #4ade80;
   /* Risk ramp (mirrors RISK_STOPS in src/lib/riskScale.ts) */
-  --risk-low: #6f93b8;
-  --risk-mid: #f2a25c;
-  --risk-high: #e5383b;
+  --risk-low: #4caf7d; /* green */
+  --risk-mid: #f2c94c; /* yellow */
+  --risk-high: #e5484d; /* red */
 }
 
 @theme inline {
@@ -65,10 +65,10 @@ body {
 .timeline-range::-moz-range-thumb { width: 14px; height: 100%; border: 0; background: transparent; }
 .timeline-range:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
 
-/* Gentle entrance when the side panel changes view (area -> home). */
+/* Gentle fade when the side panel changes view. Opacity only: a transform would throw off scroll positioning. */
 @keyframes panel-enter {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 .panel-enter { animation: panel-enter 220ms ease-out; }
 @media (prefers-reduced-motion: reduce) {

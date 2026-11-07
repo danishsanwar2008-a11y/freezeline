@@ -1,21 +1,26 @@
 // Risk colors. Single source of truth for map + UI; CSS vars --risk-* in globals.css mirror these.
-// Low is a quiet slate blue so safe homes recede; ice blue (--accent) is reserved for actions.
+// Green = Low, yellow = Watch, red = High, everywhere. Ice blue (--accent) is reserved for actions.
 
 import type { DisplayLevel } from "./steps";
 
 type RGB = [number, number, number];
 
 export const LEVEL_RGB: Record<DisplayLevel, RGB> = {
-  Low: [111, 147, 184], // #6f93b8
-  Watch: [242, 162, 92], // #f2a25c
-  High: [229, 56, 59], // #e5383b
+  Low: [76, 175, 125], // #4caf7d green
+  Watch: [242, 201, 76], // #f2c94c yellow
+  High: [229, 72, 77], // #e5484d red
 };
 
-/** Hex ramp by average home score: slate blue -> frost -> amber -> red. */
+/**
+ * Hex ramp by average home score, aligned to the level thresholds (Watch at 30, High at 60):
+ * green through the Low band, yellow through Watch, red through High, with short blends at the edges.
+ */
 export const RISK_STOPS: { at: number; rgb: RGB }[] = [
   { at: 0, rgb: LEVEL_RGB.Low },
-  { at: 30, rgb: [201, 220, 230] }, // #c9dce6 frost
-  { at: 60, rgb: LEVEL_RGB.Watch },
+  { at: 25, rgb: LEVEL_RGB.Low },
+  { at: 35, rgb: LEVEL_RGB.Watch },
+  { at: 55, rgb: LEVEL_RGB.Watch },
+  { at: 65, rgb: LEVEL_RGB.High },
   { at: 100, rgb: LEVEL_RGB.High },
 ];
 

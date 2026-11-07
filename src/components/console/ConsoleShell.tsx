@@ -106,7 +106,7 @@ function ConsoleBody({ homes, zones, model, startHour }: { homes: ConsoleHome[];
 
   return (
     <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-      <main className="relative h-[58dvh] min-h-[400px] lg:h-auto lg:flex-1">
+      <main className="relative h-[58svh] min-h-[400px] lg:h-auto lg:flex-1">
         <RiskMap
           hexes={model.hexes}
           hour={hour}
