@@ -2,9 +2,18 @@
   "version": 1,
   "about": "Pre-written FreezeLine wording (English + Spanish). Same facts as the deterministic planner, no added numbers, times or promises. {slots} are filled per home. Checked by `npm run messages:check`.",
   "levelWord": {
-    "High": { "en": "HIGH", "es": "ALTO" },
-    "Watch": { "en": "WATCH", "es": "VIGILANCIA" },
-    "Low": { "en": "LOW", "es": "BAJO" }
+    "High": {
+      "en": "HIGH",
+      "es": "ALTO"
+    },
+    "Watch": {
+      "en": "WATCH",
+      "es": "VIGILANCIA"
+    },
+    "Low": {
+      "en": "LOW",
+      "es": "BAJO"
+    }
   },
   "headline": {
     "High": {
@@ -22,70 +31,166 @@
   },
   "steps": {
     "crawlspace_vents": {
-      "en": { "text": "Close your crawlspace vents.", "detail": "Stuff any gaps with cardboard or old towels. Cold air under the floor is the biggest danger to your pipes." },
-      "es": { "text": "Cierre las rejillas del espacio bajo el piso.", "detail": "Tape las aberturas con cartón o toallas viejas. El aire frío bajo el piso es el mayor peligro para sus tuberías." }
+      "en": {
+        "text": "Close your crawlspace vents.",
+        "detail": "Stuff any gaps with cardboard or old towels. Cold air under the floor is the biggest danger to your pipes."
+      },
+      "es": {
+        "text": "Cierre las rejillas del espacio bajo el piso.",
+        "detail": "Tape las aberturas con cartón o toallas viejas. El aire frío bajo el piso es el mayor peligro para sus tuberías."
+      }
     },
     "kitchen_cabinet": {
-      "en": { "text": "Open the cabinet under your kitchen sink.", "detail": "Let warm room air reach the pipes in that outside wall so they don't freeze." },
-      "es": { "text": "Abra el gabinete debajo del fregadero de la cocina.", "detail": "Deje que el aire tibio de la casa llegue a las tuberías de esa pared exterior para que no se congelen." }
+      "en": {
+        "text": "Open the cabinet under your kitchen sink.",
+        "detail": "Let warm room air reach the pipes in that outside wall so they don't freeze."
+      },
+      "es": {
+        "text": "Abra el gabinete debajo del fregadero de la cocina.",
+        "detail": "Deje que el aire tibio de la casa llegue a las tuberías de esa pared exterior para que no se congelen."
+      }
     },
     "bathroom_cabinets": {
-      "en": { "text": "Open your bathroom cabinet doors.", "detail": "Some of your pipes run through the attic. Keep the attic hatch closed and let warm air reach the pipes below." },
-      "es": { "text": "Abra las puertas de los gabinetes del baño.", "detail": "Algunas de sus tuberías pasan por el ático. Mantenga cerrada la entrada al ático y deje que el aire tibio llegue a las tuberías de abajo." }
+      "en": {
+        "text": "Open your bathroom cabinet doors.",
+        "detail": "Some of your pipes run through the attic. Keep the attic hatch closed and let warm air reach the pipes below."
+      },
+      "es": {
+        "text": "Abra las puertas de los gabinetes del baño.",
+        "detail": "Algunas de sus tuberías pasan por el ático. Mantenga cerrada la entrada al ático y deje que el aire tibio llegue a las tuberías de abajo."
+      }
     },
     "heat_55": {
-      "en": { "text": "Keep the heat at 55°F or higher all night.", "detail": "Even if you go out. Your walls hold less heat than most homes'." },
-      "es": { "text": "Mantenga la calefacción a 55 °F o más toda la noche.", "detail": "Aunque salga de casa. Sus paredes retienen menos calor que la mayoría." }
+      "en": {
+        "text": "Keep the heat at 55°F or higher all night.",
+        "detail": "Even if you go out. Your walls hold less heat than most homes'."
+      },
+      "es": {
+        "text": "Mantenga la calefacción a 55 °F o más toda la noche.",
+        "detail": "Aunque salga de casa. Sus paredes retienen menos calor que la mayoría."
+      }
     },
     "cover_faucet_one": {
-      "en": { "text": "Cover your outdoor faucet.", "detail": "Unhook any garden hose first, then wrap the faucet in a towel or a foam cover." },
-      "es": { "text": "Cubra su llave de agua exterior.", "detail": "Primero desconecte la manguera, luego envuelva la llave con una toalla o una cubierta de espuma." }
+      "en": {
+        "text": "Cover your outdoor faucet.",
+        "detail": "Unhook any garden hose first, then wrap the faucet in a towel or a foam cover."
+      },
+      "es": {
+        "text": "Cubra su llave de agua exterior.",
+        "detail": "Primero desconecte la manguera, luego envuelva la llave con una toalla o una cubierta de espuma."
+      }
     },
     "cover_faucet_two": {
-      "en": { "text": "Cover both outdoor faucets.", "detail": "Unhook any garden hoses first, then wrap each faucet in a towel or a foam cover." },
-      "es": { "text": "Cubra sus dos llaves de agua exteriores.", "detail": "Primero desconecte las mangueras, luego envuelva cada llave con una toalla o una cubierta de espuma." }
+      "en": {
+        "text": "Cover both outdoor faucets.",
+        "detail": "Unhook any garden hoses first, then wrap each faucet in a towel or a foam cover."
+      },
+      "es": {
+        "text": "Cubra sus dos llaves de agua exteriores.",
+        "detail": "Primero desconecte las mangueras, luego envuelva cada llave con una toalla o una cubierta de espuma."
+      }
     },
     "cover_faucet_many": {
-      "en": { "text": "Cover all {n} outdoor faucets.", "detail": "Unhook any garden hoses first, then wrap each faucet in a towel or a foam cover." },
-      "es": { "text": "Cubra sus {n} llaves de agua exteriores.", "detail": "Primero desconecte las mangueras, luego envuelva cada llave con una toalla o una cubierta de espuma." }
+      "en": {
+        "text": "Cover all {n} outdoor faucets.",
+        "detail": "Unhook any garden hoses first, then wrap each faucet in a towel or a foam cover."
+      },
+      "es": {
+        "text": "Cubra sus {n} llaves de agua exteriores.",
+        "detail": "Primero desconecte las mangueras, luego envuelva cada llave con una toalla o una cubierta de espuma."
+      }
     },
     "unhook_hoses": {
-      "en": { "text": "Unhook any garden hoses.", "detail": "A hose left attached traps water that can freeze back into the pipe." },
-      "es": { "text": "Desconecte las mangueras del jardín.", "detail": "Una manguera conectada atrapa agua que puede congelarse dentro de la tubería." }
+      "en": {
+        "text": "Unhook any garden hoses.",
+        "detail": "A hose left attached traps water that can freeze back into the pipe."
+      },
+      "es": {
+        "text": "Desconecte las mangueras del jardín.",
+        "detail": "Una manguera conectada atrapa agua que puede congelarse dentro de la tubería."
+      }
     },
     "shutoff_valve": {
-      "en": { "text": "Find your main water shut-off valve.", "detail": "Just in case. If a pipe bursts, turning it off fast limits the damage." },
-      "es": { "text": "Ubique la llave de paso principal del agua.", "detail": "Por si acaso. Si una tubería se revienta, cerrarla rápido limita los daños." }
+      "en": {
+        "text": "Find your main water shut-off valve.",
+        "detail": "Just in case. If a pipe bursts, turning it off fast limits the damage."
+      },
+      "es": {
+        "text": "Ubique la llave de paso principal del agua.",
+        "detail": "Por si acaso. Si una tubería se revienta, cerrarla rápido limita los daños."
+      }
     },
     "heat_on": {
-      "en": { "text": "Keep the heat on overnight.", "detail": "At least 55°F, even if you're away." },
-      "es": { "text": "Deje la calefacción encendida toda la noche.", "detail": "Al menos a 55 °F, aunque no esté en casa." }
+      "en": {
+        "text": "Keep the heat on overnight.",
+        "detail": "At least 55°F, even if you're away."
+      },
+      "es": {
+        "text": "Deje la calefacción encendida toda la noche.",
+        "detail": "Al menos a 55 °F, aunque no esté en casa."
+      }
     }
   },
   "drip": {
     "drip_kitchen": {
-      "en": { "text": "Drip only your kitchen tap.", "detail": "A thin, steady drip is enough. Your street is on a drip plan, so please don't drip any other taps." },
-      "es": { "text": "Deje gotear solo la llave de la cocina.", "detail": "Basta con un goteo fino y constante. Su calle tiene un plan de goteo, así que por favor no deje gotear otras llaves." }
+      "en": {
+        "text": "Drip only your kitchen tap.",
+        "detail": "A thin, steady drip is enough. Your street is on a drip plan, so please don't drip any other taps."
+      },
+      "es": {
+        "text": "Deje gotear solo la llave de la cocina.",
+        "detail": "Basta con un goteo fino y constante. Su calle tiene un plan de goteo, así que por favor no deje gotear otras llaves."
+      }
     },
     "drip_bathroom": {
-      "en": { "text": "Drip only your bathroom tap.", "detail": "A thin, steady drip is enough. Your street is on a drip plan, so please don't drip any other taps." },
-      "es": { "text": "Deje gotear solo la llave del baño.", "detail": "Basta con un goteo fino y constante. Su calle tiene un plan de goteo, así que por favor no deje gotear otras llaves." }
+      "en": {
+        "text": "Drip only your bathroom tap.",
+        "detail": "A thin, steady drip is enough. Your street is on a drip plan, so please don't drip any other taps."
+      },
+      "es": {
+        "text": "Deje gotear solo la llave del baño.",
+        "detail": "Basta con un goteo fino y constante. Su calle tiene un plan de goteo, así que por favor no deje gotear otras llaves."
+      }
     },
     "drip_farthest": {
-      "en": { "text": "Drip only the tap farthest from your water meter.", "detail": "A thin, steady drip is enough. Your street is on a drip plan, so please don't drip any other taps." },
-      "es": { "text": "Deje gotear solo la llave más lejana de su medidor de agua.", "detail": "Basta con un goteo fino y constante. Su calle tiene un plan de goteo, así que por favor no deje gotear otras llaves." }
+      "en": {
+        "text": "Drip only the tap farthest from your water meter.",
+        "detail": "A thin, steady drip is enough. Your street is on a drip plan, so please don't drip any other taps."
+      },
+      "es": {
+        "text": "Deje gotear solo la llave más lejana de su medidor de agua.",
+        "detail": "Basta con un goteo fino y constante. Su calle tiene un plan de goteo, así que por favor no deje gotear otras llaves."
+      }
     },
     "no_drip_uncovered": {
-      "en": { "text": "Please don't drip tonight.", "detail": "Water pressure on your street is at its limit. The steps above protect your pipes instead." },
-      "es": { "text": "Por favor, no deje gotear las llaves esta noche.", "detail": "La presión del agua en su calle está al límite. Los pasos anteriores protegen sus tuberías." }
+      "en": {
+        "text": "Please don't drip tonight.",
+        "detail": "Water pressure on your street is at its limit. The steps above protect your pipes instead."
+      },
+      "es": {
+        "text": "Por favor, no deje gotear las llaves esta noche.",
+        "detail": "La presión del agua en su calle está al límite. Los pasos anteriores protegen sus tuberías."
+      }
     },
     "no_drip_watch": {
-      "en": { "text": "Please don't drip tonight.", "detail": "Your home can get through tonight without dripping, and that helps keep your neighbors' water pressure up." },
-      "es": { "text": "Por favor, no deje gotear las llaves esta noche.", "detail": "Su casa puede pasar la noche sin goteo, y eso ayuda a mantener la presión del agua de sus vecinos." }
+      "en": {
+        "text": "Please don't drip tonight.",
+        "detail": "Your home can get through tonight without dripping, and that helps keep your neighbors' water pressure up."
+      },
+      "es": {
+        "text": "Por favor, no deje gotear las llaves esta noche.",
+        "detail": "Su casa puede pasar la noche sin goteo, y eso ayuda a mantener la presión del agua de sus vecinos."
+      }
     },
     "no_drip_low": {
-      "en": { "text": "No need to drip tonight.", "detail": "Your home is low-risk, and not dripping helps keep your neighbors' water pressure up." },
-      "es": { "text": "No hace falta dejar gotear las llaves esta noche.", "detail": "Su casa tiene bajo riesgo, y no dejar gotear ayuda a mantener la presión del agua de sus vecinos." }
+      "en": {
+        "text": "No need to drip tonight.",
+        "detail": "Your home is low-risk, and not dripping helps keep your neighbors' water pressure up."
+      },
+      "es": {
+        "text": "No hace falta dejar gotear las llaves esta noche.",
+        "detail": "Su casa tiene bajo riesgo, y no dejar gotear ayuda a mantener la presión del agua de sus vecinos."
+      }
     }
   },
   "reasons": {
@@ -200,6 +305,18 @@
     "footer": {
       "en": "Pre-written explanations (set LLM_PROVIDER=anthropic for live Claude).",
       "es": "Explicaciones escritas de antemano (use LLM_PROVIDER=anthropic para Claude en vivo)."
+    },
+    "simulate_outreach": {
+      "en": "Texts are queued, so homes that don't reply get a call, and High homes that don't answer get a door check (sample).",
+      "es": "Los mensajes ya están en cola: las casas que no respondan reciben una llamada y las de riesgo alto que no contesten, una visita (muestra)."
+    },
+    "propose_crew": {
+      "en": "The call says this household can't do the steps ({needs}); {crew} is the nearest free crew.",
+      "es": "La llamada indica que este hogar no puede hacer los pasos ({needs}); {crew} es el equipo libre más cercano."
+    },
+    "crew_queue": {
+      "en": "{queue} more homes need a crew and wait in the queue, highest risk first.",
+      "es": "{queue} casas más necesitan un equipo y esperan en la fila, primero las de mayor riesgo."
     }
   }
 }

@@ -92,7 +92,7 @@ const LEVEL_ACTIONS: { level: RiskLevel; plan: Partial<HomePlan> }[] = [
   { level: "Medium", plan: { action: "no_drip" } },
   { level: "Low", plan: { action: "no_drip" } },
 ];
-export const AGENT_KEYS = ["publish_standard", "queue_high_first", "queue_high_next", "queue_watch", "log_summary", "log_reason", "nothing_to_do", "footer"];
+export const AGENT_KEYS = ["publish_standard", "queue_high_first", "queue_high_next", "queue_watch", "simulate_outreach", "propose_crew", "crew_queue", "log_summary", "log_reason", "nothing_to_do", "footer"];
 
 export interface Coverage {
   planCombinations: number;
@@ -173,7 +173,7 @@ export function checkCoverage(): Coverage {
     for (const lang of LANGS) {
       used.add(`agent:${key}`);
       try {
-        check(`agent ${key}/${lang}`, agentText(key, { area: "Third Ward", margin: 7, high: 10, watch: 20 }, lang));
+        check(`agent ${key}/${lang}`, agentText(key, { area: "Third Ward", margin: 7, high: 10, watch: 20, needs: "elderly", crew: "Crew 2", queue: 12 }, lang));
         renders++;
       } catch (e) {
         errors.push(`agent ${key}/${lang}: ${(e as Error).message}`);

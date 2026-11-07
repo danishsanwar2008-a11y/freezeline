@@ -6,14 +6,15 @@ import { compareFutures } from "@/lib/summary";
 import { displayLevel } from "@/lib/steps";
 import { fillLink, smsGroupKey, type SmsFacts } from "@/lib/messages";
 import { getSupabaseAdmin } from "../supabaseAdmin";
+import { OutreachInputs, crewStatus, proposeCrew, simulateAndSave } from "../outreachState";
 import { smsDraft } from "../writer";
 import { planAt, toTimestamp, URI_HOURS, type City } from "../cityState";
 
 // ---------- shared types ----------
 
 export type AgentMode = "auto" | "approve";
-export type ActionTool = "publish_drip_plan" | "queue_outreach" | "log_event";
-export const ACTION_TOOLS: ActionTool[] = ["publish_drip_plan", "queue_outreach", "log_event"];
+export type ActionTool = "publish_drip_plan" | "queue_outreach" | "simulate_outreach" | "propose_crew" | "log_event";
+export const ACTION_TOOLS: ActionTool[] = ["publish_drip_plan", "queue_outreach", "simulate_outreach", "propose_crew", "log_event"];
 
 export interface LogEntry {
   id: string;
@@ -71,6 +72,7 @@ export const Inputs = {
     reason: Reason,
   }),
   log_event: z.object({ message: z.string().min(3).max(300), zone_id: ZoneOrAll }),
+  ...OutreachInputs,
 } as const;
 export type ToolName = keyof typeof Inputs;
 
@@ -126,6 +128,26 @@ export const TOOL_DEFS: Anthropic.Beta.BetaTool[] = [
       "Queue text messages (status 'queued', simulated; not sent in this phase) to homes of one level, optionally in one area, highest risk first, up to limit. Homes already queued this hour are skipped. Call in priority order.",
     strict: true,
     input_schema: obj({ zone_id: zoneOrAll, level: { type: "string", enum: ["High", "Watch"] }, limit: { type: "integer", description: "1-2000" }, reason: reasonProp }),
+  },
+  {
+    name: "simulate_outreach",
+    description:
+      "After texts are queued: run the outreach for this hour (SAMPLE until Phase 4): text replies, calls to homes that didn't reply, door checks for High homes that don't answer. Saves each household's answers and an assessment (ready / needs a reminder / needs a crew). Returns the funnel and status counts.",
+    strict: true,
+    input_schema: obj({ reason: reasonProp }),
+  },
+  {
+    name: "get_crew_status",
+    description: "Crews (busy or free), suggested crew assignments for homes whose call says they can't do the steps (highest risk first, nearest free crew), and the crew queue. Read-only.",
+    strict: true,
+    input_schema: obj({}),
+  },
+  {
+    name: "propose_crew",
+    description:
+      "Assign a crew to one home. Allowed ONLY for a home whose call (confirmed) says they can't do the steps themselves, and only a free crew. In Approve mode an official approves it first. Never tell a household a crew is coming before this succeeds.",
+    strict: true,
+    input_schema: obj({ home_id: { type: "string" }, crew_id: { type: "integer" }, reason: reasonProp }),
   },
   {
     name: "log_event",
@@ -392,5 +414,11 @@ export async function runTool(ctx: AgentCtx, name: string, raw: unknown, forceEx
       return queueOutreach(ctx, input as z.output<typeof Inputs.queue_outreach>, execute);
     case "log_event":
       return logEvent(ctx, input as z.output<typeof Inputs.log_event>, execute);
+    case "simulate_outreach":
+      return simulateAndSave(ctx, execute);
+    case "get_crew_status":
+      return crewStatus(ctx);
+    case "propose_crew":
+      return proposeCrew(ctx, input as z.output<typeof Inputs.propose_crew>, execute);
   }
 }

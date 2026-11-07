@@ -12,7 +12,7 @@ export interface AreaFacts {
 }
 
 export interface PlannedAction {
-  tool: "publish_drip_plan" | "queue_outreach" | "log_event";
+  tool: "publish_drip_plan" | "queue_outreach" | "simulate_outreach" | "propose_crew" | "log_event";
   args: Record<string, unknown>;
   reason: string;
 }

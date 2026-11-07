@@ -4,6 +4,7 @@ import { rulePlan } from "@/lib/agentRules";
 import { agentText } from "@/lib/pregenerated";
 import { getClaude, MODELS } from "../claude";
 import { URI_HOURS, type City } from "../cityState";
+import { crewStatus } from "../outreachState";
 import { ACTION_TOOLS, TOOL_DEFS, cityStatus, entryId, runTool, type ActionTool, type AgentCtx, type AgentMode, type LogEntry } from "./tools";
 
 /** Max model turns per run (each turn can call several tools). */
@@ -33,7 +34,9 @@ Each run, for the current hour:
 2. Decide whether any area needs a stricter drip budget. Only consider it when an area's margin above 20 psi is thin. Check the what-if with get_zone_pressure first, and weigh that a stricter budget leaves some High homes without a drip.
 3. Publish the drip plan (publish_drip_plan).
 4. Queue text messages in priority order: High homes first, starting with the area with the smallest pressure margin, then Watch homes (queue_outreach).
-5. Log one short summary note (log_event).
+5. Run the outreach (simulate_outreach): calls to homes that didn't reply and door checks for High homes that don't answer. Answers and calls are SAMPLE data until Phase 4.
+6. Crews (get_crew_status, then propose_crew): crews go ONLY to homes whose call says they can't do the steps themselves, highest risk first, nearest free crew. Never more homes than free crews; the rest stay in the queue. Never say a crew is coming before propose_crew succeeds.
+7. Log one short summary note (log_event).
 
 Rules:
 - Use only facts returned by your tools. Never invent homes, numbers, times or promises.
@@ -66,6 +69,15 @@ async function runRules(ctx: AgentCtx): Promise<void> {
     ctx.entries.push({ id: entryId(), kind: "note", summary: agentText("nothing_to_do"), status: "done" });
     return;
   }
+  // Outreach + crews go before the closing log entry.
+  const log = actions.pop()!;
+  actions.push({ tool: "simulate_outreach", args: {}, reason: agentText("simulate_outreach") });
+  const crews = await crewStatus(ctx);
+  for (const p of crews.suggested) {
+    const crew = crews.crews.find((c) => c.crew_id === p.crew_id)!;
+    actions.push({ tool: "propose_crew", args: { home_id: p.home_id, crew_id: p.crew_id }, reason: agentText("propose_crew", { needs: p.why, crew: crew.name }) });
+  }
+  actions.push(log);
   for (const a of actions) {
     const args = { ...a.args, ...(a.tool === "log_event" ? {} : { reason: a.reason }) };
     try {
@@ -78,6 +90,8 @@ async function runRules(ctx: AgentCtx): Promise<void> {
       if (a.tool === "publish_drip_plan") return; // nothing else can run without a plan
     }
   }
+  if (crews.queue_length > 0)
+    ctx.entries.push({ id: entryId(), kind: "note", summary: agentText("crew_queue", { queue: crews.queue_length.toLocaleString() }), status: "done" });
   ctx.entries.push({
     id: entryId(),
     kind: "note",
