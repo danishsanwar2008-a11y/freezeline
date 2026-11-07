@@ -124,6 +124,8 @@ function ConsoleBody({ homes, zones, model, startHour }: { homes: ConsoleHome[];
         model={model} homes={homes} plan={plan} hour={hour} selectedHex={selectedHex}
         onClearHex={() => selectHex(null)}
         onSelectHome={setSelectedHome}
+        selectedHome={selectedHome}
+        onCloseHome={() => setSelectedHome(null)}
       />
     </div>
   );

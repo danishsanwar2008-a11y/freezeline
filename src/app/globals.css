@@ -64,3 +64,13 @@ body {
 }
 .timeline-range::-moz-range-thumb { width: 14px; height: 100%; border: 0; background: transparent; }
 .timeline-range:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
+
+/* Gentle entrance when the side panel changes view (area -> home). */
+@keyframes panel-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.panel-enter { animation: panel-enter 220ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .panel-enter { animation: none; }
+}

@@ -128,16 +128,18 @@ function dripStep(plan: HomePlan, level: DisplayLevel): PlanStep {
   };
 }
 
+/** Short sentences: foundation first, then at most two more facts. */
 function propertyReason(home: CardHome): string {
-  const parts: string[] = [];
-  if (home.foundation === "pier_and_beam")
-    parts.push(`Built in ${home.year_built} on pier-and-beam, so pipes run through an open crawlspace`);
-  else parts.push(`Built in ${home.year_built} on a slab`);
-  if (home.exterior_wall_pipes) parts.push("some pipes run through outside walls");
-  else if (home.attic_or_crawlspace_pipes && home.foundation === "slab") parts.push("some pipes run through the attic");
-  if (home.insulation === "poor") parts.push("the walls are lightly insulated");
-  if (parts.length === 1 && home.foundation === "slab") parts.push("pipes stay inside heated walls");
-  return parts.length === 1 ? `${parts[0]}.` : `${parts[0]}, and ${parts.slice(1).join(" and ")}.`;
+  const s: string[] = [
+    home.foundation === "pier_and_beam"
+      ? `Built in ${home.year_built} on pier-and-beam, so pipes run through an open crawlspace.`
+      : `Built in ${home.year_built} on a slab.`,
+  ];
+  if (home.exterior_wall_pipes) s.push("Some pipes run through outside walls.");
+  else if (home.attic_or_crawlspace_pipes && home.foundation === "slab") s.push("Some pipes run through the attic.");
+  if (home.insulation === "poor") s.push("The walls are lightly insulated.");
+  if (s.length === 1 && home.foundation === "slab") s.push("Pipes stay inside heated walls.");
+  return s.join(" ");
 }
 
 function forecastReason(w: CardWeather): string {

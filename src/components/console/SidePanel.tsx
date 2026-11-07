@@ -1,11 +1,12 @@
 "use client";
 
-import type { ConsoleHome, HexBin, ReplayModel } from "@/lib/replay";
+import { homeContext, type ConsoleHome, type HexBin, type ReplayModel } from "@/lib/replay";
 import type { RiskLevel } from "@/lib/risk";
 import { RISK_GRADIENT } from "@/lib/riskScale";
 import { fmtF, formatHour } from "./format";
 import PressureGauge from "./PressureGauge";
 import AreaPanel from "./AreaPanel";
+import PlanCard from "./PlanCard";
 import type { CityPlan } from "@/lib/planner";
 
 const LEVELS: { level: RiskLevel; token: string }[] = [
@@ -85,9 +86,17 @@ interface Props {
   selectedHex: HexBin | null;
   onClearHex: () => void;
   onSelectHome: (idx: number) => void;
+  selectedHome: number | null;
+  onCloseHome: () => void;
 }
 
-export default function SidePanel({ model, homes, plan, hour, selectedHex, onClearHex, onSelectHome }: Props) {
+export default function SidePanel({ model, homes, plan, hour, selectedHex, onClearHex, onSelectHome, selectedHome, onCloseHome }: Props) {
+  if (selectedHome !== null)
+    return (
+      <aside key={`home-${selectedHome}`} className="panel-enter min-h-0 border-border bg-surface p-6 lg:h-full lg:w-[420px] lg:shrink-0 lg:overflow-y-auto lg:border-l">
+        <PlanCard home={homes[selectedHome]} plan={plan.homes[selectedHome]} weather={homeContext(model, homes[selectedHome], hour)} onBack={onCloseHome} />
+      </aside>
+    );
   if (selectedHex)
     return (
       <aside className="flex min-h-0 flex-col border-border bg-surface p-6 lg:h-full lg:w-[420px] lg:shrink-0 lg:border-l">
