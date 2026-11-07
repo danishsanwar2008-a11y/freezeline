@@ -59,6 +59,8 @@ Replay Uri hour by hour. Temperatures fall into the teens; the risk engine light
 - `src/lib/risk.ts` — deterministic risk engine (score 0–100, level, plain-English why)
 - `src/lib/planner.ts` — deterministic drip planner + zone pressure model (who drips, which tap, ≥ 20 psi + 3 psi reserve)
 - `src/lib/replay.ts` — precomputes H3 hex averages + level counts per hour for the console
+- `src/lib/server/` — server-only Claude layer (Haiku 5.5 writing/translation/photo, Opus 5.5 agent), content-keyed cache, agent tools + loop; `supabase/002_phase3.sql` adds ai_cache, photo_checks, idempotency indexes
+- `/h/[homeId]?t=…- `src/lib/steps.ts`lang=es` — homeowner page; `/api/agent/run`, `/api/agent/execute`, `/api/photo-check`
 - `src/lib/steps.ts` — homeowner plan card: level headline, exactly 3 steps (from the drip plan + home details), 3 sourced reasons; Medium is shown as "Watch"
 - `src/components/console` — top bar (Live | Replay), map (deck.gl H3 + home markers over MapLibre), timeline, side panel (city → area → plan card)
 - `src/lib` — also supabase client, homes loader, weather fetchers
