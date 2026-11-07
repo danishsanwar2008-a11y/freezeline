@@ -5,7 +5,7 @@ import { connection } from "next/server";
 import { loadHomeownerView } from "@/lib/server/homeowner";
 import { T, clockLabel, dayLabel, isLang, type Lang } from "@/lib/i18n";
 import { LEVEL_TEXT } from "@/lib/riskScale";
-import { homeName, formatHour } from "@/components/console/format";
+import { homeName } from "@/components/console/format";
 import HouseDiagram from "@/components/plan/HouseDiagram";
 import WhyList from "@/components/plan/WhyList";
 import BurstHelp from "@/components/homeowner/BurstHelp";
@@ -67,11 +67,11 @@ async function Homeowner({ params, searchParams }: PageProps<"/h/[homeId]">) {
 
       <section>
         <p className="text-sm text-muted">
-          {homeName(home.label)} · {home.neighborhood}
+          {lang === "es" ? homeName(home.label).replace("Home", "Casa") : homeName(home.label)} · {home.neighborhood}
           {view.isReplay && (
             <>
               {" · "}
-              {L.replayAt} {formatHour(view.time)}
+              {L.replayAt} {dayLabel(view.time, lang)} · {clockLabel(view.time, lang)}
             </>
           )}
         </p>

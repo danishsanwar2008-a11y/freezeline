@@ -6,7 +6,7 @@ import { cached, cacheKey } from "./aiCache";
 import { getClaude, MODELS } from "./claude";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { getProvider } from "./provider";
-import { geminiClassifyFaucet } from "./gemini";
+import { geminiClassifyFaucet, geminiModels } from "./gemini";
 
 const ResultSchema = z.object({
   outdoor_faucet: z.enum(["covered", "bare", "unclear"]),
@@ -28,7 +28,7 @@ export async function checkFaucetPhoto(homeId: string, jpegBase64: string): Prom
   let result: { outdoor_faucet: FaucetPhoto; note: string };
   if (provider === "gemini") {
     if (!process.env.GEMINI_API_KEY) throw new PhotoCheckUnavailable("GEMINI_API_KEY is not set");
-    result = await cached(cacheKey("photo-gemini", { v: 1, img: jpegBase64 }), process.env.GEMINI_MODEL || "gemini-2.5-flash", () =>
+    result = await cached(cacheKey("photo-gemini", { v: 1, img: jpegBase64 }), geminiModels().join(","), () =>
       geminiClassifyFaucet(jpegBase64, SYSTEM),
     );
   } else if (provider === "anthropic") {

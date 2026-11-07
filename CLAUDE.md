@@ -47,7 +47,7 @@ Replay Uri hour by hour. Temperatures fall into the teens; the risk engine light
 ## AI providers (`LLM_PROVIDER` in .env.local, default `pregenerated`)
 
 - **pregenerated** (default, free): homeowner plan wording, SMS text and the agent's explanations all come from `data/messages.json` (hand-written English + Spanish). No API calls. The photo check is hidden.
-- **gemini**: the same pre-written text, plus Gemini's free tier (`GEMINI_API_KEY`, optional `GEMINI_MODEL`) for the photo check only.
+- **gemini**: the same pre-written text, plus Gemini's free tier (`GEMINI_API_KEY`, optional `GEMINI_MODEL`; default tries gemini-3.8-flash then gemini-3.5-flash-lite) for the photo check only.
 - **anthropic**: live Claude (`ANTHROPIC_API_KEY`) for plan wording, SMS, the agent's decisions and the photo check. Any failure falls back to the pre-written text.
 - All keys are server-only, never `NEXT_PUBLIC_`. No provider ever changes the planner's numbers.
 - Editing `data/messages.json`: same facts only, no new numbers, times or promises; every SMS keeps `(simulated)` and `{link}`. Run `npm run messages:check` and `npm test`.

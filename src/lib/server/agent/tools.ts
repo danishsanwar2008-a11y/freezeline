@@ -285,7 +285,7 @@ async function loadPublished(ctx: AgentCtx) {
   const planFor = toTimestamp(ctx.time);
   const out = new Map<string, { id: string; action: string; faucet: string | null }>();
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await db.from("drip_plans").select("id,home_id,action,faucet").eq("plan_for", planFor).range(from, from + 999);
+    const { data, error } = await db.from("drip_plans").select("id,home_id,action,faucet").eq("plan_for", planFor).order("home_id").range(from, from + 999);
     if (error) throw new Error(`drip_plans: ${error.message}`);
     for (const r of data ?? []) out.set(r.home_id, { id: r.id, action: r.action, faucet: r.faucet });
     if (!data || data.length < 1000) break;
