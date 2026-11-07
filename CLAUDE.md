@@ -44,6 +44,14 @@ Replay Uri hour by hour. Temperatures fall into the teens; the risk engine light
 - No numeric risk scores, attribute tables or tabs in the UI (they stay in code and tests). Say "Watch", not "Medium".
 - One accent color (ice blue) for actions; Low/Watch/High colors are for status only.
 
+## AI providers (`LLM_PROVIDER` in .env.local, default `pregenerated`)
+
+- **pregenerated** (default, free): homeowner plan wording, SMS text and the agent's explanations all come from `data/messages.json` (hand-written English + Spanish). No API calls. The photo check is hidden.
+- **gemini**: the same pre-written text, plus Gemini's free tier (`GEMINI_API_KEY`, optional `GEMINI_MODEL`) for the photo check only.
+- **anthropic**: live Claude (`ANTHROPIC_API_KEY`) for plan wording, SMS, the agent's decisions and the photo check. Any failure falls back to the pre-written text.
+- All keys are server-only, never `NEXT_PUBLIC_`. No provider ever changes the planner's numbers.
+- Editing `data/messages.json`: same facts only, no new numbers, times or promises; every SMS keeps `(simulated)` and `{link}`. Run `npm run messages:check` and `npm test`.
+
 ## Rules
 
 - **The risk engine is deterministic.** Same inputs → same scores, in plain code with tests. Claude explains and chooses actions (later phases); it never computes the risk score.
@@ -60,7 +68,9 @@ Replay Uri hour by hour. Temperatures fall into the teens; the risk engine light
 - `src/lib/planner.ts` — deterministic drip planner + zone pressure model (who drips, which tap, ≥ 20 psi + 3 psi reserve)
 - `src/lib/replay.ts` — precomputes H3 hex averages + level counts per hour for the console
 - `src/lib/server/` — server-only Claude layer (Haiku 5.5 writing/translation/photo, Opus 5.5 agent), content-keyed cache, agent tools + loop; `supabase/002_phase3.sql` adds ai_cache, photo_checks, idempotency indexes
-- `/h/[homeId]?t=…- `src/lib/steps.ts`lang=es` — homeowner page; `/api/agent/run`, `/api/agent/execute`, `/api/photo-check`
+- `/h/[homeId]?t=…&lang=es` — homeowner page; `/api/agent/run`, `/api/agent/execute`, `/api/photo-check`
+- `data/messages.json` + `src/lib/pregenerated.ts` — pre-written wording (English + Spanish) keyed by step / reason / SMS / agent keys; `npm run messages:check` proves every fact combination is covered
+- `src/lib/server/provider.ts` — `LLM_PROVIDER` switch; `src/lib/server/gemini.ts` — free-tier photo check
 - `src/lib/steps.ts` — homeowner plan card: level headline, exactly 3 steps (from the drip plan + home details), 3 sourced reasons; Medium is shown as "Watch"
 - `src/components/console` — top bar (Live | Replay), map (deck.gl H3 + home markers over MapLibre), timeline, side panel (city → area → plan card)
 - `src/lib` — also supabase client, homes loader, weather fetchers

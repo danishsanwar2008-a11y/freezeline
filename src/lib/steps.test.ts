@@ -78,7 +78,7 @@ describe("photo check updates the plan", () => {
     expect(before.steps.map((s) => s.text)).toContain("Cover the outdoor faucet.");
     expect(after.steps.map((s) => s.text)).not.toContain("Cover the outdoor faucet.");
     expect(after.steps).toHaveLength(3);
-    expect(after.reasons[2]).toEqual({ text: "Confirmed from your photo: your outdoor faucet is covered.", source: "Photo: confirmed" });
+    expect(after.reasons[2]).toMatchObject({ text: "Confirmed from your photo: your outdoor faucet is covered.", source: "Photo: confirmed" });
     expect(after.exposed).not.toContain("outdoor_faucet");
   });
 

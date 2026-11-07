@@ -10,6 +10,7 @@ import type { Lang } from "@/lib/i18n";
 import { getCity, hourIndex, toTimestamp, URI_HOURS, type City } from "./cityState";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { friendlyPlan, type FriendlyPlan } from "./writer";
+import { photoCheckAvailable } from "./provider";
 
 const ZONE_SERIES = (uriNeighborhoods as unknown as { zones: Record<string, WeatherSeries> }).zones;
 
@@ -48,6 +49,8 @@ export interface HomeownerView {
   friendly: FriendlyPlan;
   clock: FreezeClock;
   photo?: FaucetPhoto;
+  /** True when LLM_PROVIDER + key can run the photo check. */
+  photoEnabled: boolean;
 }
 
 export async function loadHomeownerView(homeId: string, t: string | undefined, lang: Lang): Promise<HomeownerView | null> {
@@ -74,5 +77,5 @@ export async function loadHomeownerView(homeId: string, t: string | undefined, l
   const friendly = await friendlyPlan(card, lang);
   const series: WeatherHour[] = isReplay ? (ZONE_SERIES[home.zone_id]?.hours ?? URI_HOURS) : model.hours;
   const clock = freezeClock(series, hour, displayLevel(homePlan.level));
-  return { home, time, isReplay, card, friendly, clock, photo };
+  return { home, time, isReplay, card, friendly, clock, photo, photoEnabled: photoCheckAvailable() };
 }

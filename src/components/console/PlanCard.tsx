@@ -3,6 +3,7 @@
 import type { HomePlan } from "@/lib/planner";
 import type { ConsoleHome } from "@/lib/replay";
 import { buildPlanCard, type CardWeather } from "@/lib/steps";
+import { renderPlan } from "@/lib/pregenerated";
 import WhyList from "@/components/plan/WhyList";
 import { LEVEL_TEXT } from "@/lib/riskScale";
 import HouseDiagram from "@/components/plan/HouseDiagram";
@@ -22,6 +23,7 @@ interface Props {
 /** The homeowner's plan: what to do, in order. Everything else is secondary. */
 export default function PlanCard({ home, plan, weather, onBack, replayTime }: Props) {
   const card = buildPlanCard(home, plan, weather);
+  const words = renderPlan(card, "en");
 
   return (
     <article className="flex flex-col gap-8">
@@ -30,7 +32,7 @@ export default function PlanCard({ home, plan, weather, onBack, replayTime }: Pr
           {homeName(home.label)} · {home.neighborhood}
         </p>
         <p className="mt-2 text-2xl font-semibold leading-snug tracking-tight">
-          <span className={LEVEL_TEXT[card.level]}>{card.level.toUpperCase()}:</span> {card.headline}
+          <span className={LEVEL_TEXT[card.level]}>{card.level.toUpperCase()}:</span> {words.headline.slice(words.headline.indexOf(":") + 1)}
         </p>
       </header>
 
@@ -39,7 +41,7 @@ export default function PlanCard({ home, plan, weather, onBack, replayTime }: Pr
           Your 3 steps before 8 PM
         </h3>
         <ol className="mt-4 space-y-5">
-          {card.steps.map((s, i) => (
+          {words.steps.map((s, i) => (
             <li key={i} className="flex gap-4">
               <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-base font-semibold text-bg" aria-hidden>
                 {i + 1}
@@ -57,7 +59,7 @@ export default function PlanCard({ home, plan, weather, onBack, replayTime }: Pr
         <HouseDiagram foundation={home.foundation} exposed={card.exposed} level={card.level} />
       </div>
 
-      <WhyList reasons={card.reasons} />
+      <WhyList reasons={card.reasons.map((r, i) => ({ text: words.reasons[i], source: r.source }))} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <BackLink onClick={onBack}>Back to map</BackLink>

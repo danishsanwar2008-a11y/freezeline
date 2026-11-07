@@ -137,7 +137,7 @@ export default function AgentPanel({ enabled, run, mode, onMode, onRun, onApprov
               <span />
             )}
             <span>
-              {run?.source === "claude" && run.usage ? `Claude Opus 5.5 · ${run.usage.calls} calls` : run?.source === "rules" ? "Rule-based (no API key)" : ""}
+              {run?.source === "claude" && run.usage ? `Claude Opus 5.5 · ${run.usage.calls} calls` : run?.source === "rules" ? "Pre-written explanations" : ""}
             </span>
           </div>
         </>

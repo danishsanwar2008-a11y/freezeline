@@ -109,7 +109,7 @@ async function Homeowner({ params, searchParams }: PageProps<"/h/[homeId]">) {
 
       <BurstHelp label={L.burstButton} title={L.burstTitle} steps={L.burstSteps} close={L.burstClose} />
 
-      {home.outdoor_faucets > 0 && (
+      {home.outdoor_faucets > 0 && view.photoEnabled && (
         <PhotoCheck
           homeId={home.id}
           current={photo}

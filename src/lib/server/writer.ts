@@ -5,18 +5,10 @@ import type { PlanCard } from "@/lib/steps";
 import { isValidSms, templateSms, type SmsFacts } from "@/lib/messages";
 import { cached, cacheKey } from "./aiCache";
 import { getClaude, MODELS } from "./claude";
+import { renderPlan, renderSms, type FriendlyPlan, type Lang } from "@/lib/pregenerated";
 
-export type Lang = "en" | "es";
+export type { FriendlyPlan, Lang };
 const PROMPT_VERSION = 1;
-
-export interface FriendlyPlan {
-  headline: string;
-  steps: { text: string; detail: string }[];
-  reasons: string[];
-  /** "claude" when Claude wrote it, "template" for the deterministic fallback. */
-  source: "claude" | "template";
-  lang: Lang;
-}
 
 const StepSchema = z.object({ text: z.string(), detail: z.string() });
 const FriendlySchema = z.object({
@@ -37,15 +29,6 @@ The plan was produced by a deterministic planner. You change wording only, never
 - Plain language a 12-year-old understands. Step text: a short imperative, under 12 words. Detail: one sentence, under 25 words.
 - Reasons: one short sentence each, same facts as the input reason.`;
 
-export function templatePlan(card: PlanCard, lang: Lang = "en"): FriendlyPlan {
-  return {
-    headline: `${card.level.toUpperCase()}: ${card.headline}`,
-    steps: card.steps.map((s) => ({ ...s })),
-    reasons: card.reasons.map((r) => r.text),
-    source: "template",
-    lang,
-  };
-}
 
 const SMS_SYSTEM = `You write one SMS from a water utility to a homeowner during a hard freeze.
 Rewrite the template so it reads warmly and clearly. Keep every fact and instruction exactly (which tap to drip, or don't drip).
@@ -53,10 +36,10 @@ Rules: under 300 characters; keep the literal text "(simulated)" and the literal
 no new facts, numbers, times or promises. Return only the SMS text.`;
 
 /** SMS text for a group of homes with the same facts. Claude-written when available, else the template. */
-export async function smsDraft(facts: SmsFacts, lang: Lang = "en"): Promise<{ text: string; source: "claude" | "template" }> {
+export async function smsDraft(facts: SmsFacts, lang: Lang = "en"): Promise<{ text: string; source: "claude" | "pregenerated" }> {
   const template = templateSms(facts);
   const claude = getClaude();
-  if (!claude) return { text: template, source: "template" };
+  if (!claude) return { text: renderSms(facts, lang), source: "pregenerated" };
   const key = cacheKey("sms", { v: PROMPT_VERSION, lang, template });
   try {
     return await cached(key, MODELS.fast, async () => {
@@ -72,19 +55,19 @@ export async function smsDraft(facts: SmsFacts, lang: Lang = "en"): Promise<{ te
         .map((b) => (b as { text: string }).text)
         .join("")
         .trim();
-      if (res.stop_reason === "refusal" || !isValidSms(text)) return { text: template, source: "template" as const };
+      if (res.stop_reason === "refusal" || !isValidSms(text)) return { text: renderSms(facts, lang), source: "pregenerated" as const };
       return { text, source: "claude" as const };
     });
   } catch (err) {
-    console.error("[FreezeLine] smsDraft fell back to template:", err instanceof Error ? err.message : err);
-    return { text: template, source: "template" };
+    console.error("[FreezeLine] smsDraft fell back to pre-written text:", err instanceof Error ? err.message : err);
+    return { text: renderSms(facts, lang), source: "pregenerated" };
   }
 }
 
 /** Friendly (and optionally Spanish) wording of a plan card. Cached by exact content. */
 export async function friendlyPlan(card: PlanCard, lang: Lang): Promise<FriendlyPlan> {
   const claude = getClaude();
-  if (!claude) return templatePlan(card, lang);
+  if (!claude) return renderPlan(card, lang);
 
   const input = {
     level: card.level,
@@ -118,7 +101,7 @@ export async function friendlyPlan(card: PlanCard, lang: Lang): Promise<Friendly
       } satisfies FriendlyPlan;
     });
   } catch (err) {
-    console.error("[FreezeLine] friendlyPlan fell back to template:", err instanceof Error ? err.message : err);
-    return templatePlan(card, lang);
+    console.error("[FreezeLine] friendlyPlan fell back to pre-written text:", err instanceof Error ? err.message : err);
+    return renderPlan(card, lang);
   }
 }

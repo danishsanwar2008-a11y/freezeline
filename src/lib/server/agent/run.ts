@@ -1,6 +1,7 @@
 import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
 import { rulePlan } from "@/lib/agentRules";
+import { agentText } from "@/lib/pregenerated";
 import { getClaude, MODELS } from "../claude";
 import { URI_HOURS, type City } from "../cityState";
 import { ACTION_TOOLS, TOOL_DEFS, cityStatus, entryId, runTool, type ActionTool, type AgentCtx, type AgentMode, type LogEntry } from "./tools";
@@ -62,7 +63,7 @@ async function runRules(ctx: AgentCtx): Promise<void> {
     { High: status.homes.High, Watch: status.homes.Watch },
   );
   if (actions.length === 0) {
-    ctx.entries.push({ id: entryId(), kind: "note", summary: "No home needs action this hour, so nothing was sent.", status: "done" });
+    ctx.entries.push({ id: entryId(), kind: "note", summary: agentText("nothing_to_do"), status: "done" });
     return;
   }
   for (const a of actions) {
@@ -80,7 +81,7 @@ async function runRules(ctx: AgentCtx): Promise<void> {
   ctx.entries.push({
     id: entryId(),
     kind: "note",
-    summary: "Rule-based agent (add ANTHROPIC_API_KEY to let Claude decide and explain).",
+    summary: agentText("footer"),
     status: "done",
   });
 }

@@ -1,5 +1,6 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
+import { getProvider } from "./provider";
 
 /**
  * Claude, server side only. The key comes from ANTHROPIC_API_KEY in .env.local and never
@@ -14,8 +15,12 @@ export const MODELS = {
 
 let client: Anthropic | null | undefined;
 
-/** The Claude client, or null when no key is configured (callers fall back to templates). */
+/**
+ * The Claude client, or null unless LLM_PROVIDER=anthropic and a key is set
+ * (callers then use the pre-written messages in data/messages.json).
+ */
 export function getClaude(): Anthropic | null {
+  if (getProvider() !== "anthropic") return null;
   if (client === undefined) {
     client = process.env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, maxRetries: 2 }) : null;
   }
