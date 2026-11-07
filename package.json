@@ -12,10 +12,17 @@
     "weather:uri": "tsx scripts/fetch-uri-weather.ts"
   },
   "dependencies": {
+    "@deck.gl/core": "^9.4.1",
+    "@deck.gl/geo-layers": "^9.4.1",
+    "@deck.gl/layers": "^9.4.1",
+    "@deck.gl/react": "^9.4.1",
     "@supabase/supabase-js": "^2.119.0",
+    "h3-js": "^4.5.0",
+    "maplibre-gl": "^6.16.0",
     "next": "16.4.5",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "react-map-gl": "^8.1.3"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
