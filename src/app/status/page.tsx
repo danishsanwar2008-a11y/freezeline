@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/server/supabaseAdmin";
 
 export const metadata = { title: "Connection status · FreezeLine" };
 
@@ -16,8 +17,11 @@ async function loadCounts(): Promise<Result> {
   } catch {
     return { kind: "missing-env" };
   }
+  // Zones: anon key (tests the public connection). Homes hold household details (sample), so they
+  // are counted on the server with the service role.
+  const admin = getSupabaseAdmin();
   const [homes, zones] = await Promise.all([
-    supabase.from("homes").select("*", { count: "exact", head: true }),
+    (admin ?? supabase).from("homes").select("*", { count: "exact", head: true }),
     supabase.from("zones").select("*", { count: "exact", head: true }),
   ]);
   const err = homes.error ?? zones.error;

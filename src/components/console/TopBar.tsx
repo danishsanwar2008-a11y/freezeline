@@ -23,8 +23,9 @@ function InfoTip() {
         role="tooltip"
         className="pointer-events-none absolute right-0 top-9 z-20 w-64 rounded-panel border border-border bg-surface p-3 text-xs leading-relaxed text-muted opacity-0 shadow-lg transition group-focus-within:opacity-100 group-hover:opacity-100"
       >
-        Homes are <span className="text-text">simulated sample data</span>. Weather is real: Open-Meteo&apos;s archive for Feb 2021 in
-        Replay, and the current forecast in Live.
+        Home locations are real house footprints from OpenStreetMap (© OpenStreetMap contributors, ODbL). Everything about each
+        household is <span className="text-text">simulated sample data</span>. Weather is real: Open-Meteo&apos;s archive for Feb 2021
+        in Replay, and the current forecast in Live.
       </span>
     </span>
   );

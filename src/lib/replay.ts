@@ -22,6 +22,13 @@ export interface ConsoleHome extends HomeAttributes {
   lat: number;
   lng: number;
   year_built: number;
+  /** Real street name from OpenStreetMap (abbreviated, e.g. "E 27th St"). */
+  street: string;
+  /** Simulated household details (sample). Officials' view only; never sent to other homeowners. */
+  has_faucet_shutoff: boolean;
+  elderly: boolean;
+  mobility_limited: boolean;
+  lives_alone: boolean;
 }
 
 export interface HexBin {
