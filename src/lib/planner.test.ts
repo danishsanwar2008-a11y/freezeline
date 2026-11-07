@@ -1,0 +1,69 @@
+import { describe, expect, it } from "vitest";
+import uri from "../../data/uri-2021.json";
+import { buildHourContexts, vulnerability } from "./risk";
+import { generateHomes, generateZones } from "./seed/generate";
+import { BOIL_WATER_PSI, RESERVE_PSI, chooseFaucet, dripBudget, planCity, zonePressure } from "./planner";
+import type { WeatherSeries } from "./weather";
+
+const hours = (uri as WeatherSeries).hours;
+const ctx = buildHourContexts(hours);
+const homes = generateHomes();
+const zones = generateZones();
+const vuln = homes.map(vulnerability);
+const peak = hours.findIndex((h) => h.time === "2021-02-16T06:00");
+
+describe("pressure model", () => {
+  it("loses pressure as more taps drip", () => {
+    expect(zonePressure(50, 1, 100, 500)).toBeLessThan(zonePressure(50, 1, 0, 500));
+  });
+
+  it("gives no drip budget when there is no headroom", () => {
+    expect(dripBudget(25, 1, 500)).toBe(0);
+  });
+});
+
+describe("drip planner", () => {
+  const plan = planCity(zones, homes, vuln, ctx[peak].exposure);
+
+  it("a blanket 'everyone drip' message would push every zone under 20 psi at Uri's peak", () => {
+    for (const z of plan.zones) expect(z.pressureBlanket).toBeLessThan(BOIL_WATER_PSI);
+  });
+
+  it("the plan keeps every zone at or above 20 psi + reserve, every hour of Uri", () => {
+    for (const c of ctx) {
+      for (const z of planCity(zones, homes, vuln, c.exposure).zones) {
+        expect(z.pressurePlan).toBeGreaterThanOrEqual(BOIL_WATER_PSI + RESERVE_PSI - 1e-9);
+      }
+    }
+  });
+
+  it("only High homes drip, highest risk first, one tap each", () => {
+    for (const z of plan.zones) {
+      const inZone = homes.map((h, i) => i).filter((i) => homes[i].zone_id === z.zoneId);
+      const drippers = inZone.filter((i) => plan.homes[i].action === "drip");
+      const skippedHigh = inZone.filter((i) => plan.homes[i].uncovered);
+      expect(drippers.every((i) => plan.homes[i].level === "High")).toBe(true);
+      expect(drippers.every((i) => plan.homes[i].faucet !== null)).toBe(true);
+      if (skippedHigh.length && drippers.length) {
+        const minDrip = Math.min(...drippers.map((i) => plan.homes[i].score));
+        const maxSkipped = Math.max(...skippedHigh.map((i) => plan.homes[i].score));
+        expect(minDrip).toBeGreaterThanOrEqual(maxSkipped);
+      }
+    }
+  });
+
+  it("tells nobody to drip on a warm hour", () => {
+    const warm = planCity(zones, homes, vuln, ctx[12].exposure);
+    expect(warm.homes.every((h) => h.action === "no_drip")).toBe(true);
+  });
+
+  it("is deterministic", () => {
+    expect(planCity(zones, homes, vuln, ctx[peak].exposure)).toEqual(plan);
+  });
+
+  it("drips the kitchen tap when pipes run through exterior walls", () => {
+    expect(
+      chooseFaucet({ foundation: "slab", exterior_wall_pipes: true, attic_or_crawlspace_pipes: false, insulation: "good", outdoor_faucets: 1 }),
+    ).toBe("kitchen");
+  });
+});

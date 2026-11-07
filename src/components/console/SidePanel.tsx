@@ -5,6 +5,8 @@ import type { ConsoleHome, HexBin, ReplayModel } from "@/lib/replay";
 import { scoreHome, type RiskLevel } from "@/lib/risk";
 import { RISK_GRADIENT, riskCss } from "@/lib/riskScale";
 import { fmtF, formatHour } from "./format";
+import PressureGauge from "./PressureGauge";
+import type { CityPlan } from "@/lib/planner";
 
 const LEVELS: { level: RiskLevel; token: string }[] = [
   { level: "High", token: "bg-risk-high" },
@@ -120,12 +122,13 @@ function HexHomesList({ hex, homes, model, hour, onClose }: { hex: HexBin; homes
 interface Props {
   model: ReplayModel;
   homes: ConsoleHome[];
+  plan: CityPlan;
   hour: number;
   selectedHex: HexBin | null;
   onClearHex: () => void;
 }
 
-export default function SidePanel({ model, homes, hour, selectedHex, onClearHex }: Props) {
+export default function SidePanel({ model, homes, plan, hour, selectedHex, onClearHex }: Props) {
   return (
     <aside className="flex min-h-0 flex-col gap-6 border-border bg-surface p-5 lg:h-dvh lg:w-[380px] lg:shrink-0 lg:overflow-y-auto lg:border-l">
       <header className="flex items-center justify-between">
@@ -142,6 +145,7 @@ export default function SidePanel({ model, homes, hour, selectedHex, onClearHex 
       <div className="freeze-rule -mt-2" />
       <ConditionsReadout model={model} hour={hour} />
       <LevelCounts counts={model.counts[hour]} total={homes.length} />
+      <PressureGauge plan={plan} />
       <RiskLegend />
       {selectedHex ? (
         <HexHomesList hex={selectedHex} homes={homes} model={model} hour={hour} onClose={onClearHex} />

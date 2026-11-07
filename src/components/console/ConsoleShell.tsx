@@ -5,6 +5,8 @@ import dynamic from "next/dynamic";
 import uri from "../../../data/uri-2021.json";
 import { buildReplay, type ConsoleHome } from "@/lib/replay";
 import type { WeatherSeries } from "@/lib/weather";
+import type { ConsoleZone } from "@/lib/homes";
+import { planCity } from "@/lib/planner";
 import SidePanel from "./SidePanel";
 import Timeline from "./Timeline";
 
@@ -17,7 +19,7 @@ const RiskMap = dynamic(() => import("./RiskMap"), {
 const HOURS = (uri as WeatherSeries).hours;
 const MS_PER_HOUR = 140; // full 168-hour replay ≈ 24 s
 
-export default function ConsoleShell({ homes }: { homes: ConsoleHome[] }) {
+export default function ConsoleShell({ homes, zones }: { homes: ConsoleHome[]; zones: ConsoleZone[] }) {
   // Everything heavy is computed once; the replay itself is just index lookups.
   const model = useMemo(() => buildReplay(homes, HOURS), [homes]);
   const [hour, setHour] = useState(0);
@@ -61,6 +63,9 @@ export default function ConsoleShell({ homes }: { homes: ConsoleHome[] }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [togglePlay, scrub, hour, last]);
 
+  // Drip plan for the current hour (deterministic; ~1 ms for 2,000 homes).
+  const plan = useMemo(() => planCity(zones, homes, model.vuln, model.contexts[hour].exposure), [zones, homes, model, hour]);
+
   const selectedHex = useMemo(() => model.hexes.find((h) => h.h3 === selected) ?? null, [model, selected]);
 
   return (
@@ -74,7 +79,7 @@ export default function ConsoleShell({ homes }: { homes: ConsoleHome[] }) {
           <Timeline hours={HOURS} hour={hour} playing={isPlaying} onHour={scrub} onTogglePlay={togglePlay} />
         </div>
       </main>
-      <SidePanel model={model} homes={homes} hour={hour} selectedHex={selectedHex} onClearHex={() => setSelected(null)} />
+      <SidePanel model={model} homes={homes} plan={plan} hour={hour} selectedHex={selectedHex} onClearHex={() => setSelected(null)} />
     </div>
   );
 }

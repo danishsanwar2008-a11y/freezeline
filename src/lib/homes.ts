@@ -1,5 +1,21 @@
 import { getSupabase } from "./supabase";
 import type { ConsoleHome } from "./replay";
+import type { PlannerZone } from "./planner";
+
+export interface ConsoleZone extends PlannerZone {
+  center_lat: number;
+  center_lng: number;
+}
+
+/** Pressure zones (simulated) with base pressure and center point. */
+export async function fetchConsoleZones(): Promise<ConsoleZone[]> {
+  const { data, error } = await getSupabase()
+    .from("zones")
+    .select("id,name,neighborhood,base_pressure_psi,center_lat,center_lng")
+    .order("id");
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((z) => ({ ...z, base_pressure_psi: Number(z.base_pressure_psi) })) as ConsoleZone[];
+}
 
 const COLUMNS =
   "id,label,neighborhood,zone_id,lat,lng,year_built,foundation,exterior_wall_pipes,attic_or_crawlspace_pipes,insulation,outdoor_faucets";

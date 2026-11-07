@@ -51,6 +51,7 @@ Replay Uri hour by hour. Temperatures fall into the teens; the risk engine light
 
 - `src/app` — routes (`/console` = utility console with Uri replay, `/status` = connection test page)
 - `src/lib/risk.ts` — deterministic risk engine (score 0–100, level, plain-English why)
+- `src/lib/planner.ts` — deterministic drip planner + zone pressure model (who drips, which tap, ≥ 20 psi + 3 psi reserve)
 - `src/lib/replay.ts` — precomputes H3 hex averages + level counts per hour for the console
 - `src/components/console` — map (deck.gl H3 over MapLibre), timeline, side panel
 - `src/lib` — also supabase client, homes loader, weather fetchers

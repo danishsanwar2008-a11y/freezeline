@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { fetchConsoleHomes } from "@/lib/homes";
+import { fetchConsoleHomes, fetchConsoleZones } from "@/lib/homes";
 import ConsoleShell from "@/components/console/ConsoleShell";
 
 export const metadata = { title: "Utility console · FreezeLine" };
@@ -19,9 +19,9 @@ function FullScreenMessage({ title, children, tone = "muted" }: { title: string;
 
 async function ConsoleData() {
   await connection(); // read homes at request time
-  let homes;
+  let homes, zones;
   try {
-    homes = await fetchConsoleHomes();
+    [homes, zones] = await Promise.all([fetchConsoleHomes(), fetchConsoleZones()]);
   } catch (err) {
     return (
       <FullScreenMessage title="Couldn't load homes" tone="danger">
@@ -41,7 +41,7 @@ async function ConsoleData() {
       </FullScreenMessage>
     );
   }
-  return <ConsoleShell homes={homes} />;
+  return <ConsoleShell homes={homes} zones={zones} />;
 }
 
 export default function ConsolePage() {
