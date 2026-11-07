@@ -60,9 +60,13 @@ interface Props {
   onSelectHome: (idx: number) => void;
   selectedHome: number | null;
   onCloseHome: () => void;
+  /** Agent controls for the city view. */
+  agent?: React.ReactNode;
+  /** Replay time for homeowner-page links (null in Live mode). */
+  replayTime: string | null;
 }
 
-export default function SidePanel({ model, homes, plan, hour, selectedHex, onClearHex, onSelectHome, selectedHome, onCloseHome }: Props) {
+export default function SidePanel({ model, homes, plan, hour, selectedHex, onClearHex, onSelectHome, selectedHome, onCloseHome, agent, replayTime }: Props) {
   const view = selectedHome !== null ? `home-${selectedHome}` : selectedHex ? `area-${selectedHex.h3}` : "city";
   const ref = useRef<HTMLElement>(null);
 
@@ -84,11 +88,11 @@ export default function SidePanel({ model, homes, plan, hour, selectedHex, onCle
       className="panel-enter flex min-h-0 scroll-mt-2 flex-col border-border bg-surface p-6 lg:h-full lg:w-[420px] lg:shrink-0 lg:overflow-y-auto lg:border-l"
     >
       {selectedHome !== null ? (
-        <PlanCard home={homes[selectedHome]} plan={plan.homes[selectedHome]} weather={homeContext(model, homes[selectedHome], hour)} onBack={onCloseHome} />
+        <PlanCard home={homes[selectedHome]} plan={plan.homes[selectedHome]} weather={homeContext(model, homes[selectedHome], hour)} onBack={onCloseHome} replayTime={replayTime} />
       ) : selectedHex ? (
         <AreaPanel hex={selectedHex} homes={homes} plan={plan} onBack={onClearHex} onSelectHome={onSelectHome} />
       ) : (
-        <CityPanel model={model} plan={plan} hour={hour} />
+        <CityPanel model={model} plan={plan} hour={hour} agent={agent} />
       )}
     </aside>
   );

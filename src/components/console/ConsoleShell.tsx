@@ -11,6 +11,8 @@ import { planCity } from "@/lib/planner";
 import SidePanel from "./SidePanel";
 import Timeline from "./Timeline";
 import TopBar, { type Mode } from "./TopBar";
+import AgentPanel from "./AgentPanel";
+import { useAgent } from "./useAgent";
 import { useLiveForecast } from "./useLiveForecast";
 import { homeName, houstonNowHour } from "./format";
 import type { HomeMarker } from "./RiskMap";
@@ -39,7 +41,20 @@ function ModeMessage({ title, children }: { title: string; children?: React.Reac
   );
 }
 
-function ConsoleBody({ homes, zones, model, startHour }: { homes: ConsoleHome[]; zones: ConsoleZone[]; model: ReplayModel; startHour: number }) {
+function ConsoleBody({
+  homes,
+  zones,
+  model,
+  startHour,
+  agent,
+}: {
+  homes: ConsoleHome[];
+  zones: ConsoleZone[];
+  model: ReplayModel;
+  startHour: number;
+  /** Present in Replay mode only. */
+  agent?: ReturnType<typeof useAgent>;
+}) {
   const hours = model.hours;
   const last = hours.length - 1;
   const [hour, setHour] = useState(startHour);
@@ -126,6 +141,20 @@ function ConsoleBody({ homes, zones, model, startHour }: { homes: ConsoleHome[];
         onSelectHome={setSelectedHome}
         selectedHome={selectedHome}
         onCloseHome={() => setSelectedHome(null)}
+        replayTime={agent ? hours[hour].time : null}
+        agent={
+          <AgentPanel
+            time={hours[hour].time}
+            enabled={!!agent}
+            run={agent?.runs[hours[hour].time]}
+            mode={agent?.mode ?? "auto"}
+            onMode={(m) => agent?.setMode(m)}
+            onRun={() => agent?.run(hours[hour].time)}
+            onApprove={(e) => agent?.approve(hours[hour].time, e)}
+            onSkip={(e) => agent?.skip(hours[hour].time, e)}
+            approving={agent?.approving ?? null}
+          />
+        }
       />
     </div>
   );
@@ -133,6 +162,7 @@ function ConsoleBody({ homes, zones, model, startHour }: { homes: ConsoleHome[];
 
 export default function ConsoleShell({ homes, zones }: { homes: ConsoleHome[]; zones: ConsoleZone[] }) {
   const [mode, setMode] = useState<Mode>("replay");
+  const agent = useAgent();
   const replayModel = useMemo(() => buildReplay(homes, URI_HOURS, ZONE_HOURS), [homes]);
   const live = useLiveForecast(mode === "live");
   const liveSeries = live.state.status === "ready" ? live.state.series : null;
@@ -147,7 +177,7 @@ export default function ConsoleShell({ homes, zones }: { homes: ConsoleHome[]; z
     <div className="flex min-h-dvh flex-col bg-bg text-text lg:h-dvh lg:overflow-hidden">
       <TopBar mode={mode} onMode={setMode} />
       {mode === "replay" ? (
-        <ConsoleBody key="replay" homes={homes} zones={zones} model={replayModel} startHour={0} />
+        <ConsoleBody key="replay" homes={homes} zones={zones} model={replayModel} startHour={0} agent={agent} />
       ) : liveModel ? (
         <ConsoleBody key="live" homes={homes} zones={zones} model={liveModel} startHour={liveStart} />
       ) : live.state.status === "error" ? (

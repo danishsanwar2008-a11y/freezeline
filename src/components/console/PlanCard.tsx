@@ -19,10 +19,12 @@ interface Props {
   plan: HomePlan;
   weather: CardWeather;
   onBack: () => void;
+  /** Replay time to open the homeowner page at (null = live). */
+  replayTime: string | null;
 }
 
 /** The homeowner's plan: what to do, in order. Everything else is secondary. */
-export default function PlanCard({ home, plan, weather, onBack }: Props) {
+export default function PlanCard({ home, plan, weather, onBack, replayTime }: Props) {
   const card = buildPlanCard(home, plan, weather);
 
   return (
@@ -76,7 +78,17 @@ export default function PlanCard({ home, plan, weather, onBack }: Props) {
         </ul>
       </details>
 
-      <BackLink onClick={onBack}>Back to map</BackLink>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <BackLink onClick={onBack}>Back to map</BackLink>
+        <a
+          href={`/h/${home.id}${replayTime ? `?t=${replayTime}` : ""}`}
+          target="_blank"
+          rel="noopener"
+          className="rounded-md px-2 py-1 text-sm font-medium text-accent transition hover:bg-accent/10"
+        >
+          Open homeowner page ↗
+        </a>
+      </div>
     </article>
   );
 }
