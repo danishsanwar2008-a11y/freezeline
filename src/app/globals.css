@@ -12,7 +12,7 @@
   --danger: #f87171;
   --ok: #4ade80;
   /* Risk ramp (mirrors RISK_STOPS in src/lib/riskScale.ts) */
-  --risk-low: #5ec8f2;
+  --risk-low: #6f93b8;
   --risk-mid: #f2a25c;
   --risk-high: #e5383b;
 }
@@ -32,7 +32,7 @@
   --color-risk-high: var(--risk-high);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --radius-panel: 10px;
+  --radius-panel: 12px;
 }
 
 body {

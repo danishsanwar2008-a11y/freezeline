@@ -42,3 +42,6 @@ export function houstonNowHour(): string {
 }
 
 export const fmtF = (n: number) => `${Math.round(n)}°F`;
+
+/** "Simulated Home HEIGHTS-0154" -> "Home 0154" */
+export const homeName = (label: string) => `Home ${label.split("-").at(-1)}`;

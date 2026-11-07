@@ -12,7 +12,9 @@ import SidePanel from "./SidePanel";
 import Timeline from "./Timeline";
 import TopBar, { type Mode } from "./TopBar";
 import { useLiveForecast } from "./useLiveForecast";
-import { houstonNowHour } from "./format";
+import { homeName, houstonNowHour } from "./format";
+import type { HomeMarker } from "./RiskMap";
+import { displayLevel } from "@/lib/steps";
 
 // WebGL map is browser-only.
 const RiskMap = dynamic(() => import("./RiskMap"), {
@@ -43,6 +45,7 @@ function ConsoleBody({ homes, zones, model, startHour }: { homes: ConsoleHome[];
   const [hour, setHour] = useState(startHour);
   const [playing, setPlaying] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
+  const [selectedHome, setSelectedHome] = useState<number | null>(null);
 
   const atEnd = hour >= last;
   useEffect(() => {
@@ -84,16 +87,44 @@ function ConsoleBody({ homes, zones, model, startHour }: { homes: ConsoleHome[];
   // Drip plan for the current hour (deterministic; ~1 ms for 2,000 homes).
   const plan = useMemo(() => planCity(zones, homes, model.vuln, zoneExposures(model, hour)), [zones, homes, model, hour]);
   const selectedHex = useMemo(() => model.hexes.find((h) => h.h3 === selected) ?? null, [model, selected]);
+  const markers = useMemo<HomeMarker[]>(
+    () =>
+      selectedHex
+        ? selectedHex.homeIdx.map((i) => ({
+            idx: i,
+            position: [homes[i].lng, homes[i].lat],
+            level: displayLevel(plan.homes[i].level),
+            label: homeName(homes[i].label),
+          }))
+        : [],
+    [selectedHex, homes, plan],
+  );
+  const selectHex = useCallback((h3: string | null) => {
+    setSelected(h3);
+    setSelectedHome(null);
+  }, []);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
       <main className="relative h-[58dvh] min-h-[400px] lg:h-auto lg:flex-1">
-        <RiskMap hexes={model.hexes} hour={hour} selected={selected} onSelect={setSelected} />
+        <RiskMap
+          hexes={model.hexes}
+          hour={hour}
+          focusHex={selected}
+          markers={markers}
+          selectedHome={selectedHome}
+          onSelectHex={selectHex}
+          onSelectHome={setSelectedHome}
+        />
         <div className="absolute inset-x-3 bottom-3 lg:inset-x-4 lg:bottom-4">
           <Timeline hours={hours} hour={hour} playing={isPlaying} onHour={scrub} onTogglePlay={togglePlay} />
         </div>
       </main>
-      <SidePanel model={model} homes={homes} plan={plan} hour={hour} selectedHex={selectedHex} onClearHex={() => setSelected(null)} />
+      <SidePanel
+        model={model} homes={homes} plan={plan} hour={hour} selectedHex={selectedHex}
+        onClearHex={() => selectHex(null)}
+        onSelectHome={setSelectedHome}
+      />
     </div>
   );
 }

@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
-import { homeContext, type ConsoleHome, type HexBin, type ReplayModel } from "@/lib/replay";
-import { scoreHome, type RiskLevel } from "@/lib/risk";
-import { RISK_GRADIENT, riskCss } from "@/lib/riskScale";
+import type { ConsoleHome, HexBin, ReplayModel } from "@/lib/replay";
+import type { RiskLevel } from "@/lib/risk";
+import { RISK_GRADIENT } from "@/lib/riskScale";
 import { fmtF, formatHour } from "./format";
 import PressureGauge from "./PressureGauge";
+import AreaPanel from "./AreaPanel";
 import type { CityPlan } from "@/lib/planner";
 
 const LEVELS: { level: RiskLevel; token: string }[] = [
@@ -77,48 +77,6 @@ function RiskLegend() {
   );
 }
 
-function HexHomesList({ hex, homes, model, hour, onClose }: { hex: HexBin; homes: ConsoleHome[]; model: ReplayModel; hour: number; onClose: () => void }) {
-  const rows = useMemo(
-    () =>
-      hex.homeIdx
-        .map((i) => ({ home: homes[i], risk: scoreHome(homes[i], homeContext(model, homes[i], hour)) }))
-        .sort((a, b) => b.risk.score - a.risk.score),
-    [hex, homes, model, hour],
-  );
-  return (
-    <section className="flex min-h-[300px] flex-1 flex-col">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <SectionLabel>Selected hex</SectionLabel>
-          <p className="mt-1 text-sm">
-            {hex.neighborhood} · {rows.length} homes · avg{" "}
-            <span className="font-mono tabular-nums">{Math.round(hex.avg[hour])}</span>
-          </p>
-        </div>
-        <button type="button" onClick={onClose} className="rounded-md px-2 py-1 text-xs text-muted hover:bg-border hover:text-text">
-          Clear
-        </button>
-      </div>
-      <ul className="mt-3 min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
-        {rows.map(({ home, risk }) => (
-          <li key={home.id} className="rounded-panel border border-border bg-bg/60 px-3 py-2">
-            <div className="flex items-center justify-between gap-2">
-              <p className="truncate font-mono text-xs text-text">{home.label.replace("Simulated Home ", "")}</p>
-              <span className="flex shrink-0 items-center gap-1.5 font-mono text-xs tabular-nums">
-                <span className="size-2 rounded-full" style={{ background: riskCss(risk.score) }} aria-hidden />
-                {risk.score} · {risk.level}
-              </span>
-            </div>
-            <p className="mt-1 text-xs leading-snug text-muted">
-              {risk.why} <span className="text-muted/70">· built {home.year_built}</span>
-            </p>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
 interface Props {
   model: ReplayModel;
   homes: ConsoleHome[];
@@ -126,11 +84,18 @@ interface Props {
   hour: number;
   selectedHex: HexBin | null;
   onClearHex: () => void;
+  onSelectHome: (idx: number) => void;
 }
 
-export default function SidePanel({ model, homes, plan, hour, selectedHex, onClearHex }: Props) {
+export default function SidePanel({ model, homes, plan, hour, selectedHex, onClearHex, onSelectHome }: Props) {
+  if (selectedHex)
+    return (
+      <aside className="flex min-h-0 flex-col border-border bg-surface p-6 lg:h-full lg:w-[420px] lg:shrink-0 lg:border-l">
+        <AreaPanel hex={selectedHex} homes={homes} plan={plan} onBack={onClearHex} onSelectHome={onSelectHome} />
+      </aside>
+    );
   return (
-    <aside className="flex min-h-0 flex-col gap-6 border-border bg-surface p-5 lg:h-full lg:w-[380px] lg:shrink-0 lg:overflow-y-auto lg:border-l">
+    <aside className="flex min-h-0 flex-col gap-6 border-border bg-surface p-5 lg:h-full lg:w-[420px] lg:shrink-0 lg:overflow-y-auto lg:border-l">
       <header className="flex items-center justify-between">
         <div>
           <p className="font-mono text-xs tracking-[0.2em] text-accent">FREEZELINE</p>
@@ -147,13 +112,9 @@ export default function SidePanel({ model, homes, plan, hour, selectedHex, onCle
       <LevelCounts counts={model.counts[hour]} total={homes.length} />
       <PressureGauge plan={plan} />
       <RiskLegend />
-      {selectedHex ? (
-        <HexHomesList hex={selectedHex} homes={homes} model={model} hour={hour} onClose={onClearHex} />
-      ) : (
-        <p className="rounded-panel border border-dashed border-border px-4 py-5 text-center text-sm text-muted">
-          Click a hex on the map to list its homes, scores and why.
-        </p>
-      )}
+      <p className="rounded-panel border border-dashed border-border px-4 py-5 text-center text-sm text-muted">
+        Click an area on the map to see who needs to act.
+      </p>
     </aside>
   );
 }

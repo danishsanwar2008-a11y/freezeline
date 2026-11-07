@@ -1,13 +1,22 @@
-// Risk color ramp: icy blue (safe) -> frost -> amber -> red (high).
-// Single source of truth for map + UI colors of risk. CSS vars --risk-* in globals.css mirror these stops.
+// Risk colors. Single source of truth for map + UI; CSS vars --risk-* in globals.css mirror these.
+// Low is a quiet slate blue so safe homes recede; ice blue (--accent) is reserved for actions.
+
+import type { DisplayLevel } from "./steps";
 
 type RGB = [number, number, number];
 
+export const LEVEL_RGB: Record<DisplayLevel, RGB> = {
+  Low: [111, 147, 184], // #6f93b8
+  Watch: [242, 162, 92], // #f2a25c
+  High: [229, 56, 59], // #e5383b
+};
+
+/** Hex ramp by average home score: slate blue -> frost -> amber -> red. */
 export const RISK_STOPS: { at: number; rgb: RGB }[] = [
-  { at: 0, rgb: [94, 200, 242] }, // #5ec8f2 ice
+  { at: 0, rgb: LEVEL_RGB.Low },
   { at: 30, rgb: [201, 220, 230] }, // #c9dce6 frost
-  { at: 60, rgb: [242, 162, 92] }, // #f2a25c amber
-  { at: 100, rgb: [229, 56, 59] }, // #e5383b red
+  { at: 60, rgb: LEVEL_RGB.Watch },
+  { at: 100, rgb: LEVEL_RGB.High },
 ];
 
 export function riskRgb(score: number): RGB {
@@ -26,3 +35,7 @@ export function riskRgb(score: number): RGB {
 export const riskCss = (score: number) => `rgb(${riskRgb(score).join(" ")})`;
 
 export const RISK_GRADIENT = `linear-gradient(90deg, ${RISK_STOPS.map((s) => `rgb(${s.rgb.join(" ")}) ${s.at}%`).join(", ")})`;
+
+/** Tailwind classes for level dots/text (tokens in globals.css). */
+export const LEVEL_BG: Record<DisplayLevel, string> = { Low: "bg-risk-low", Watch: "bg-risk-mid", High: "bg-risk-high" };
+export const LEVEL_TEXT: Record<DisplayLevel, string> = { Low: "text-risk-low", Watch: "text-risk-mid", High: "text-risk-high" };
