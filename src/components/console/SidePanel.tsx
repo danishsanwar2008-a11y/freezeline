@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import type { ConsoleHome, HexBin, ReplayModel } from "@/lib/replay";
+import { homeContext, type ConsoleHome, type HexBin, type ReplayModel } from "@/lib/replay";
 import { scoreHome, type RiskLevel } from "@/lib/risk";
 import { RISK_GRADIENT, riskCss } from "@/lib/riskScale";
 import { fmtF, formatHour } from "./format";
@@ -81,7 +81,7 @@ function HexHomesList({ hex, homes, model, hour, onClose }: { hex: HexBin; homes
   const rows = useMemo(
     () =>
       hex.homeIdx
-        .map((i) => ({ home: homes[i], risk: scoreHome(homes[i], model.contexts[hour]) }))
+        .map((i) => ({ home: homes[i], risk: scoreHome(homes[i], homeContext(model, homes[i], hour)) }))
         .sort((a, b) => b.risk.score - a.risk.score),
     [hex, homes, model, hour],
   );

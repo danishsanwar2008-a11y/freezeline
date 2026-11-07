@@ -67,3 +67,11 @@ describe("drip planner", () => {
     ).toBe("kitchen");
   });
 });
+
+describe("per-zone exposure", () => {
+  it("matches the single-value plan when every zone has the same exposure", () => {
+    const e = ctx[peak].exposure;
+    const perZone = Object.fromEntries(zones.map((z) => [z.id, e]));
+    expect(planCity(zones, homes, vuln, perZone)).toEqual(planCity(zones, homes, vuln, e));
+  });
+});

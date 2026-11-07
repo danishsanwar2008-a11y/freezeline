@@ -58,4 +58,5 @@ Replay Uri hour by hour. Temperatures fall into the teens; the risk engine light
 - `public/maplibre-gl-worker.mjs` — copied from node_modules on `npm install` (git-ignored); MapLibre 6's worker can't be resolved through Turbopack
 - `supabase/001_schema.sql` — schema to paste into the Supabase SQL Editor
 - `scripts/` — seed + weather download (`npm run seed`, `npm run weather:uri`)
-- `data/uri-2021.json` — hourly Houston weather for Feb 13–19, 2021
+- `data/uri-2021.json` — hourly Houston weather for Feb 13–19, 2021 (timeline + city headline)
+- `data/uri-2021-neighborhoods.json` — same window per neighborhood center, one multi-point request (`npm run weather:neighborhoods`)

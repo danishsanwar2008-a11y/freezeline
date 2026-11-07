@@ -72,6 +72,28 @@ export async function fetchArchiveWeather(startDate: string, endDate: string): P
   return parseOpenMeteo(json, "open-meteo-archive");
 }
 
+/**
+ * Hourly archive weather for several points in ONE request (Open-Meteo accepts comma-separated
+ * coordinates and returns an array in the same order).
+ */
+export async function fetchArchiveWeatherMulti(
+  points: { latitude: number; longitude: number }[],
+  startDate: string,
+  endDate: string,
+): Promise<WeatherSeries[]> {
+  const params = new URLSearchParams({
+    latitude: points.map((p) => p.latitude).join(","),
+    longitude: points.map((p) => p.longitude).join(","),
+    start_date: startDate,
+    end_date: endDate,
+    ...COMMON,
+  });
+  const res = await fetch(`https://archive-api.open-meteo.com/v1/archive?${params}`);
+  if (!res.ok) throw new Error(`Open-Meteo ${res.status}: ${await res.text()}`);
+  const json = (await res.json()) as OpenMeteoResponse | OpenMeteoResponse[];
+  return (Array.isArray(json) ? json : [json]).map((j) => parseOpenMeteo(j, "open-meteo-archive"));
+}
+
 /** Winter Storm Uri window: Feb 13–19, 2021. */
 export function fetchUriWeather() {
   return fetchArchiveWeather("2021-02-13", "2021-02-19");

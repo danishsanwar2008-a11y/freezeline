@@ -27,41 +27,66 @@ export interface ConsoleHome extends HomeAttributes {
 export interface HexBin {
   h3: string;
   neighborhood: string;
+  zoneId: string;
   homeIdx: number[];
   /** Average home score per hour (index = hour). */
   avg: Float32Array;
 }
 
 export interface ReplayModel {
+  /** City-wide series (drives the timeline + headline temperature). */
   hours: WeatherHour[];
   contexts: HourContext[];
+  /** Per-zone weather contexts; zones without their own series use the city series. */
+  zoneContexts: Record<string, HourContext[]>;
   hexes: HexBin[];
-  /** [high, medium, low] home counts per hour. */
+  /** [high, watch, low] home counts per hour. */
   counts: [number, number, number][];
   /** Precomputed vulnerability per home (same order as homes). */
   vuln: Float32Array;
 }
 
-export function buildReplay(homes: ConsoleHome[], hours: WeatherHour[]): ReplayModel {
+/** The weather context a home sees at an hour (its zone's series, or the city's). */
+export function homeContext(model: ReplayModel, home: { zone_id: string }, hour: number): HourContext {
+  return (model.zoneContexts[home.zone_id] ?? model.contexts)[hour];
+}
+
+/** Exposure per zone at an hour (for the planner). */
+export function zoneExposures(model: ReplayModel, hour: number): Record<string, number> {
+  return Object.fromEntries(Object.entries(model.zoneContexts).map(([id, c]) => [id, c[hour].exposure]));
+}
+
+export function buildReplay(
+  homes: ConsoleHome[],
+  hours: WeatherHour[],
+  zoneHours: Record<string, WeatherHour[]> = {},
+): ReplayModel {
   const contexts = buildHourContexts(hours);
+  const zoneContexts: Record<string, HourContext[]> = {};
+  for (const h of homes) {
+    if (zoneContexts[h.zone_id]) continue;
+    const own = zoneHours[h.zone_id];
+    zoneContexts[h.zone_id] = own && own.length === hours.length ? buildHourContexts(own) : contexts;
+  }
   const vuln = Float32Array.from(homes, (h) => vulnerability(h));
+  const homeCtx = homes.map((h) => zoneContexts[h.zone_id]);
 
   const byCell = new Map<string, HexBin>();
   homes.forEach((h, i) => {
     const cell = latLngToCell(h.lat, h.lng, HEX_RESOLUTION);
     let bin = byCell.get(cell);
     if (!bin) {
-      bin = { h3: cell, neighborhood: h.neighborhood, homeIdx: [], avg: new Float32Array(hours.length) };
+      bin = { h3: cell, neighborhood: h.neighborhood, zoneId: h.zone_id, homeIdx: [], avg: new Float32Array(hours.length) };
       byCell.set(cell, bin);
     }
     bin.homeIdx.push(i);
   });
   const hexes = [...byCell.values()];
 
-  const counts: [number, number, number][] = contexts.map((ctx) => {
+  const counts: [number, number, number][] = contexts.map((_, t) => {
     const c: [number, number, number] = [0, 0, 0];
     for (let i = 0; i < homes.length; i++) {
-      const level = levelFor(scoreFrom(ctx.exposure, vuln[i]));
+      const level = levelFor(scoreFrom(homeCtx[i][t].exposure, vuln[i]));
       c[level === "High" ? 0 : level === "Medium" ? 1 : 2]++;
     }
     return c;
@@ -70,10 +95,10 @@ export function buildReplay(homes: ConsoleHome[], hours: WeatherHour[]): ReplayM
   for (const bin of hexes) {
     for (let t = 0; t < contexts.length; t++) {
       let sum = 0;
-      for (const i of bin.homeIdx) sum += scoreFrom(contexts[t].exposure, vuln[i]);
+      for (const i of bin.homeIdx) sum += scoreFrom(homeCtx[i][t].exposure, vuln[i]);
       bin.avg[t] = sum / bin.homeIdx.length;
     }
   }
 
-  return { hours, contexts, hexes, counts, vuln };
+  return { hours, contexts, zoneContexts, hexes, counts, vuln };
 }

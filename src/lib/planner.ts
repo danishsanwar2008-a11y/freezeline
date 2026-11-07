@@ -79,15 +79,19 @@ export function chooseFaucet(home: HomeAttributes): string {
   return "farthest"; // the tap farthest from where water enters the house
 }
 
-/** Plan every zone for one hour. `vuln` is precomputed vulnerability per home (same order). */
+/**
+ * Plan every zone for one hour. `vuln` is precomputed vulnerability per home (same order).
+ * `exposure` is one city-wide value, or a value per zone id (zones missing from it use 0).
+ */
 export function planCity(
   zones: PlannerZone[],
   homes: PlannerHome[],
   vuln: ArrayLike<number>,
-  exposure: number,
+  exposure: number | Record<string, number>,
 ): CityPlan {
+  const exp = (zoneId: string) => (typeof exposure === "number" ? exposure : (exposure[zoneId] ?? 0));
   const plans: HomePlan[] = homes.map((h, i) => {
-    const score = scoreFrom(exposure, vuln[i]);
+    const score = scoreFrom(exp(h.zone_id), vuln[i]);
     return { action: "no_drip", faucet: null, score, level: levelFor(score), uncovered: false };
   });
 
@@ -101,7 +105,8 @@ export function planCity(
   const zonePlans = zones.map((z) => {
     const idx = byZone.get(z.id) ?? [];
     const n = idx.length;
-    const budget = dripBudget(z.base_pressure_psi, exposure, n);
+    const e = exp(z.id);
+    const budget = dripBudget(z.base_pressure_psi, e, n);
     // Highest risk first; ties broken by input order for determinism.
     const high = idx.filter((i) => plans[i].score >= HIGH_AT).sort((a, b) => plans[b].score - plans[a].score || a - b);
     const drippers = high.slice(0, budget);
@@ -120,9 +125,9 @@ export function planCity(
       dripping: drippers.length,
       high: high.length,
       uncoveredHigh: high.length - drippers.length,
-      pressurePlan: zonePressure(z.base_pressure_psi, exposure, drippers.length, n),
-      pressureNoDrip: zonePressure(z.base_pressure_psi, exposure, 0, n),
-      pressureBlanket: zonePressure(z.base_pressure_psi, exposure, n * BLANKET_TAPS_PER_HOME, n),
+      pressurePlan: zonePressure(z.base_pressure_psi, e, drippers.length, n),
+      pressureNoDrip: zonePressure(z.base_pressure_psi, e, 0, n),
+      pressureBlanket: zonePressure(z.base_pressure_psi, e, n * BLANKET_TAPS_PER_HOME, n),
     } satisfies ZonePlan;
   });
 

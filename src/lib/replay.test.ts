@@ -34,3 +34,16 @@ describe("replay precompute", () => {
     expect(performance.now() - start).toBeLessThan(500);
   });
 });
+
+describe("per-neighborhood weather", () => {
+  it("uses each zone's own series when provided", async () => {
+    const nb = (await import("../../data/uri-2021-neighborhoods.json")).default as unknown as {
+      zones: Record<string, WeatherSeries>;
+    };
+    const zoneHours = Object.fromEntries(Object.entries(nb.zones).map(([id, s]) => [id, s.hours]));
+    const m = buildReplay(homes, hours, zoneHours);
+    const tw = m.zoneContexts["third-ward"];
+    expect(tw).not.toBe(m.contexts);
+    expect(tw.at(-1)!.hoursBelow20).toBe(nb.zones["third-ward"].hours.filter((h) => h.temperature_f < 20).length);
+  });
+});
