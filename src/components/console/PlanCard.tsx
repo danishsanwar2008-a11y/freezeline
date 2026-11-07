@@ -2,17 +2,13 @@
 
 import type { HomePlan } from "@/lib/planner";
 import type { ConsoleHome } from "@/lib/replay";
-import { buildPlanCard, type CardWeather, type ReasonSource } from "@/lib/steps";
+import { buildPlanCard, type CardWeather } from "@/lib/steps";
+import WhyList from "@/components/plan/WhyList";
 import { LEVEL_TEXT } from "@/lib/riskScale";
-import HouseDiagram from "./HouseDiagram";
+import HouseDiagram from "@/components/plan/HouseDiagram";
 import { BackLink } from "./AreaPanel";
 import { homeName } from "./format";
 
-const SOURCE_STYLE: Record<ReasonSource, string> = {
-  "Property record": "border-border text-muted",
-  Forecast: "border-border text-muted",
-  "Photo: not sent yet": "border-dashed border-border text-muted/80",
-};
 
 interface Props {
   home: ConsoleHome;
@@ -61,22 +57,7 @@ export default function PlanCard({ home, plan, weather, onBack, replayTime }: Pr
         <HouseDiagram foundation={home.foundation} exposed={card.exposed} level={card.level} />
       </div>
 
-      <details className="group rounded-panel border border-border px-4 py-3 [&_summary::-webkit-details-marker]:hidden">
-        <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium">
-          Why?
-          <span className="text-muted transition group-open:rotate-90" aria-hidden>
-            ›
-          </span>
-        </summary>
-        <ul className="mt-3 space-y-3">
-          {card.reasons.map((r) => (
-            <li key={r.source} className="text-sm leading-relaxed">
-              <p>{r.text}</p>
-              <span className={`mt-1 inline-block rounded-full border px-2 py-0.5 text-[11px] ${SOURCE_STYLE[r.source]}`}>{r.source}</span>
-            </li>
-          ))}
-        </ul>
-      </details>
+      <WhyList reasons={card.reasons} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <BackLink onClick={onBack}>Back to map</BackLink>

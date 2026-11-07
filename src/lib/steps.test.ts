@@ -67,3 +67,31 @@ describe("plan card", () => {
     expect(buildPlanCard(snugHome, plan({}), cold).exposed).toEqual([]);
   });
 });
+
+describe("photo check updates the plan", () => {
+  const withFaucet = { ...snugHome, outdoor_faucets: 1 };
+  const watch = plan({ level: "Medium" });
+
+  it("a covered faucet drops the cover step and says it was confirmed", () => {
+    const before = buildPlanCard(withFaucet, watch, cold);
+    const after = buildPlanCard(withFaucet, watch, cold, "covered");
+    expect(before.steps.map((s) => s.text)).toContain("Cover the outdoor faucet.");
+    expect(after.steps.map((s) => s.text)).not.toContain("Cover the outdoor faucet.");
+    expect(after.steps).toHaveLength(3);
+    expect(after.reasons[2]).toEqual({ text: "Confirmed from your photo: your outdoor faucet is covered.", source: "Photo: confirmed" });
+    expect(after.exposed).not.toContain("outdoor_faucet");
+  });
+
+  it("a bare faucet makes covering it step 1", () => {
+    const card = buildPlanCard(exposedHome, plan({ action: "drip", faucet: "kitchen", level: "High" }), cold, "bare");
+    expect(card.steps[0].text).toBe("Cover the outdoor faucet.");
+    expect(card.steps[2].text).toBe("Drip only the kitchen tap.");
+    expect(card.reasons[2].source).toBe("Photo: confirmed");
+  });
+
+  it("an unclear photo keeps the plan and asks for another photo", () => {
+    const card = buildPlanCard(withFaucet, watch, cold, "unclear");
+    expect(card.steps.map((s) => s.text)).toContain("Cover the outdoor faucet.");
+    expect(card.reasons[2].source).toBe("Photo: unclear");
+  });
+});

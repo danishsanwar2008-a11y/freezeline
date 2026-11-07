@@ -9,7 +9,10 @@ export type DisplayLevel = "High" | "Watch" | "Low";
 export const displayLevel = (l: RiskLevel): DisplayLevel => (l === "Medium" ? "Watch" : l);
 
 export type ExposedPipe = "crawlspace" | "attic" | "exterior_wall" | "outdoor_faucet";
-export type ReasonSource = "Property record" | "Forecast" | "Photo: not sent yet";
+export type ReasonSource = "Property record" | "Forecast" | "Photo: not sent yet" | "Photo: confirmed" | "Photo: unclear";
+
+/** Result of the homeowner's photo check of their outdoor faucet (the photo itself is never stored). */
+export type FaucetPhoto = "covered" | "bare" | "unclear";
 
 export interface PlanStep {
   text: string;
@@ -53,7 +56,7 @@ const TAP: Record<string, string> = {
 };
 
 /** Protective steps this home's details call for, most important first. */
-function protectiveSteps(home: CardHome, level: DisplayLevel): (PlanStep & { order: number })[] {
+function protectiveSteps(home: CardHome, level: DisplayLevel, photo?: FaucetPhoto): (PlanStep & { order: number })[] {
   const faucets = home.outdoor_faucets;
   const s: (PlanStep & { weight: number; order: number })[] = [];
   if (level !== "Low") {
@@ -81,9 +84,10 @@ function protectiveSteps(home: CardHome, level: DisplayLevel): (PlanStep & { ord
         text: "Keep the heat at 55°F or higher all night.",
         detail: "Even if you leave. Your walls hold less heat than most.",
       });
-    if (faucets > 0)
+    // A photo showing the faucet already covered removes this step; a bare one makes it urgent.
+    if (faucets > 0 && photo !== "covered")
       s.push({
-        weight: 2, order: 0,
+        weight: photo === "bare" ? 6 : 2, order: 0,
         text: faucets === 1 ? "Cover the outdoor faucet." : faucets === 2 ? "Cover both outdoor faucets." : `Cover all ${faucets} outdoor faucets.`,
         detail: "Unhook any garden hose first, then wrap the faucet with a towel or a foam cover.",
       });
@@ -147,23 +151,30 @@ function forecastReason(w: CardWeather): string {
   return w.hoursBelow20 > 0 ? `${now}. ${w.hoursBelow20} hours below 20°F so far.` : `${now}.`;
 }
 
-function photoReason(home: CardHome): string {
+function photoReason(home: CardHome, photo?: FaucetPhoto): PlanReason {
+  if (photo === "covered") return { text: "Confirmed from your photo: your outdoor faucet is covered.", source: "Photo: confirmed" };
+  if (photo === "bare") return { text: "Confirmed from your photo: your outdoor faucet is uncovered, so covering it comes first.", source: "Photo: confirmed" };
+  if (photo === "unclear") return { text: "We couldn't tell from your photo. Try again close up, in good light.", source: "Photo: unclear" };
+  return { text: photoSentence(home), source: "Photo: not sent yet" };
+}
+
+function photoSentence(home: CardHome): string {
   const subject =
     home.foundation === "pier_and_beam" ? "your crawlspace" : home.outdoor_faucets > 0 ? "your outdoor faucets" : "the pipes under your sink";
   return `We haven't seen a photo of ${subject} yet. One photo would let us fine-tune this plan.`;
 }
 
-export function exposedPipes(home: HomeAttributes): ExposedPipe[] {
+export function exposedPipes(home: HomeAttributes, photo?: FaucetPhoto): ExposedPipe[] {
   const e: ExposedPipe[] = [];
   if (home.attic_or_crawlspace_pipes) e.push(home.foundation === "pier_and_beam" ? "crawlspace" : "attic");
   if (home.exterior_wall_pipes) e.push("exterior_wall");
-  if (home.outdoor_faucets > 0) e.push("outdoor_faucet");
+  if (home.outdoor_faucets > 0 && photo !== "covered") e.push("outdoor_faucet");
   return e;
 }
 
-export function buildPlanCard(home: CardHome, plan: HomePlan, weather: CardWeather): PlanCard {
+export function buildPlanCard(home: CardHome, plan: HomePlan, weather: CardWeather, photo?: FaucetPhoto): PlanCard {
   const level = displayLevel(plan.level);
-  const top2 = protectiveSteps(home, level).slice(0, 2).sort((a, b) => a.order - b.order);
+  const top2 = protectiveSteps(home, level, photo).slice(0, 2).sort((a, b) => a.order - b.order);
   const steps = [...top2.map(({ text, detail }) => ({ text, detail })), dripStep(plan, level)] as PlanCard["steps"];
   return {
     level,
@@ -172,9 +183,9 @@ export function buildPlanCard(home: CardHome, plan: HomePlan, weather: CardWeath
     reasons: [
       { text: propertyReason(home), source: "Property record" },
       { text: forecastReason(weather), source: "Forecast" },
-      { text: photoReason(home), source: "Photo: not sent yet" },
+      photoReason(home, photo),
     ],
-    exposed: exposedPipes(home),
+    exposed: exposedPipes(home, photo),
   };
 }
 

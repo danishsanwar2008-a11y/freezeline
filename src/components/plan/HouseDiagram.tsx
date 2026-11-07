@@ -19,10 +19,13 @@ interface Props {
   foundation: "slab" | "pier_and_beam";
   exposed: ExposedPipe[];
   level: DisplayLevel;
+  /** Translated pipe labels and caption (default English). */
+  labels?: Record<ExposedPipe, string>;
+  caption?: { exposed: string; safe: string };
 }
 
 /** Simple cross-section of the house; exposed pipe runs are highlighted, everything else stays quiet. */
-export default function HouseDiagram({ foundation, exposed, level }: Props) {
+export default function HouseDiagram({ foundation, exposed, level, labels = LABELS, caption }: Props) {
   const pier = foundation === "pier_and_beam";
   const hot = (p: ExposedPipe) => exposed.includes(p);
   const pipe = (p: ExposedPipe | null) =>
@@ -41,13 +44,13 @@ export default function HouseDiagram({ foundation, exposed, level }: Props) {
   const label = (p: ExposedPipe, x: number, y: number, anchor: "start" | "end" | "middle" = "start") =>
     hot(p) ? (
       <text x={x} y={y} textAnchor={anchor} className="fill-text text-[11px] font-medium">
-        {LABELS[p]}
+        {labels[p]}
       </text>
     ) : null;
 
   return (
     <figure>
-      <svg viewBox="0 0 320 182" className="w-full" role="img" aria-label={`Cross-section of a ${pier ? "pier-and-beam" : "slab"} house. Exposed pipes: ${exposed.length ? exposed.map((e) => LABELS[e].toLowerCase()).join(", ") : "none"}.`}>
+      <svg viewBox="0 0 320 182" className="w-full" role="img" aria-label={`Cross-section of a ${pier ? "pier-and-beam" : "slab"} house. Exposed pipes: ${exposed.length ? exposed.map((e) => labels[e].toLowerCase()).join(", ") : "none"}.`}>
         {/* ground */}
         <line x1="0" x2="320" y1={ground} y2={ground} stroke="var(--border)" strokeWidth="2" />
         {pier ? (
@@ -84,7 +87,7 @@ export default function HouseDiagram({ foundation, exposed, level }: Props) {
         {label("outdoor_faucet", 4, ground + 18)}
       </svg>
       <figcaption className="mt-2 text-xs text-muted">
-        {exposed.length ? "Highlighted: the pipes most exposed to cold." : "Your pipes run through heated space."}
+        {exposed.length ? (caption?.exposed ?? "Highlighted: the pipes most exposed to cold.") : (caption?.safe ?? "Your pipes run through heated space.")}
       </figcaption>
     </figure>
   );
