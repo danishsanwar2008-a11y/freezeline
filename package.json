@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",
