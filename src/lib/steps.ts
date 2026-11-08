@@ -29,6 +29,7 @@ export type StepKey =
   | "cover_faucet_one"
   | "cover_faucet_two"
   | "cover_faucet_many"
+  | "shutoff_drain_faucet"
   | "unhook_hoses"
   | "shutoff_valve"
   | "heat_on";
@@ -76,6 +77,8 @@ export interface PlanCard {
 
 export interface CardHome extends HomeAttributes {
   year_built: number;
+  /** The outdoor faucet has an indoor shutoff valve, so it can be shut off and drained. */
+  has_faucet_shutoff?: boolean;
 }
 
 export interface CardWeather {
@@ -128,7 +131,14 @@ function protectiveSteps(home: CardHome, level: DisplayLevel, photo?: FaucetPhot
         detail: "Even if you leave. Your walls hold less heat than most.",
       });
     // A photo showing the faucet already covered removes this step; a bare one makes it urgent.
-    if (faucets > 0 && photo !== "covered")
+    // With an indoor valve, shutting off and draining the faucet protects it better than a cover.
+    if (faucets > 0 && photo !== "covered" && home.has_faucet_shutoff)
+      s.push({
+        key: "shutoff_drain_faucet", weight: photo === "bare" ? 6 : 2.5, order: 0,
+        text: "Shut off and drain your outdoor faucet.",
+        detail: "Close its valve inside the house, then open the outdoor faucet until it stops dripping. Leave it open tonight.",
+      });
+    else if (faucets > 0 && photo !== "covered")
       s.push({
         key: faucets === 1 ? "cover_faucet_one" : faucets === 2 ? "cover_faucet_two" : "cover_faucet_many",
         params: faucets > 2 ? { n: faucets } : undefined,

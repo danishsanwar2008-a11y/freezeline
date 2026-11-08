@@ -2,12 +2,6 @@
 
 import type { ExposedPipe, DisplayLevel } from "@/lib/steps";
 
-const LEVEL_STROKE: Record<DisplayLevel, string> = {
-  High: "var(--risk-high)",
-  Watch: "var(--risk-mid)",
-  Low: "var(--risk-low)",
-};
-
 const LABELS: Record<ExposedPipe, string> = {
   crawlspace: "Crawlspace",
   attic: "Attic",
@@ -17,77 +11,130 @@ const LABELS: Record<ExposedPipe, string> = {
 
 interface Props {
   foundation: "slab" | "pier_and_beam";
+  /** At-risk pipe sections (red). */
   exposed: ExposedPipe[];
+  /** Sections confirmed by the photo check (solid red); the rest are likely (dashed). */
+  confirmed?: ExposedPipe[];
+  /** The outdoor faucet has an indoor shutoff valve. */
+  hasShutoff?: boolean;
+  hasOutdoorFaucet?: boolean;
   level: DisplayLevel;
-  /** Translated pipe labels and caption (default English). */
   labels?: Record<ExposedPipe, string>;
-  caption?: { exposed: string; safe: string };
+  extra?: { kitchen: string; bath: string; valve: string; likely: string; confirmedLabel: string; safe: string };
 }
 
-/** Simple cross-section of the house; exposed pipe runs are highlighted, everything else stays quiet. */
-export default function HouseDiagram({ foundation, exposed, level, labels = LABELS, caption }: Props) {
+const EXTRA_EN = { kitchen: "Kitchen", bath: "Bath", valve: "Indoor valve", likely: "Likely (property record)", confirmedLabel: "Confirmed (photo)", safe: "Your pipes run through heated space." };
+
+/**
+ * Clear cross-section of the house: crawlspace (pier-and-beam) or slab, interior kitchen and bath
+ * pipes, the outdoor faucet (and its indoor valve), and the attic. At-risk sections are red:
+ * dashed = likely (property record), solid = confirmed by the photo check.
+ */
+export default function HouseDiagram({ foundation, exposed, confirmed = [], hasShutoff = false, hasOutdoorFaucet = true, labels = LABELS, extra = EXTRA_EN }: Props) {
   const pier = foundation === "pier_and_beam";
-  const hot = (p: ExposedPipe) => exposed.includes(p);
+  const ground = 186;
+  const floor = pier ? 146 : 166;
+  const ceiling = floor - 74;
+  const peak = ceiling - 44;
+  const under = pier ? 164 : 176; // supply line: through the crawlspace, or inside the slab
+  const attic = ceiling - 13;
+  const L = 74, R = 296; // outer walls
+
+  const risk = (p: ExposedPipe) => exposed.includes(p);
   const pipe = (p: ExposedPipe | null) =>
-    p && hot(p)
-      ? { stroke: LEVEL_STROKE[level], strokeWidth: 4, opacity: 1 }
-      : { stroke: "var(--muted)", strokeWidth: 2.5, opacity: 0.45 };
-
-  // Geometry: pier-and-beam floors sit above a crawlspace; slab floors sit on the ground.
-  const ground = 158;
-  const floor = pier ? 124 : 146;
-  const ceiling = pier ? 64 : 80;
-  const roofPeak = ceiling - 42;
-  const underFloor = pier ? 138 : ground + 10; // supply line runs through crawlspace or under slab
-  const atticLine = ceiling - 12;
-
+    p && risk(p)
+      ? { stroke: "var(--risk-high)", strokeWidth: 4.5, strokeDasharray: confirmed.includes(p) ? undefined : "7 5", opacity: 1 }
+      : { stroke: "var(--muted)", strokeWidth: 3, opacity: 0.55 };
   const label = (p: ExposedPipe, x: number, y: number, anchor: "start" | "end" | "middle" = "start") =>
-    hot(p) ? (
-      <text x={x} y={y} textAnchor={anchor} className="fill-text text-[11px] font-medium">
+    risk(p) ? (
+      <text x={x} y={y} textAnchor={anchor} className="fill-text text-[12px] font-semibold">
         {labels[p]}
       </text>
     ) : null;
+  const small = (x: number, y: number, t: string, anchor: "start" | "middle" | "end" = "middle") => (
+    <text x={x} y={y} textAnchor={anchor} className="fill-muted text-[11px]">
+      {t}
+    </text>
+  );
 
   return (
     <figure>
-      <svg viewBox="0 0 320 182" className="w-full" role="img" aria-label={`Cross-section of a ${pier ? "pier-and-beam" : "slab"} house. Exposed pipes: ${exposed.length ? exposed.map((e) => labels[e].toLowerCase()).join(", ") : "none"}.`}>
-        {/* ground */}
-        <line x1="0" x2="320" y1={ground} y2={ground} stroke="var(--border)" strokeWidth="2" />
+      <svg
+        viewBox="0 0 360 214"
+        className="w-full"
+        role="img"
+        aria-label={`Cross-section of a ${pier ? "pier-and-beam" : "slab"} house. At-risk pipes: ${exposed.length ? exposed.map((e) => labels[e].toLowerCase()).join(", ") : "none"}.`}
+      >
+        {/* ground + foundation */}
+        <line x1="0" x2="360" y1={ground} y2={ground} stroke="var(--border)" strokeWidth="2" />
         {pier ? (
-          [78, 160, 242].map((x) => <rect key={x} x={x - 5} y={floor} width="10" height={ground - floor} fill="var(--border)" />)
+          <>
+            {[96, 185, 274].map((x) => (
+              <rect key={x} x={x - 6} y={floor} width="12" height={ground - floor} fill="var(--border)" />
+            ))}
+          </>
         ) : (
-          <rect x="62" y={floor} width="196" height={ground - floor} fill="var(--border)" />
+          <rect x={L - 4} y={floor} width={R - L + 8} height={ground - floor} fill="var(--border)" />
         )}
 
-        {/* house */}
-        <rect x="66" y={ceiling} width="188" height={floor - ceiling} fill="var(--bg)" stroke="var(--muted)" strokeOpacity="0.5" strokeWidth="2" />
-        <path d={`M56 ${ceiling} L160 ${roofPeak} L264 ${ceiling} Z`} fill="var(--bg)" stroke="var(--muted)" strokeOpacity="0.5" strokeWidth="2" strokeLinejoin="round" />
-        <line x1="66" x2="254" y1={ceiling} y2={ceiling} stroke="var(--muted)" strokeOpacity="0.5" strokeWidth="2" />
+        {/* house shell */}
+        <rect x={L} y={ceiling} width={R - L} height={floor - ceiling} fill="var(--bg)" stroke="var(--muted)" strokeOpacity="0.55" strokeWidth="2" />
+        <path d={`M${L - 12} ${ceiling} L185 ${peak} L${R + 12} ${ceiling} Z`} fill="var(--bg)" stroke="var(--muted)" strokeOpacity="0.55" strokeWidth="2" strokeLinejoin="round" />
 
-        {/* sink + tap inside, next to the outside wall */}
-        <rect x="80" y={floor - 30} width="34" height="6" rx="2" fill="var(--muted)" opacity="0.5" />
+        {/* kitchen sink (left, on the outside wall) and bathroom sink (right, inside) */}
+        <rect x={L + 16} y={floor - 34} width="40" height="7" rx="2" fill="var(--muted)" opacity="0.6" />
+        {small(L + 36, floor - 40, extra.kitchen)}
+        <rect x={232} y={floor - 34} width="34" height="7" rx="2" fill="var(--muted)" opacity="0.6" />
+        {small(249, floor - 40, extra.bath)}
 
         {/* water main from the street */}
-        <path d={`M0 ${underFloor} H74`} fill="none" strokeLinecap="round" {...pipe(pier ? "crawlspace" : null)} />
-        {/* crawlspace run (pier) or under-slab run */}
-        <path d={`M74 ${underFloor} H210`} fill="none" strokeLinecap="round" {...pipe(pier ? "crawlspace" : null)} />
-        {/* riser in the outside wall up to the sink */}
-        <path d={`M74 ${underFloor} V${floor - 27} H86`} fill="none" strokeLinecap="round" strokeLinejoin="round" {...pipe("exterior_wall")} />
-        {/* interior riser */}
-        <path d={`M210 ${underFloor} V${pier ? floor - 26 : atticLine}`} fill="none" strokeLinecap="round" {...pipe(!pier ? "attic" : null)} />
-        {/* attic run (slab homes) */}
-        {!pier && <path d={`M210 ${atticLine} H120 V${ceiling + 18}`} fill="none" strokeLinecap="round" strokeLinejoin="round" {...pipe("attic")} />}
-        {/* outdoor faucet on the outside wall */}
-        <path d={`M74 ${floor - 10} H36 V${floor - 4}`} fill="none" strokeLinecap="round" strokeLinejoin="round" {...pipe("outdoor_faucet")} />
-        <circle cx="36" cy={floor - 12} r="4" fill="none" {...pipe("outdoor_faucet")} />
+        <path d={`M0 ${under} H${L + 8}`} fill="none" strokeLinecap="round" {...pipe(pier ? "crawlspace" : null)} />
+        {/* run under the floor (crawlspace) or inside the slab */}
+        <path d={`M${L + 8} ${under} H245`} fill="none" strokeLinecap="round" {...pipe(pier ? "crawlspace" : null)} />
+        {/* riser in the outside wall up to the kitchen sink */}
+        <path d={`M${L + 8} ${under} V${floor - 30} H${L + 20}`} fill="none" strokeLinecap="round" strokeLinejoin="round" {...pipe("exterior_wall")} />
+        {/* interior riser up to the bathroom (and on to the attic run on slab homes) */}
+        <path d={`M245 ${under} V${pier ? floor - 30 : attic}`} fill="none" strokeLinecap="round" {...pipe(!pier ? "attic" : null)} />
+        {!pier && <path d={`M245 ${attic} H150 V${ceiling + 20}`} fill="none" strokeLinecap="round" strokeLinejoin="round" {...pipe("attic")} />}
 
-        {label("crawlspace", 150, floor + 10, "middle")}
-        {label("attic", 160, atticLine - 6, "middle")}
-        {label("exterior_wall", 92, ceiling + 22)}
-        {label("outdoor_faucet", 4, ground + 18)}
+        {/* outdoor faucet through the outside wall, with its indoor valve */}
+        {hasOutdoorFaucet && (
+          <>
+            <path d={`M${L + 8} ${floor - 12} H${L - 30} V${floor - 5}`} fill="none" strokeLinecap="round" strokeLinejoin="round" {...pipe("outdoor_faucet")} />
+            <circle cx={L - 30} cy={floor - 15} r="5" fill="none" {...pipe("outdoor_faucet")} />
+            {hasShutoff && (
+              <>
+                <path d={`M${L + 1} ${floor - 17} l8 10 v-10 l-8 10 Z`} fill="var(--accent)" stroke="var(--accent)" strokeWidth="1" />
+                {small(L + 12, floor - 20, extra.valve, "start")}
+              </>
+            )}
+          </>
+        )}
+
+        {label("crawlspace", 185, under + 16, "middle")}
+        {label("attic", 198, attic - 7, "middle")}
+        {label("exterior_wall", L + 14, ceiling + 18)}
+        {label("outdoor_faucet", 4, ground + 16)}
       </svg>
-      <figcaption className="mt-2 text-xs text-muted">
-        {exposed.length ? (caption?.exposed ?? "Highlighted: the pipes most exposed to cold.") : (caption?.safe ?? "Your pipes run through heated space.")}
+      <figcaption className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+        {exposed.length ? (
+          <>
+            <span className="flex items-center gap-1.5">
+              <svg width="26" height="6" aria-hidden>
+                <line x1="1" x2="25" y1="3" y2="3" stroke="var(--risk-high)" strokeWidth="3" strokeDasharray="6 4" />
+              </svg>
+              {extra.likely}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <svg width="26" height="6" aria-hidden>
+                <line x1="1" x2="25" y1="3" y2="3" stroke="var(--risk-high)" strokeWidth="3" />
+              </svg>
+              {extra.confirmedLabel}
+            </span>
+          </>
+        ) : (
+          extra.safe
+        )}
       </figcaption>
     </figure>
   );

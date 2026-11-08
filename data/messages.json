@@ -129,6 +129,16 @@
         "text": "Deje la calefacción encendida toda la noche.",
         "detail": "Al menos a 55 °F, aunque no esté en casa."
       }
+    },
+    "shutoff_drain_faucet": {
+      "en": {
+        "text": "Shut off and drain your outdoor faucet.",
+        "detail": "Close its valve inside the house, then open the outdoor faucet until it stops dripping. Leave it open tonight."
+      },
+      "es": {
+        "text": "Cierre y vacíe su llave de agua exterior.",
+        "detail": "Cierre su válvula dentro de la casa y luego abra la llave exterior hasta que deje de gotear. Déjela abierta esta noche."
+      }
     }
   },
   "drip": {
@@ -317,6 +327,174 @@
     "crew_queue": {
       "en": "{queue} more homes need a crew and wait in the queue, highest risk first.",
       "es": "{queue} casas más necesitan un equipo y esperan en la fila, primero las de mayor riesgo."
+    }
+  },
+  "call": {
+    "agent_hello": {
+      "en": "Hi, this is FreezeLine calling for your water utility about tonight's freeze.",
+      "es": "Hola, le habla FreezeLine de parte de su compañía de agua por la helada de esta noche."
+    },
+    "agent_storm": {
+      "en": "It's {temp}°F right now, after {hours} hours below 20°F. Your home's risk is {level}.",
+      "es": "Ahora hace {temp} °F, después de {hours} horas por debajo de 20 °F. El riesgo de su casa es {level}."
+    },
+    "agent_storm_mild": {
+      "en": "It's {temp}°F right now. Your home's risk is {level}.",
+      "es": "Ahora hace {temp} °F. El riesgo de su casa es {level}."
+    },
+    "agent_steps": {
+      "en": "Here are your 3 steps for tonight: {step1} {step2} {step3}",
+      "es": "Estos son sus 3 pasos para esta noche: {step1} {step2} {step3}"
+    },
+    "q_can_do": {
+      "en": "Can you do these steps yourself?",
+      "es": "¿Puede hacer estos pasos usted mismo?"
+    },
+    "a_can_do_yes": {
+      "en": "Yes, I can do them.",
+      "es": "Sí, puedo hacerlos."
+    },
+    "a_can_do_no": {
+      "en": "No, I can't do them myself.",
+      "es": "No, no puedo hacerlos solo."
+    },
+    "q_needs": {
+      "en": "Is anyone in your home elderly, disabled, or unable to go outside?",
+      "es": "¿Hay en su casa alguna persona mayor, con discapacidad o que no pueda salir?"
+    },
+    "a_needs_no": {
+      "en": "No.",
+      "es": "No."
+    },
+    "a_needs_yes": {
+      "en": "Yes: {list}.",
+      "es": "Sí: {list}."
+    },
+    "need_elderly": {
+      "en": "someone here is elderly",
+      "es": "hay una persona mayor"
+    },
+    "need_disabled": {
+      "en": "someone has a disability",
+      "es": "alguien tiene una discapacidad"
+    },
+    "need_outside": {
+      "en": "we can't go outside",
+      "es": "no podemos salir"
+    },
+    "q_alone": {
+      "en": "Do you live alone?",
+      "es": "¿Vive usted solo?"
+    },
+    "a_alone_yes": {
+      "en": "Yes, I live alone.",
+      "es": "Sí, vivo solo."
+    },
+    "a_alone_no": {
+      "en": "No.",
+      "es": "No."
+    },
+    "q_shutoff": {
+      "en": "Do you know where your main water shutoff is?",
+      "es": "¿Sabe dónde está la llave de paso principal del agua?"
+    },
+    "a_shutoff_yes": {
+      "en": "Yes, I know where it is.",
+      "es": "Sí, sé dónde está."
+    },
+    "a_shutoff_no": {
+      "en": "No, I'm not sure.",
+      "es": "No, no estoy seguro."
+    },
+    "q_faucet": {
+      "en": "Is your outdoor faucet covered?",
+      "es": "¿Está cubierta su llave de agua exterior?"
+    },
+    "a_faucet_yes": {
+      "en": "Yes, it's covered.",
+      "es": "Sí, está cubierta."
+    },
+    "a_faucet_no": {
+      "en": "No, not yet.",
+      "es": "No, todavía no."
+    },
+    "q_heat": {
+      "en": "Do you have heat right now, or is the power out?",
+      "es": "¿Tiene calefacción ahora o se fue la luz?"
+    },
+    "a_heat_yes": {
+      "en": "We have heat.",
+      "es": "Tenemos calefacción."
+    },
+    "a_heat_no": {
+      "en": "The power is out. No heat.",
+      "es": "Se fue la luz. No hay calefacción."
+    },
+    "q_neighbor": {
+      "en": "Is there a neighbor who might need a check?",
+      "es": "¿Hay algún vecino que necesite que lo revisemos?"
+    },
+    "a_neighbor_yes": {
+      "en": "Yes, the house next door.",
+      "es": "Sí, la casa de al lado."
+    },
+    "a_neighbor_no": {
+      "en": "No.",
+      "es": "No."
+    },
+    "agent_neighbor": {
+      "en": "Thank you. We'll check on your neighbor too.",
+      "es": "Gracias. También revisaremos a su vecino."
+    },
+    "agent_crew_requested": {
+      "en": "Thank you for telling me. I'm requesting a crew to help you with these steps. We'll text you as soon as a crew is assigned.",
+      "es": "Gracias por decírmelo. Estoy pidiendo un equipo para ayudarle con estos pasos. Le enviaremos un mensaje en cuanto se asigne un equipo."
+    },
+    "agent_crew_assigned": {
+      "en": "Thank you for telling me. {crew} is on the way to help you with these steps.",
+      "es": "Gracias por decírmelo. {crew} va en camino para ayudarle con estos pasos."
+    },
+    "agent_reminder": {
+      "en": "Thanks. Please do these steps before 8 PM. We'll send you a reminder.",
+      "es": "Gracias. Por favor haga estos pasos antes de las 8 p. m. Le enviaremos un recordatorio."
+    },
+    "agent_ready": {
+      "en": "Great, you're all set. Thank you for helping keep your neighbors' water on.",
+      "es": "Excelente, ya está listo. Gracias por ayudar a que sus vecinos sigan teniendo agua."
+    },
+    "status_text_reply": {
+      "en": "You answered by text.",
+      "es": "Usted respondió por mensaje de texto."
+    },
+    "status_no_answer": {
+      "en": "We called but couldn't reach you.",
+      "es": "Le llamamos, pero no pudimos comunicarnos con usted."
+    },
+    "status_door": {
+      "en": "Someone will knock on your door to check on you.",
+      "es": "Alguien tocará a su puerta para ver cómo está."
+    },
+    "status_waiting": {
+      "en": "We sent you a text and will call you soon.",
+      "es": "Le enviamos un mensaje y le llamaremos pronto."
+    },
+    "status_not_contacted": {
+      "en": "We haven't contacted you yet for this storm.",
+      "es": "Aún no nos hemos comunicado con usted por esta tormenta."
+    }
+  },
+  "storm": {
+    "day_coldest": {
+      "en": "{day} night: {temp}°F, the coldest night. {n} homes in your area need to act.",
+      "es": "La noche del {day}: {temp} °F, la noche más fría. {n} casas en su zona necesitan actuar."
+    },
+    "day_freezing": {
+      "en": "{day} night: {temp}°F. {n} homes in your area need to act.",
+      "es": "La noche del {day}: {temp} °F. {n} casas en su zona necesitan actuar."
+    },
+    "day_calm": {
+      "en": "{day}: {temp}°F at the coldest. No homes in your area need to act.",
+      "es": "{day}: {temp} °F en el momento más frío. Ninguna casa en su zona necesita actuar."
     }
   }
 }

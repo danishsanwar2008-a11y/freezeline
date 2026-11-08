@@ -125,16 +125,17 @@ export function checkCoverage(): Coverage {
         for (const ext of [false, true])
           for (const insulation of ["poor", "fair", "good"] as const)
             for (const faucets of [0, 1, 2, 3])
+              for (const valve of faucets > 0 ? [false, true] : [false])
               for (const photo of (faucets > 0 ? [undefined, "covered", "bare", "unclear"] : [undefined]) as (FaucetPhoto | undefined)[])
                 for (const hours of [0, 12]) {
                   planCombinations++;
-                  const home: CardHome = { foundation, attic_or_crawlspace_pipes: pipes, exterior_wall_pipes: ext, insulation, outdoor_faucets: faucets, year_built: 1950 };
+                  const home: CardHome = { foundation, attic_or_crawlspace_pipes: pipes, exterior_wall_pipes: ext, insulation, outdoor_faucets: faucets, year_built: 1950, has_faucet_shutoff: valve };
                   const plan: HomePlan = { action: "no_drip", faucet: null, score: 0, uncovered: false, ...la.plan, level: la.level };
                   const card = buildPlanCard(home, plan, { temperature_f: 14, apparent_temperature_f: 3, hoursBelow20: hours }, photo);
                   card.steps.forEach((s) => used.add(`step:${s.key}`));
                   card.reasons.forEach((r) => r.parts.forEach((p) => used.add(`reason:${p.key}`)));
                   for (const lang of LANGS) {
-                    const where = `${la.level}/${la.plan.action}/${la.plan.faucet ?? (la.plan.uncovered ? "uncovered" : "-")}/${foundation}/pipes=${pipes}/ext=${ext}/${insulation}/faucets=${faucets}/photo=${photo ?? "none"}/hours=${hours}/${lang}`;
+                    const where = `${la.level}/${la.plan.action}/${la.plan.faucet ?? (la.plan.uncovered ? "uncovered" : "-")}/${foundation}/pipes=${pipes}/ext=${ext}/${insulation}/faucets=${faucets}/valve=${valve}/photo=${photo ?? "none"}/hours=${hours}/${lang}`;
                     try {
                       const r = renderPlan(card, lang);
                       renders++;
