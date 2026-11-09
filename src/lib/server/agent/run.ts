@@ -4,7 +4,9 @@ import { rulePlan } from "@/lib/agentRules";
 import { agentText } from "@/lib/pregenerated";
 import { getClaude, MODELS } from "../claude";
 import { URI_HOURS, type City } from "../cityState";
-import { crewStatus } from "../outreachState";
+import { crewStatus, queuedTextIds } from "../outreachState";
+import { ZodError } from "zod";
+import { planAt, toTimestamp } from "../cityState";
 import { ACTION_TOOLS, TOOL_DEFS, cityStatus, entryId, runTool, type ActionTool, type AgentCtx, type AgentMode, type LogEntry } from "./tools";
 
 /** Max model turns per run (each turn can call several tools). */
@@ -59,6 +61,25 @@ function actionEntry(tool: ActionTool, out: { status?: string; summary?: string 
 }
 
 /** Deterministic fallback: same tools, fixed priorities (see agentRules.ts). */
+/** Plain-sentence error for the log (never raw validation JSON). */
+export function readableError(tool: string, err: unknown): string {
+  if (err instanceof ZodError) return `${tool.replace(/_/g, " ")} didn't run: ${err.issues.map((i) => `${i.path.join(".") || "input"} ${i.message.toLowerCase()}`).join("; ")}.`;
+  return err instanceof Error ? err.message : String(err);
+}
+
+/** "Drip plan published; N High and M Watch homes queued for texts." from the saved rows. */
+async function actualQueuedSummary(ctx: AgentCtx): Promise<string> {
+  const ids = await queuedTextIds(toTimestamp(ctx.time)).catch(() => new Set<string>());
+  const plan = planAt(ctx.city, ctx.hour, ctx.reserves);
+  let high = 0, watch = 0;
+  ctx.city.homes.forEach((h, i) => {
+    if (!ids.has(h.id)) return;
+    if (plan.homes[i].level === "High") high++;
+    else if (plan.homes[i].level === "Medium") watch++;
+  });
+  return agentText("log_summary", { high: high.toLocaleString(), watch: watch.toLocaleString() });
+}
+
 async function runRules(ctx: AgentCtx): Promise<void> {
   const status = cityStatus(ctx);
   const actions = rulePlan(
@@ -79,6 +100,8 @@ async function runRules(ctx: AgentCtx): Promise<void> {
   }
   actions.push(log);
   for (const a of actions) {
+    // The log reports what was actually queued (in Auto mode, earlier steps have already run).
+    if (a.tool === "log_event" && ctx.mode === "auto") a.args = { ...a.args, message: await actualQueuedSummary(ctx) };
     const args = { ...a.args, ...(a.tool === "log_event" ? {} : { reason: a.reason }) };
     try {
       const out = (await runTool(ctx, a.tool, args)) as { status?: string; summary?: string };
@@ -86,7 +109,7 @@ async function runRules(ctx: AgentCtx): Promise<void> {
       e.reason = a.reason;
       ctx.entries.push(e);
     } catch (err) {
-      ctx.entries.push({ id: entryId(), kind: "error", tool: a.tool, summary: err instanceof Error ? err.message : String(err), status: "failed" });
+      ctx.entries.push({ id: entryId(), kind: "error", tool: a.tool, summary: readableError(a.tool, err), status: "failed" });
       if (a.tool === "publish_drip_plan") return; // nothing else can run without a plan
     }
   }
@@ -156,7 +179,7 @@ async function runClaude(ctx: AgentCtx, claude: Anthropic, usage: RunResult["usa
         }
         results.push({ type: "tool_result", tool_use_id: tu.id, content: JSON.stringify(out) });
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg = readableError(tu.name, err);
         if (isAction) ctx.entries.push({ id: entryId(), kind: "error", tool: tu.name as ActionTool, summary: msg, status: "failed" });
         results.push({ type: "tool_result", tool_use_id: tu.id, content: msg, is_error: true });
       }

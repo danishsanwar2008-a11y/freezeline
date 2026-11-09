@@ -68,7 +68,7 @@ export const Inputs = {
   queue_outreach: z.object({
     zone_id: ZoneOrAll,
     level: z.enum(["High", "Watch"]),
-    limit: z.number().int().min(1).max(2000),
+    limit: z.number().int().min(1).max(20000),
     reason: Reason,
   }),
   log_event: z.object({ message: z.string().min(3).max(300), zone_id: ZoneOrAll }),
@@ -127,7 +127,7 @@ export const TOOL_DEFS: Anthropic.Beta.BetaTool[] = [
     description:
       "Queue text messages (status 'queued', simulated; not sent in this phase) to homes of one level, optionally in one area, highest risk first, up to limit. Homes already queued this hour are skipped. Call in priority order.",
     strict: true,
-    input_schema: obj({ zone_id: zoneOrAll, level: { type: "string", enum: ["High", "Watch"] }, limit: { type: "integer", description: "1-2000" }, reason: reasonProp }),
+    input_schema: obj({ zone_id: zoneOrAll, level: { type: "string", enum: ["High", "Watch"] }, limit: { type: "integer", description: "1-20000" }, reason: reasonProp }),
   },
   {
     name: "simulate_outreach",

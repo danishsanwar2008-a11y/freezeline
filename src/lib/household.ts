@@ -106,7 +106,13 @@ export function nearestNeighbors(homes: ConsoleHome[]): (string | null)[] {
  * reply (a few calls not made yet); door-check High homes that don't answer. A neighbor named on a
  * call moves up the call list (their call is placed now and they are flagged).
  */
-export function simulateOutreach(homes: ConsoleHome[], plan: CityPlan, neighbors = nearestNeighbors(homes)): HomeOutreach[] {
+export function simulateOutreach(
+  homes: ConsoleHome[],
+  plan: CityPlan,
+  neighbors = nearestNeighbors(homes),
+  /** Only homes whose text was actually queued can be "texted". Omit to assume every Watch/High home (preview). */
+  texted?: (i: number) => boolean,
+): HomeOutreach[] {
   const out: HomeOutreach[] = homes.map(() => ({
     contact: "none",
     replied_text: false,
@@ -117,7 +123,7 @@ export function simulateOutreach(homes: ConsoleHome[], plan: CityPlan, neighbors
     flagged_by: null,
   }));
   const index = new Map(homes.map((h, i) => [h.id, i]));
-  const targets = homes.map((_, i) => i).filter((i) => plan.homes[i].level !== "Low");
+  const targets = homes.map((_, i) => i).filter((i) => plan.homes[i].level !== "Low" && (!texted || texted(i)));
 
   // Pass 1: texts, then calls.
   for (const i of targets) {

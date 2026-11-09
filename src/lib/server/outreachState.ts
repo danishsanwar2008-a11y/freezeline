@@ -35,9 +35,10 @@ function neighborsOf(city: City) {
 }
 
 /** The deterministic (sample) outreach result for an hour, before anything is saved. */
-export function simulateHour(ctx: Pick<AgentCtx, "city" | "hour" | "reserves">) {
+export function simulateHour(ctx: Pick<AgentCtx, "city" | "hour" | "reserves">, textedIds?: Set<string>) {
   const plan = planAt(ctx.city, ctx.hour, ctx.reserves);
-  const outreach = simulateOutreach(ctx.city.homes, plan, neighborsOf(ctx.city));
+  const homes = ctx.city.homes;
+  const outreach = simulateOutreach(homes, plan, neighborsOf(ctx.city), textedIds ? (i) => textedIds.has(homes[i].id) : undefined);
   const assessments = outreach.map(assess);
   return { plan, outreach, assessments, summary: outreachSummary(outreach, assessments) };
 }
@@ -134,17 +135,43 @@ function funnelSentence(s: ReturnType<typeof outreachSummary>) {
   return `${s.texted.toLocaleString()} texted, ${s.called.toLocaleString()} called, ${s.doorChecks.toLocaleString()} door checks; ${s.status.ready.toLocaleString()} ready, ${s.status.needs_help.toLocaleString()} need help (sample)`;
 }
 
-/** Texts -> calls -> door checks (sample), saved as call records + outreach rows. */
+/** Homes whose text message is actually queued for this hour. */
+export async function queuedTextIds(planFor: string): Promise<Set<string>> {
+  const d = db();
+  const ids = new Set<string>();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await d.from("outreach").select("home_id").eq("plan_for", planFor).eq("channel", "sms").order("home_id").range(from, from + 999);
+    if (error) throw new Error(`outreach: ${error.message}`);
+    for (const r of data ?? []) ids.add(r.home_id);
+    if (!data || data.length < 1000) return ids;
+  }
+}
+
+/**
+ * Texts -> calls -> door checks (sample), saved as call records + outreach rows.
+ * Only homes whose text was actually queued count as contacted (if an official skipped a texting
+ * step, those homes stay "not contacted"; the record never claims a text that wasn't sent).
+ */
 export async function simulateAndSave(ctx: AgentCtx, execute: boolean) {
-  const { outreach, assessments, summary } = simulateHour(ctx);
-  if (!execute) return { status: "awaiting_approval", summary: `Run outreach: ${funnelSentence(summary)}.`, funnel: summary };
+  if (!execute) {
+    const { summary } = simulateHour(ctx);
+    return { status: "awaiting_approval", summary: `Run outreach: ${funnelSentence(summary)}.`, funnel: summary };
+  }
 
   const d = db();
   const planFor = toTimestamp(ctx.time);
   const { count } = await d.from("drip_plans").select("*", { count: "exact", head: true }).eq("plan_for", planFor);
   if (!count) throw new Error("No drip plan is published for this hour yet. Publish it first.");
+  const texted = await queuedTextIds(planFor);
+  if (texted.size === 0) throw new Error("No texts are queued for this hour yet. Queue them first.");
+  const { outreach, assessments, summary } = simulateHour(ctx, texted);
 
   const homes = ctx.city.homes;
+  // Homes that were not texted have no call record (clear any stale one from an earlier run).
+  const notContacted = homes.filter((_, i) => outreach[i].contact === "none").map((h) => h.id);
+  for (let k = 0; k < notContacted.length; k += 200) {
+    await d.from("household_calls").delete().eq("plan_for", planFor).in("home_id", notContacted.slice(k, k + 200));
+  }
   const calls = outreach
     .map((o, i) => ({ o, i }))
     .filter(({ o }) => o.contact !== "none")

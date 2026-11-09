@@ -109,3 +109,17 @@ describe("crew rule", () => {
     expect(again.proposals.some((p) => proposals.some((q) => q.home_id === p.home_id))).toBe(false);
   });
 });
+
+describe("outreach only counts texts that were actually queued", () => {
+  it("homes without a queued text stay not contacted (never claimed as texted)", () => {
+    const highOnly = (i: number) => plan.homes[i].level === "High";
+    const o = simulateOutreach(homes, plan, neighbors, highOnly);
+    o.forEach((x, i) => {
+      // Not texted: untouched, unless a neighbor asked us to check on them (then a call is placed, never a text).
+      if (!highOnly(i)) {
+        if (x.flagged_by) expect([x.contact, x.replied_text]).toEqual(["called", false]);
+        else expect(x.contact).toBe("none");
+      }
+    });
+  });
+});
