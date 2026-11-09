@@ -75,15 +75,15 @@ export default function StormView({ days, home, labels }: { days: StormDay[]; ho
         {d.sentence}
       </p>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
         <button
           type="button"
           onClick={() => setPlaying((p) => !p)}
-          className="flex h-11 shrink-0 items-center gap-2 rounded-full bg-accent px-5 text-base font-semibold text-bg"
+          className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-accent px-5 text-base font-semibold text-bg"
         >
           {playing ? labels.pause : labels.play}
         </button>
-        <ol className="flex flex-1 gap-1 overflow-x-auto">
+        <ol className="grid flex-1 grid-cols-7 gap-1">
           {days.map((x, i) => (
             <li key={x.time} className="flex-1">
               <button
@@ -93,7 +93,7 @@ export default function StormView({ days, home, labels }: { days: StormDay[]; ho
                   setDay(i);
                 }}
                 aria-current={i === day ? "true" : undefined}
-                className={`flex w-full min-w-14 flex-col items-center rounded-panel px-1 py-2 text-center transition ${
+                className={`flex w-full flex-col items-center rounded-panel px-1 py-2 text-center transition ${
                   i === day ? "bg-accent/20 text-text ring-1 ring-accent" : "text-muted hover:bg-surface"
                 }`}
               >

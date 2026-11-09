@@ -88,7 +88,10 @@ function stormDays(city: City, model: ReplayModel, zoneId: string, lang: Lang, c
     });
     const mine = need.get(zoneId) ?? { n: 0, total: 1 };
     const low = Math.round(lows[k]);
-    const day = dayLabel(model.hours[coldest].time, lang).split(/,| /)[0];
+    // An early-morning low belongs to the night before ("Monday night" for 6 AM Tuesday).
+    const t = model.hours[coldest].time;
+    const nightOf = Number(t.slice(11, 13)) < 12 ? new Date(Date.UTC(+t.slice(0, 4), +t.slice(5, 7) - 1, +t.slice(8, 10) - 1)).toISOString().slice(0, 10) + "T00:00" : t;
+    const day = dayLabel(nightOf, lang).split(/,| /)[0];
     const kind = mine.n === 0 ? "calm" : lows[k] === coldestLow ? "coldest" : "freezing";
     return {
       time: model.hours[coldest].time,

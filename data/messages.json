@@ -481,6 +481,10 @@
     "status_not_contacted": {
       "en": "We haven't contacted you yet for this storm.",
       "es": "Aún no nos hemos comunicado con usted por esta tormenta."
+    },
+    "agent_hello_text": {
+      "en": "Hi, this is FreezeLine texting for your water utility about tonight's freeze.",
+      "es": "Hola, le escribe FreezeLine de parte de su compañía de agua por la helada de esta noche."
     }
   },
   "storm": {

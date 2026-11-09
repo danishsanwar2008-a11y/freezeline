@@ -105,7 +105,7 @@ export default function HouseDiagram({ foundation, exposed, confirmed = [], hasS
             {hasShutoff && (
               <>
                 <path d={`M${L + 1} ${floor - 17} l8 10 v-10 l-8 10 Z`} fill="var(--accent)" stroke="var(--accent)" strokeWidth="1" />
-                {small(L + 12, floor - 20, extra.valve, "start")}
+                {small(L + 14, floor - 3, extra.valve, "start")}
               </>
             )}
           </>

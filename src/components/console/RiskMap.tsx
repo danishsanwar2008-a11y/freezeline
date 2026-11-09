@@ -102,6 +102,9 @@ export default function RiskMap({ hexes, need, homes, statusOf, statusKey, crews
     getLineColor: (d) => (d.h3 === focusHex ? [230, 237, 243, 200] : [11, 16, 22, focused ? 40 : 120]),
     getLineWidth: (d) => (d.h3 === focusHex ? 2 : 1),
     lineWidthUnits: "pixels",
+    extruded: false, // flat cells (deck's H3 layer defaults to 3D columns, which hide the home dots)
+    // Flat shading under the dots: never occlude them.
+    parameters: { depthWriteEnabled: false },
     stroked: true,
     filled: true,
     pickable: true,
@@ -124,7 +127,7 @@ export default function RiskMap({ hexes, need, homes, statusOf, statusKey, crews
       d.i === selectedHome ? [230, 237, 243, 255] : statusOf(d.i) === "no_answer" ? [200, 210, 220, 220] : [11, 16, 22, 160],
     getLineWidth: (d) => (d.i === selectedHome ? 3 : 1),
     radiusUnits: "meters",
-    radiusMinPixels: 1.8,
+    radiusMinPixels: 2.4,
     radiusMaxPixels: 12,
     lineWidthUnits: "pixels",
     lineWidthMinPixels: 0.5,

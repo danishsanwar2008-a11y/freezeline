@@ -66,7 +66,7 @@ export function buildConversation(i: ConversationInput): Conversation {
   const Y = (key: string, params?: Params): Line => ({ who: "you", text: say(key, lang, params) });
   const level = C.levelWord[i.level][lang];
   const lines: Line[] = [
-    A("agent_hello"),
+    A(i.contact.replied_text ? "agent_hello_text" : "agent_hello"),
     i.hoursBelow20 > 0 ? A("agent_storm", { temp: Math.round(i.temp), hours: i.hoursBelow20, level }) : A("agent_storm_mild", { temp: Math.round(i.temp), level }),
     A("agent_steps", { step1: i.steps[0] ?? "", step2: i.steps[1] ?? "", step3: i.steps[2] ?? "" }),
     A("q_can_do"),
