@@ -7,7 +7,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import uri from "../../../data/uri-2021.json";
 import uriNeighborhoods from "../../../data/uri-2021-neighborhoods.json";
-import { buildReplay, zoneExposures, type ConsoleHome, type ReplayModel } from "@/lib/replay";
+import { buildReplay, homeContext, zoneExposures, type ConsoleHome, type ReplayModel } from "@/lib/replay";
+import { explainHex } from "@/lib/hexWhy";
 import type { WeatherSeries } from "@/lib/weather";
 import type { ConsoleZone } from "@/lib/homes";
 import { planCity, type CityPlan } from "@/lib/planner";
@@ -144,6 +145,14 @@ function ConsoleBody({
     () => Float32Array.from(model.hexes, (hx) => hx.homeIdx.filter((i) => plan.homes[i].level !== "Low").length / hx.homeIdx.length),
     [model, plan],
   );
+  // "Why this shade?": the cell's share + top 2 reasons (real weather, simulated home details).
+  const explain = useCallback(
+    (k: number) => {
+      const hx = model.hexes[k];
+      return explainHex(hx.homeIdx, homes, (i) => plan.homes[i].level, homeContext(model, { zone_id: hx.zoneId }, hour));
+    },
+    [model, homes, plan, hour],
+  );
 
   // Outreach statuses + crews for this hour (saved by the agent; gray until it runs).
   const ops = useOps(agent ? time : null, agent?.version ?? 0);
@@ -214,6 +223,7 @@ function ConsoleBody({
           statusOf={statusOf}
           statusKey={data?.statuses ?? ""}
           crews={crewMarkers}
+          explain={explain}
           focusHex={focusHex}
           selectedHome={selectedHome}
           onSelectHex={selectHex}

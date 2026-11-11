@@ -100,7 +100,7 @@ Replay Uri hour by hour. Temperatures fall into the teens; the risk engine light
 - `src/lib/planner.ts` — deterministic drip planner + zone pressure model (who drips, which tap; new drips stop at 25 psi = 20 + 5 psi reserve)
 - `src/lib/pressureConfig.ts` — the one pressure config file: every pressure constant and the "some homes drip more than told" assumption (simulated; label it wherever it affects what's shown)
 - `src/lib/pressure.ts` — pressure monitor (past + next 12 hours per area) and the Stage 2 proposal (kitchen tap only first, then stop lowest-risk drippers until ≥ 25 psi). Stage 2 always needs a supervisor's approval, even in Auto mode (`send_stage2_alert`, tested in `src/lib/server/agent/stage2.test.ts`)
-- `src/lib/replay.ts` — precomputes H3 hex averages + level counts per hour for the console
+- `src/lib/replay.ts` — precomputes H3 hex averages + level counts per hour for the console; `src/lib/hexWhy.ts` — the hex "Why this shade?" tooltip (share needing action + top 2 reasons: real weather, simulated home factor)
 - `src/lib/server/` — server-only Claude layer (Haiku 5.5 writing/translation/photo, Opus 5.5 agent), content-keyed cache, agent tools + loop; `supabase/002_phase3.sql` adds ai_cache, photo_checks, idempotency indexes
 - `data/messages.json` + `src/lib/pregenerated.ts` — pre-written wording (English + Spanish) keyed by step / reason / SMS / agent keys; `npm run messages:check` proves every fact combination is covered
 - `src/lib/server/provider.ts` — `LLM_PROVIDER` switch; `src/lib/server/gemini.ts` + `photoCheck.ts` — free-tier photo check (no UI since Phase 3.6; kept for Phase 4)

@@ -11,7 +11,8 @@ import { setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { ConsoleHome, HexBin } from "@/lib/replay";
 import type { HomeStatus } from "@/lib/household";
-import { STATUS_RGB, needRgba } from "@/lib/riskScale";
+import { NEED_STEPS, STATUS_RGB, needRgba, needStep } from "@/lib/riskScale";
+import type { HexWhy } from "@/lib/hexWhy";
 
 // Worker is copied into /public by `npm install` (scripts/copy-maplibre-worker.mjs).
 setWorkerUrl("/maplibre-gl-worker.mjs");
@@ -71,13 +72,15 @@ interface Props {
   statusOf: (i: number) => HomeStatus;
   statusKey: string;
   crews: CrewMarker[];
+  /** "Why this shade?" for a hex (index into hexes). */
+  explain: (hexIdx: number) => HexWhy;
   focusHex: string | null;
   selectedHome: number | null;
   onSelectHex: (h3: string) => void;
   onSelectHome: (idx: number) => void;
 }
 
-export default function RiskMap({ hexes, need, homes, statusOf, statusKey, crews, focusHex, selectedHome, onSelectHex, onSelectHome }: Props) {
+export default function RiskMap({ hexes, need, homes, statusOf, statusKey, crews, explain, focusHex, selectedHome, onSelectHex, onSelectHome }: Props) {
   // Deck owns the camera (uncontrolled). Changing initialViewState with transition props makes
   // deck fly there itself; feeding interim frames back as a controlled viewState cancels the flight.
   const [initialViewState, setInitialViewState] = useState<MapViewState>(() => (focusHex ? areaView(focusHex) : cityView(hexes)));
@@ -176,18 +179,44 @@ export default function RiskMap({ hexes, need, homes, statusOf, statusKey, crews
       getCursor={({ isHovering }) => (isHovering ? "pointer" : "grab")}
       getTooltip={({ object, layer }: PickingInfo<HexBin | Dot | CrewMarker>) => {
         if (!object) return null;
-        let text: string | null = null;
-        if (layer?.id === "homes") text = homes[(object as Dot).i].label;
-        else if (layer?.id === "need-hexes" && (object as HexBin).h3 !== focusHex) {
-          const k = hexIndex.get((object as HexBin).h3)!;
-          text = `${(object as HexBin).neighborhood} · ${Math.round((need[k] ?? 0) * 100)}% of ${(object as HexBin).homeIdx.length} homes need action`;
+        if (layer?.id === "homes") return { text: homes[(object as Dot).i].label, style: TIP_STYLE };
+        if (layer?.id === "need-hexes" && (object as HexBin).h3 !== focusHex) {
+          const hex = object as HexBin;
+          return { html: whyHtml(hex.neighborhood, explain(hexIndex.get(hex.h3)!)), style: TIP_STYLE };
         }
-        return text
-          ? { text, style: { background: "var(--surface)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: "8px", padding: "6px 10px", fontSize: "12px" } }
-          : null;
+        return null;
       }}
     >
       <Map mapStyle={BASEMAP} attributionControl={{ compact: true }} />
     </DeckGL>
   );
+}
+
+const TIP_STYLE = {
+  background: "var(--surface)",
+  color: "var(--text)",
+  border: "1px solid var(--border)",
+  borderRadius: "8px",
+  padding: "8px 10px",
+  fontSize: "12px",
+  maxWidth: "270px",
+};
+
+const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+
+/** Hex tooltip: share needing action (bar in its legend color) + the top 2 reasons, real vs simulated marked. */
+function whyHtml(area: string, w: HexWhy): string {
+  const pct = Math.round(w.share * 100);
+  const color = NEED_STEPS[needStep(w.share)].swatch;
+  const tag = (simulated: boolean) =>
+    `<span style="margin-left:4px;font-size:10px;color:${simulated ? "var(--warn)" : "var(--muted)"}">${simulated ? "simulated" : "real weather"}</span>`;
+  const homesWord = w.total === 1 ? "home" : "homes";
+  return [
+    `<div style="font-weight:600">Why this shade? <span style="font-weight:400;color:var(--muted)">· ${esc(area)}</span></div>`,
+    `<div style="margin-top:4px">${pct}% need action · ${w.need.toLocaleString("en-US")} of ${w.total.toLocaleString("en-US")} ${homesWord}</div>`,
+    `<div style="margin-top:4px;height:6px;border-radius:3px;background:var(--border);overflow:hidden"><div style="height:100%;width:${pct}%;background:${color}"></div></div>`,
+    `<ol style="margin:6px 0 0;padding-left:16px;list-style:decimal;line-height:1.4">${w.reasons
+      .map((r) => `<li>${esc(r.text)}${tag(r.simulated)}</li>`)
+      .join("")}</ol>`,
+  ].join("");
 }
