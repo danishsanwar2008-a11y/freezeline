@@ -59,6 +59,8 @@ Replay Uri hour by hour. Temperatures fall into the teens; the risk engine light
 
 ## Visual design rules
 
+DESIGN.md is the source of truth for how FreezeLine looks.
+
 - Every number gets a visual: dot/unit grids (one dot per home), stacked color bars, color tiles or simple icons. No bare numbers in a list.
 - One big headline number per panel, with details collapsed underneath.
 - Facts as short tiles, not sentences (e.g. "Can do steps: No", "Lives alone: Yes").
