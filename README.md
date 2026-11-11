@@ -15,7 +15,7 @@ Copy-Item .env.example .env.local    # then fill in the values (see below)
 npm run dev
 ```
 
-3. Open http://localhost:3000/console.
+3. Open http://localhost:3000/console and sign in with the console password.
 
 Checks before you push: `npm test` and `npm run messages:check`.
 
@@ -28,10 +28,11 @@ Put these in `.env.local`. Never commit that file; it is git-ignored.
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes (server and scripts only) |
+| `CONSOLE_PASSWORD` | Yes. The shared password for `/console` (sign in at `/login`) |
 | `LLM_PROVIDER` | No. Keep `pregenerated` (pre-written text, no AI calls) |
 | `GEMINI_API_KEY`, `GEMINI_MODEL` | Only if `LLM_PROVIDER=gemini` |
 | `ANTHROPIC_API_KEY` | Only if `LLM_PROVIDER=anthropic` |
 
 ## Project rules
 
-`CLAUDE.md` (and `AGENTS.md`, which it includes) holds the project rules: the phase plan, the two audiences, the honesty and crew rules, and the visual design rules. Read it before changing anything.
+`CLAUDE.md` (and `AGENTS.md`, which it includes) holds the project rules: the phase plan, who sees what, the honesty and crew rules, and the visual design rules. Read it before changing anything.

@@ -2,6 +2,9 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { getCity } from "@/lib/server/cityState";
 import ConsoleShell from "@/components/console/ConsoleShell";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { SESSION_COOKIE, validSession } from "@/lib/server/consoleAuth";
 
 export const metadata = { title: "Utility console · FreezeLine" };
 
@@ -19,6 +22,8 @@ function FullScreenMessage({ title, children, tone = "muted" }: { title: string;
 
 async function ConsoleData() {
   await connection(); // read homes at request time
+  // Checked here too, not only in src/proxy.ts (defense in depth).
+  if (!validSession((await cookies()).get(SESSION_COOKIE)?.value)) redirect("/login?next=/console");
   let homes, zones;
   try {
     ({ homes, zones } = await getCity()); // cached on the server; same home order as /api/ops

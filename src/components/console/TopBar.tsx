@@ -45,6 +45,11 @@ export default function TopBar({ mode, onMode }: Props) {
       <span className="flex-1" />
       <ModeToggle mode={mode} onMode={onMode} />
       <InfoTip />
+      <form method="post" action="/api/logout">
+        <button type="submit" className="rounded-md px-2 py-1.5 text-xs text-muted transition hover:bg-border hover:text-text focus-visible:outline-2 focus-visible:outline-accent">
+          Sign out
+        </button>
+      </form>
     </header>
   );
 }

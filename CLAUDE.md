@@ -86,12 +86,13 @@ Replay Uri hour by hour. Temperatures fall into the teens; the risk engine light
 - Risk is computed in code, not stored per hour in the database.
 - **All sample data is labeled simulated** (homes, zones, outreach, calls, crews) — in the DB (`simulated` column) and in the UI. Home locations are real OpenStreetMap footprints (© OpenStreetMap contributors, ODbL); everything about each household is simulated.
 - **Keys are never committed.** Real values live in `.env.local` (git-ignored). `.env.example` holds placeholders only.
+- **The console is password-protected.** `CONSOLE_PASSWORD` (server-only) gates `/console`, `/status`, `/api/ops*` and `/api/agent*` via `src/proxy.ts`, and every protected page and API route checks again itself (`src/lib/server/consoleAuth.ts`). Shared password, httpOnly cookie, 12 hours; not an account system. New protected routes must call `requireConsole`.
 - **`SUPABASE_SERVICE_ROLE_KEY` is used only in scripts and server code**, never with a `NEXT_PUBLIC_` prefix and never imported into a client component.
 - Supabase access: the anon key may read only zones, drip_plans and events. Homes, household calls, crews and outreach are read on the server with the service role.
 
 ## Layout
 
-- `src/app` — routes (`/console` City Operations, `/status` connection test); APIs `/api/ops`, `/api/ops/home`, `/api/agent/*`
+- `src/app` — routes (`/console` City Operations, `/status` connection test, `/login`); APIs `/api/ops`, `/api/ops/home`, `/api/agent/*`, `/api/login`, `/api/logout`; `src/proxy.ts` password gate
 - `data/osm-homes.json` — 8,034 real house footprints from OpenStreetMap (`npm run osm:homes`, fetched once); `src/lib/seed/generate.ts` adds simulated details (incl. elderly / mobility / lives alone / indoor faucet valve)
 - `src/lib/household.ts` — simulated outreach funnel, call answers, assessments, crew proposals (pure, tested); `src/lib/crewTrip.ts` crew distance, drive time and job length (simulated); `src/lib/server/outreachState.ts` saves them; `src/lib/cityWording.ts` officials' wording
 - `src/lib/callScript.ts` — the agent's conversation with a household (pre-written lines, honesty rule)

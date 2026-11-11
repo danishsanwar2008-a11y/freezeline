@@ -2,6 +2,9 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSupabaseAdmin } from "@/lib/server/supabaseAdmin";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { SESSION_COOKIE, validSession } from "@/lib/server/consoleAuth";
 
 export const metadata = { title: "Connection status · FreezeLine" };
 
@@ -50,6 +53,8 @@ function Notice({ tone, title, children }: { tone: "danger" | "warn"; title: str
 
 async function ConnectionPanel() {
   await connection(); // always query live, at request time
+  // Officials only: checked here too, not only in src/proxy.ts.
+  if (!validSession((await cookies()).get(SESSION_COOKIE)?.value)) redirect("/login?next=/status");
   const r = await loadCounts();
 
   if (r.kind === "missing-env") {
