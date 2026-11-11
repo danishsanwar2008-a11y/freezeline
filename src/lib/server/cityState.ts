@@ -5,6 +5,7 @@ import { fetchConsoleHomes, fetchConsoleZones, type ConsoleZone } from "@/lib/ho
 import { buildReplay, homeContext, zoneExposures, type ConsoleHome, type ReplayModel } from "@/lib/replay";
 import { planCity, type CityPlan } from "@/lib/planner";
 import type { WeatherSeries } from "@/lib/weather";
+import { extraTapFlags, pressureMonitor, type AreaPressure } from "@/lib/pressure";
 
 export const URI_HOURS = (uri as WeatherSeries).hours;
 const ZONE_HOURS = Object.fromEntries(
@@ -50,4 +51,27 @@ export function planAt(c: City, hour: number, reservePsi: Record<string, number>
 
 export function weatherFor(c: City, homeIdx: number, hour: number) {
   return homeContext(c.model, c.homes[homeIdx], hour);
+}
+
+// ---------- pressure monitor (same math as the console's panel) ----------
+
+const extraCache = new WeakMap<City, Uint8Array>();
+const planCache = new WeakMap<City, Map<number, CityPlan>>();
+
+/** Pressure monitor + Stage 2 proposals for every area at one replay hour (standard reserves). */
+export function monitorAt(c: City, hour: number): AreaPressure[] {
+  let extra = extraCache.get(c);
+  if (!extra) extraCache.set(c, (extra = extraTapFlags(c.homes)));
+  let plans = planCache.get(c);
+  if (!plans) planCache.set(c, (plans = new Map()));
+  const cached = plans;
+  return pressureMonitor({
+    zones: c.zones,
+    homes: c.homes,
+    extra,
+    hour,
+    hours: c.model.hours.length,
+    planAt: (h) => cached.get(h) ?? cached.set(h, planAt(c, h)).get(h)!,
+    exposureAt: (h) => zoneExposures(c.model, h),
+  });
 }

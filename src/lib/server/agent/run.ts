@@ -5,8 +5,10 @@ import { agentText } from "@/lib/pregenerated";
 import { getClaude, MODELS } from "../claude";
 import { URI_HOURS, type City } from "../cityState";
 import { crewStatus, queuedTextIds } from "../outreachState";
+import { stage2Reason, stage2Sentence } from "@/lib/pressure";
+import { formatHour } from "@/components/console/format";
 import { ZodError } from "zod";
-import { planAt, toTimestamp } from "../cityState";
+import { monitorAt, planAt, toTimestamp } from "../cityState";
 import { ACTION_TOOLS, TOOL_DEFS, cityStatus, entryId, runTool, type ActionTool, type AgentCtx, type AgentMode, type LogEntry } from "./tools";
 
 /** Max model turns per run (each turn can call several tools). */
@@ -208,6 +210,7 @@ export async function runAgent(city: City, hour: number, mode: AgentMode, origin
   } else {
     await runRules(ctx);
   }
+  proposeStage2(ctx);
   return { time: ctx.time, mode, source: claude ? "claude" : "rules", entries: ctx.entries, usage };
 }
 
@@ -216,4 +219,24 @@ export async function executeApproved(city: City, hour: number, origin: string, 
   const ctx: AgentCtx = { city, hour, time: URI_HOURS[hour].time, mode: "auto", origin, reserves: { ...pending.reserves }, entries: [] };
   const out = (await runTool(ctx, pending.tool, pending.args, true)) as { summary?: string };
   return { id: entryId(), kind: "action", tool: pending.tool, summary: out.summary ?? pending.tool, status: "done" };
+}
+
+/**
+ * Stage 2 alerts come from the deterministic pressure monitor (the same equation as the console panel).
+ * They are ALWAYS pending, in Auto mode too: a supervisor approves every Stage 2 alert.
+ */
+export function proposeStage2(ctx: AgentCtx): void {
+  for (const a of monitorAt(ctx.city, ctx.hour)) {
+    if (!a.stage2) continue;
+    const args = { zone_id: a.zoneId, reason: stage2Reason(a.stage2, formatHour(URI_HOURS[a.stage2.worstHour].time)) };
+    ctx.entries.push({
+      id: entryId(),
+      kind: "action",
+      tool: "send_stage2_alert",
+      summary: `Stage 2 alert ready · needs supervisor approval. ${stage2Sentence(a.stage2)}.`,
+      reason: args.reason,
+      status: "pending",
+      input: { tool: "send_stage2_alert", args, reserves: {} } satisfies PendingInput,
+    });
+  }
 }

@@ -9,13 +9,14 @@ import { fillLink, smsGroupKey, type SmsFacts } from "@/lib/messages";
 import { getSupabaseAdmin } from "../supabaseAdmin";
 import { OutreachInputs, crewStatus, proposeCrew, simulateAndSave } from "../outreachState";
 import { smsDraft } from "../writer";
-import { planAt, toTimestamp, URI_HOURS, type City } from "../cityState";
+import { monitorAt, planAt, toTimestamp, URI_HOURS, type City } from "../cityState";
+import { stage2Sentence } from "@/lib/pressure";
 
 // ---------- shared types ----------
 
 export type AgentMode = "auto" | "approve";
-export type ActionTool = "publish_drip_plan" | "queue_outreach" | "simulate_outreach" | "propose_crew" | "log_event";
-export const ACTION_TOOLS: ActionTool[] = ["publish_drip_plan", "queue_outreach", "simulate_outreach", "propose_crew", "log_event"];
+export type ActionTool = "publish_drip_plan" | "queue_outreach" | "simulate_outreach" | "propose_crew" | "log_event" | "send_stage2_alert";
+export const ACTION_TOOLS: ActionTool[] = ["publish_drip_plan", "queue_outreach", "simulate_outreach", "propose_crew", "log_event", "send_stage2_alert"];
 
 export interface LogEntry {
   id: string;
@@ -73,6 +74,8 @@ export const Inputs = {
     reason: Reason,
   }),
   log_event: z.object({ message: z.string().min(3).max(300), zone_id: ZoneOrAll }),
+  /** Stage 2: proposed by the deterministic monitor only (not offered to Claude); always needs an official's approval. */
+  send_stage2_alert: z.object({ zone_id: z.string(), reason: Reason }),
   ...OutreachInputs,
 } as const;
 export type ToolName = keyof typeof Inputs;
@@ -421,5 +424,70 @@ export async function runTool(ctx: AgentCtx, name: string, raw: unknown, forceEx
       return crewStatus(ctx);
     case "propose_crew":
       return proposeCrew(ctx, input as z.output<typeof Inputs.propose_crew>, execute);
+    case "send_stage2_alert":
+      // Stage 2 always needs a supervisor: it runs only on an explicit approval, never in Auto mode.
+      return sendStage2Alert(ctx, input as z.output<typeof Inputs.send_stage2_alert>, forceExecute);
   }
+}
+
+// ---------- Stage 2 alert (supervisor approval required, even in Auto mode) ----------
+
+/** Stage 2 texts are stamped one minute after the hour, so they never collide with that hour's Stage 1 text. */
+export const stage2Timestamp = (time: string) => toTimestamp(`${time.slice(0, 14)}01`);
+
+export async function sendStage2Alert(ctx: AgentCtx, input: z.output<typeof Inputs.send_stage2_alert>, approved: boolean) {
+  if (!zoneIds(ctx.city).includes(input.zone_id)) throw new Error(`Unknown zone_id. Valid: ${zoneIds(ctx.city).join(", ")}`);
+  const area = monitorAt(ctx.city, ctx.hour).find((a) => a.zoneId === input.zone_id)!;
+  const p = area.stage2;
+  if (!p) throw new Error(`${area.area} doesn't need a Stage 2 alert at this hour (forecast stays at or above 25 psi).`);
+  const sentence = stage2Sentence(p);
+  if (!approved) return { status: "awaiting_approval", summary: `Stage 2 alert ready · needs supervisor approval. ${sentence}.` };
+
+  const db = requireDb();
+  const plan = planAt(ctx.city, ctx.hour, ctx.reserves);
+  const planFor = stage2Timestamp(ctx.time);
+  const drafts = new Map<string, string>();
+  const rows = [];
+  // Existing pre-written texts until Phase 4 brings the Stage 2 wording:
+  // "don't drip" for homes that stop, the kitchen-tap drip text for homes that keep the kitchen tap only.
+  const groups: [number[], "no_drip" | "drip"][] = [
+    [p.stop, "no_drip"],
+    [p.kitchenOnly, "drip"],
+  ];
+  for (const [list, action] of groups) {
+    for (const i of list) {
+      const h = ctx.city.homes[i];
+      const facts: SmsFacts = { level: displayLevel(plan.homes[i].level), action, faucet: action === "drip" ? "kitchen" : null, uncovered: false };
+      const key = smsGroupKey(facts);
+      if (!drafts.has(key)) drafts.set(key, (await smsDraft(facts)).text);
+      rows.push({
+        home_id: h.id,
+        plan_for: planFor,
+        channel: "sms",
+        to_number: null,
+        message: fillLink(drafts.get(key)!, homeUrl(ctx, h.id)),
+        status: "queued",
+        simulated: true,
+      });
+    }
+  }
+  let queued = 0;
+  for (let k = 0; k < rows.length; k += 500) {
+    const { data, error } = await db
+      .from("outreach")
+      .upsert(rows.slice(k, k + 500), { onConflict: "home_id,plan_for,channel", ignoreDuplicates: true })
+      .select("id");
+    if (error) throw new Error(`outreach: ${error.message}`);
+    queued += data?.length ?? 0;
+  }
+  const summary = `Stage 2 alert approved. ${sentence}. Queued ${plural(queued, "text")} (simulated).`;
+  await logRow(ctx, "stage2_alert", summary, input.zone_id, {
+    stop: p.stop.length,
+    kitchen_only: p.kitchenOnly.length,
+    forecast_psi: Math.round(p.forecastPsi * 10) / 10,
+    psi_after: Math.round(p.psiAfter * 10) / 10,
+    approved_by: "supervisor",
+    queued,
+  });
+  return { status: "done", summary, queued };
 }

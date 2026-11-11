@@ -7,7 +7,7 @@ import { executeApproved } from "@/lib/server/agent/run";
 const Body = z.object({
   time: z.string(),
   pending: z.object({
-    tool: z.enum(["publish_drip_plan", "queue_outreach", "simulate_outreach", "propose_crew", "log_event"]),
+    tool: z.enum(["publish_drip_plan", "queue_outreach", "simulate_outreach", "propose_crew", "log_event", "send_stage2_alert"]),
     args: z.unknown(),
     reserves: z.record(z.string(), z.number()),
   }),

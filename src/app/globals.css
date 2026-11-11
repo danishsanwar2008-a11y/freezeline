@@ -90,3 +90,15 @@ body {
   --color-status-none: var(--status-none);
   --color-status-gray: var(--status-gray);
 }
+
+/* Water pressure bands (pressure only; never home status). Green above 25 psi, amber 20–25, red below 20. */
+:root {
+  --psi-ok: var(--ok);
+  --psi-warn: var(--warn);
+  --psi-bad: var(--danger);
+}
+@theme inline {
+  --color-psi-ok: var(--psi-ok);
+  --color-psi-warn: var(--psi-warn);
+  --color-psi-bad: var(--psi-bad);
+}

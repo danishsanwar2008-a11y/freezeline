@@ -96,9 +96,10 @@ describe("stricter drip budget (per-zone reserve)", () => {
     expect(strict.zones.filter((z) => z.zoneId !== "third-ward")).toEqual(base.zones.filter((z) => z.zoneId !== "third-ward"));
   });
 
-  it("clamps reserves to the 3–10 psi range", () => {
+  it("clamps reserves to the 5–10 psi range (new drips stop at 25 psi by default)", () => {
     const p = planCity(zones, homes, vuln, e, { reservePsi: { heights: 99, montrose: -5 } });
     expect(p.zones.find((z) => z.zoneId === "heights")!.reservePsi).toBe(10);
-    expect(p.zones.find((z) => z.zoneId === "montrose")!.reservePsi).toBe(3);
+    expect(p.zones.find((z) => z.zoneId === "montrose")!.reservePsi).toBe(5);
+    expect(BOIL_WATER_PSI + RESERVE_PSI).toBe(25);
   });
 });

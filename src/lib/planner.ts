@@ -3,17 +3,17 @@
 // the 20 psi boil-water threshold. Same inputs -> same plan.
 
 import { HIGH_AT, levelFor, scoreFrom, type HomeAttributes, type RiskLevel } from "./risk";
+import {
+  BLANKET_TAPS_PER_HOME,
+  BOIL_WATER_PSI,
+  FREEZE_DEMAND_PSI,
+  MAX_RESERVE_PSI,
+  PSI_PER_TAP_SHARE,
+  RESERVE_PSI,
+} from "./pressureConfig";
 
-/** Below this, Texas requires a boil-water notice. */
-export const BOIL_WATER_PSI = 20;
-/** Safety reserve the planner keeps above the boil-water line. */
-export const RESERVE_PSI = 3;
-/** Extra system demand (heating, leaks, plant strain) at full freeze exposure. */
-export const FREEZE_DEMAND_PSI = 10;
-/** Pressure lost if every home in a zone drips one tap. */
-export const PSI_PER_TAP_SHARE = 15;
-/** The blanket "everyone drip" message: households typically leave about two taps running. */
-export const BLANKET_TAPS_PER_HOME = 2;
+// Constants live in the one pressure config file; re-exported for existing imports.
+export { BLANKET_TAPS_PER_HOME, BOIL_WATER_PSI, FREEZE_DEMAND_PSI, MAX_RESERVE_PSI, PSI_PER_TAP_SHARE, RESERVE_PSI };
 
 export interface PlannerZone {
   id: string;
@@ -43,7 +43,7 @@ export interface ZonePlan {
   neighborhood: string;
   homes: number;
   basePsi: number;
-  /** Reserve above 20 psi this zone's budget keeps (3 by default; stricter if raised). */
+  /** Reserve above 20 psi this zone's budget keeps (5 by default, so new drips stop at 25 psi; stricter if raised). */
   reservePsi: number;
   /** Max homes that can drip one tap while staying >= 20 psi + reserve. */
   dripBudget: number;
@@ -69,7 +69,6 @@ export function zonePressure(basePsi: number, exposure: number, drippingTaps: nu
 
 /** Allowed range for a zone's reserve (a stricter budget keeps more pressure in hand). */
 export const MIN_RESERVE_PSI = RESERVE_PSI;
-export const MAX_RESERVE_PSI = 10;
 export const clampReserve = (psi: number) => Math.min(MAX_RESERVE_PSI, Math.max(MIN_RESERVE_PSI, Math.round(psi)));
 
 /** How many homes may drip one tap while the zone stays at or above 20 psi + reserve. */
@@ -89,7 +88,7 @@ export function chooseFaucet(home: HomeAttributes): string {
 /**
  * Plan every zone for one hour. `vuln` is precomputed vulnerability per home (same order).
  * `exposure` is one city-wide value, or a value per zone id (zones missing from it use 0).
- * `options.reservePsi` sets a stricter reserve per zone (clamped to 3–10 psi); others use 3 psi.
+ * `options.reservePsi` sets a stricter reserve per zone (clamped to 5–10 psi); others use 5 psi.
  */
 export function planCity(
   zones: PlannerZone[],

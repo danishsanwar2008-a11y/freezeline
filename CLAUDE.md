@@ -63,7 +63,8 @@ Replay Uri hour by hour. Temperatures fall into the teens; the risk engine light
 - One big headline number per panel, with details collapsed underneath.
 - Facts as short tiles, not sentences (e.g. "Can do steps: No", "Lives alone: Yes").
 - Status colors (home status only): green = ready, red = needs help, yellow = waiting, black = no answer, gray = not contacted (`STATUS_*` in `src/lib/riskScale.ts`).
-- The hex "need" scale uses its own pale → deep violet ramp (`needRgba`), never a status color.
+- The hex "need" scale uses its own faint → deep violet ramp in 4 labeled steps (`NEED_STEPS` / `needRgba`; the map and the legend share them), never a status color.
+- Water pressure uses its own tokens (`--psi-ok` / `--psi-warn` / `--psi-bad`: green above 25 psi, amber 20–25, red below 20), never the home status colors.
 - Two-audience wording: officials' third-person wording only on City Operations; "you" wording only in texts and calls to households (tested in `src/lib/audience.test.ts`).
 - Anything a household reads (texts, calls, the future sign-up page) is friendlier and less technical: plain sentences, nothing that needs explaining.
 - Counts always agree with their noun: use `plural()` from `src/lib/plural.ts` ("1 home", "2 homes"), never "1 homes".
@@ -96,7 +97,9 @@ Replay Uri hour by hour. Temperatures fall into the teens; the risk engine light
 - `src/lib/callScript.ts` — the agent's conversation with a household (pre-written lines, honesty rule)
 - `supabase/003_phase35.sql` — home columns, household_calls, crews, crew_assignments, outreach channels; removes anon access to homes
 - `src/lib/risk.ts` — deterministic risk engine (score 0–100, level, plain-English why)
-- `src/lib/planner.ts` — deterministic drip planner + zone pressure model (who drips, which tap, ≥ 20 psi + 3 psi reserve)
+- `src/lib/planner.ts` — deterministic drip planner + zone pressure model (who drips, which tap; new drips stop at 25 psi = 20 + 5 psi reserve)
+- `src/lib/pressureConfig.ts` — the one pressure config file: every pressure constant and the "some homes drip more than told" assumption (simulated; label it wherever it affects what's shown)
+- `src/lib/pressure.ts` — pressure monitor (past + next 12 hours per area) and the Stage 2 proposal (kitchen tap only first, then stop lowest-risk drippers until ≥ 25 psi). Stage 2 always needs a supervisor's approval, even in Auto mode (`send_stage2_alert`, tested in `src/lib/server/agent/stage2.test.ts`)
 - `src/lib/replay.ts` — precomputes H3 hex averages + level counts per hour for the console
 - `src/lib/server/` — server-only Claude layer (Haiku 5.5 writing/translation/photo, Opus 5.5 agent), content-keyed cache, agent tools + loop; `supabase/002_phase3.sql` adds ai_cache, photo_checks, idempotency indexes
 - `data/messages.json` + `src/lib/pregenerated.ts` — pre-written wording (English + Spanish) keyed by step / reason / SMS / agent keys; `npm run messages:check` proves every fact combination is covered

@@ -7,7 +7,6 @@ import { useEffect, useState } from "react";
 import type { HomeStatus } from "@/lib/household";
 import { STATUS_LABEL } from "@/lib/cityWording";
 import { STATUS_BG, STATUS_ORDER, STATUS_RGB } from "@/lib/riskScale";
-import { BOIL_WATER_PSI, type CityPlan } from "@/lib/planner";
 import type { WeatherHour } from "@/lib/weather";
 import type { OpsCrew } from "./useOps";
 import { plural, verb } from "@/lib/plural";
@@ -173,34 +172,6 @@ export function CrewsPanel({
         {queue > 0 ? `${plural(queue, "more home")} ${verb(queue, "needs a crew and waits", "need a crew and wait")} in the queue, highest risk first.` : "No homes waiting for a crew."} Crews only go to homes whose
         call says they can&apos;t do the steps themselves.
       </p>
-    </Card>
-  );
-}
-
-// ---------- Two futures ----------
-
-export function TwoFutures({ plan }: { plan: CityPlan }) {
-  const Tile = ({ psi, good, area }: { psi: number; good: boolean; area: string }) => (
-    <div className={`rounded-md px-2.5 py-2 ${good ? "bg-ok/15" : "bg-danger/15"}`}>
-      <p className="truncate text-[11px] text-muted">{area}</p>
-      <p className={`font-mono text-base font-semibold tabular-nums ${good ? "text-ok" : "text-danger"}`}>
-        {Math.round(psi)} psi {good ? "✓" : "✗"}
-      </p>
-    </div>
-  );
-  return (
-    <Card title="Water pressure: two futures">
-      <div className="grid grid-cols-2 gap-2">
-        <p className="text-xs font-medium text-danger">Everyone drips</p>
-        <p className="text-xs font-medium text-ok">FreezeLine</p>
-        {plan.zones.map((z) => (
-          <div key={z.zoneId} className="contents">
-            <Tile psi={z.pressureBlanket} good={z.pressureBlanket >= BOIL_WATER_PSI} area={z.neighborhood} />
-            <Tile psi={z.pressurePlan} good={z.pressurePlan >= BOIL_WATER_PSI} area={z.neighborhood} />
-          </div>
-        ))}
-      </div>
-      <p className="mt-3 text-xs text-muted">Below {BOIL_WATER_PSI} psi, Texas requires a boil-water notice.</p>
     </Card>
   );
 }

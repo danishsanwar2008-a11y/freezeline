@@ -10,7 +10,9 @@ import uriNeighborhoods from "../../../data/uri-2021-neighborhoods.json";
 import { buildReplay, zoneExposures, type ConsoleHome, type ReplayModel } from "@/lib/replay";
 import type { WeatherSeries } from "@/lib/weather";
 import type { ConsoleZone } from "@/lib/homes";
-import { planCity } from "@/lib/planner";
+import { planCity, type CityPlan } from "@/lib/planner";
+import { extraTapFlags, pressureMonitor } from "@/lib/pressure";
+import PressureMonitor from "./PressureMonitor";
 import { displayLevel } from "@/lib/steps";
 import type { HomeStatus } from "@/lib/household";
 import MapLegend from "./MapLegend";
@@ -21,7 +23,7 @@ import { useAgent } from "./useAgent";
 import { statusAt, useOps } from "./useOps";
 import { useLiveForecast } from "./useLiveForecast";
 import { houstonNowHour } from "./format";
-import { CrewsPanel, FreezeReadings, HEADING_MS, HomeSummaryCard, OutreachFunnel, ReadyCheck, TwoFutures } from "./CityCards";
+import { CrewsPanel, FreezeReadings, HEADING_MS, HomeSummaryCard, OutreachFunnel, ReadyCheck } from "./CityCards";
 import type { CrewMarker } from "./RiskMap";
 
 // WebGL map is browser-only.
@@ -35,6 +37,16 @@ const ZONE_HOURS = Object.fromEntries(
   Object.entries((uriNeighborhoods as unknown as { zones: Record<string, WeatherSeries> }).zones).map(([id, s]) => [id, s.hours]),
 );
 const MS_PER_HOUR = 140; // full 168-hour replay ≈ 24 s
+
+/** Plan per replay hour, computed once per hour and reused (map + pressure monitor). */
+function cachedPlanner(zones: ConsoleZone[], homes: ConsoleHome[], model: ReplayModel): (h: number) => CityPlan {
+  const cache = new Map<number, CityPlan>();
+  return (h) => {
+    let p = cache.get(h);
+    if (!p) cache.set(h, (p = planCity(zones, homes, model.vuln, zoneExposures(model, h))));
+    return p;
+  };
+}
 
 function ModeMessage({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
@@ -106,8 +118,26 @@ function ConsoleBody({
     return () => window.removeEventListener("keydown", onKey);
   }, [togglePlay, scrub, hour, last]);
 
-  // Deterministic drip plan for the hour.
-  const plan = useMemo(() => planCity(zones, homes, model.vuln, zoneExposures(model, hour)), [zones, homes, model, hour]);
+  // Deterministic drip plan per hour (cached: the pressure monitor also reads the past 12 hours).
+  const planFor = useMemo(() => cachedPlanner(zones, homes, model), [zones, homes, model]);
+  const plan = useMemo(() => planFor(hour), [planFor, hour]);
+
+  // Pressure monitor: past + next 12 hours per area, and Stage 2 proposals (same math as the agent).
+  const extraTaps = useMemo(() => extraTapFlags(homes), [homes]);
+  const pressure = useMemo(
+    () =>
+      pressureMonitor({
+        zones,
+        homes,
+        extra: extraTaps,
+        hour,
+        hours: hours.length,
+        planAt: planFor,
+        exposureAt: (h) => zoneExposures(model, h),
+      }),
+    [zones, homes, extraTaps, hour, hours.length, planFor, model],
+  );
+  const times = useMemo(() => hours.map((h) => h.time), [hours]);
 
   // Hex shading: share of homes that need action tonight (Watch or High).
   const need = useMemo(
@@ -227,7 +257,17 @@ function ConsoleBody({
           approving={agent?.approving ?? null}
           onApprove={(e) => agent?.approve(time, e)}
         />
-        <TwoFutures plan={plan} />
+        <PressureMonitor
+          areas={pressure}
+          hour={hour}
+          times={times}
+          stage2Entries={entries.filter((e) => e.tool === "send_stage2_alert")}
+          canApprove={(e) => e.id === firstPending}
+          approving={agent?.approving ?? null}
+          onApprove={(e) => agent?.approve(time, e)}
+          onSkip={(e) => agent?.skip(time, e)}
+          agentReady={!!agent}
+        />
         <FreezeReadings w={hours[hour]} hoursBelow20={model.contexts[hour].hoursBelow20} />
         <AgentPanel
           time={time}
