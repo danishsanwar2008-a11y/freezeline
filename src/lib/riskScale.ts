@@ -75,12 +75,28 @@ export const STATUS_CODE: Record<HomeStatus, string> = { ready: "r", needs_help:
 export const STATUS_FROM_CODE: Record<string, HomeStatus> = { r: "ready", h: "needs_help", w: "waiting", n: "no_answer", c: "not_contacted" };
 
 // ---------- Hex "need" scale: % of homes needing action tonight (its own violet ramp, never a status color) ----------
-const NEED_LOW: RGB = [221, 214, 254]; // #ddd6fe pale violet
-const NEED_HIGH: RGB = [124, 58, 237]; // #7c3aed deep violet
-/** share 0–1 -> RGBA; low shares stay faint so hot spots stand out. */
-export function needRgba(share: number): [number, number, number, number] {
-  const t = Math.min(1, Math.max(0, share));
-  const c = [0, 1, 2].map((k) => Math.round(NEED_LOW[k] + (NEED_HIGH[k] - NEED_LOW[k]) * t)) as RGB;
-  return [...c, Math.round(25 + 190 * t)];
+// Four steps, faint -> deep violet. The map draws exactly these classes, so the legend matches every cell.
+// `fill` is drawn over the dark basemap; `swatch` is what that looks like on screen (the legend uses it).
+// Checked with the dataviz validator over the dark map: adjacent steps ΔE ≥ 15.5 (normal vision), ≥ 14.9 (CVD).
+export interface NeedStep {
+  min: number;
+  label: string;
+  fill: [number, number, number, number];
+  swatch: string;
 }
-export const NEED_GRADIENT = `linear-gradient(90deg, rgb(${NEED_LOW.join(" ")} / 0.15), rgb(${NEED_HIGH.join(" ")}))`;
+export const NEED_STEPS: NeedStep[] = [
+  { min: 0, label: "Under 25%", fill: [42, 32, 74, 153], swatch: "#1f1932" },
+  { min: 0.25, label: "25–49%", fill: [78, 54, 155, 199], swatch: "#402d7c" },
+  { min: 0.5, label: "50–74%", fill: [122, 79, 239, 224], swatch: "#6d47d4" },
+  { min: 0.75, label: "75% or more", fill: [179, 141, 255, 240], swatch: "#a985f1" },
+];
+
+/** Step index (0–3) for a share 0–1 of homes needing action. */
+export function needStep(share: number): number {
+  let k = 0;
+  for (let i = 0; i < NEED_STEPS.length; i++) if (share >= NEED_STEPS[i].min) k = i;
+  return k;
+}
+
+/** share 0–1 -> RGBA of its step. */
+export const needRgba = (share: number): [number, number, number, number] => NEED_STEPS[needStep(share)].fill;

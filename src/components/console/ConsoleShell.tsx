@@ -13,8 +13,7 @@ import type { ConsoleZone } from "@/lib/homes";
 import { planCity } from "@/lib/planner";
 import { displayLevel } from "@/lib/steps";
 import type { HomeStatus } from "@/lib/household";
-import { NEED_GRADIENT, STATUS_BG, STATUS_ORDER } from "@/lib/riskScale";
-import { STATUS_LABEL } from "@/lib/cityWording";
+import MapLegend from "./MapLegend";
 import Timeline from "./Timeline";
 import TopBar, { type Mode } from "./TopBar";
 import AgentPanel from "./AgentPanel";
@@ -44,27 +43,6 @@ function ModeMessage({ title, children }: { title: string; children?: React.Reac
         <p className="text-base font-medium">{title}</p>
         {children && <div className="mt-2 text-sm text-muted">{children}</div>}
       </div>
-    </div>
-  );
-}
-
-function MapLegend() {
-  return (
-    <div className="pointer-events-none rounded-panel border border-border bg-surface/90 px-3 py-2 text-[11px] text-muted backdrop-blur">
-      <p>Area shading: share of homes that need action tonight</p>
-      <div className="mt-1 h-1.5 w-40 rounded-full" style={{ background: NEED_GRADIENT }} aria-hidden />
-      <div className="mt-0.5 flex w-40 justify-between">
-        <span>0%</span>
-        <span>100%</span>
-      </div>
-      <ul className="mt-2 space-y-0.5">
-        {STATUS_ORDER.map((s) => (
-          <li key={s} className="flex items-center gap-1.5">
-            <span className={`size-2 rounded-full ${STATUS_BG[s]}`} aria-hidden />
-            {STATUS_LABEL[s]}
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }
@@ -153,6 +131,13 @@ function ConsoleBody({
     return { c, total };
   }, [plan, data]);
 
+  // Live counts for the map key: every dot on the map, by status.
+  const dotCounts = useMemo(() => {
+    const c: Record<HomeStatus, number> = { ready: 0, needs_help: 0, waiting: 0, no_answer: 0, not_contacted: 0 };
+    for (let i = 0; i < homes.length; i++) c[statusAt(data, i)]++;
+    return c;
+  }, [homes, data]);
+
   // Crew positions: "heading" for 90 s after assignment (moving from the depot), then at the home.
   const [tick, setNow] = useState(() => Date.now());
   const now = Math.max(tick, ops.at); // advance to the moment fresh data arrived
@@ -213,7 +198,7 @@ function ConsoleBody({
               ← All areas
             </button>
           )}
-          <MapLegend />
+          <MapLegend counts={dotCounts} />
         </div>
         {selectedHome !== null && (
           <div className="absolute right-3 top-3">
