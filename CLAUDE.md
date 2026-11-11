@@ -80,6 +80,7 @@ Replay Uri hour by hour. Temperatures fall into the teens; the risk engine light
 ## Rules
 
 - Push GitHub after each phase committed.
+- Full history, decisions and every prompt: docs/CONTEXT.md. Read it when you need the why.
 - **The risk engine is deterministic.** Same inputs → same scores, in plain code with tests. Claude explains and chooses actions (later phases); it never computes the risk score.
 - Risk is computed in code, not stored per hour in the database.
 - **All sample data is labeled simulated** (homes, zones, outreach, calls, crews) — in the DB (`simulated` column) and in the UI. Home locations are real OpenStreetMap footprints (© OpenStreetMap contributors, ODbL); everything about each household is simulated.
