@@ -253,8 +253,8 @@ function ConsoleBody({
       </main>
 
       <aside className="flex min-h-0 flex-col gap-3 border-border bg-surface p-4 lg:h-full lg:w-[440px] lg:shrink-0 lg:overflow-y-auto lg:border-l">
-        <ReadyCheck counts={counts.c} total={counts.total} ran={!!data?.ran} lowHomes={homes.length - counts.total} />
-        <OutreachFunnel {...(data?.funnel ?? { texted: 0, called: 0, doorChecks: 0, neighborFlags: 0 })} />
+        <ReadyCheck counts={counts.c} total={counts.total} ran={!!data?.ran} loading={!!agent && !ops.fresh && !ops.error} live={!agent} lowHomes={homes.length - counts.total} />
+        <OutreachFunnel {...(data?.funnel ?? { texted: 0, called: 0, doorChecks: 0, neighborFlags: 0 })} live={!agent} />
         <CrewsPanel
           crews={crewsData}
           queue={data?.crewQueue ?? 0}
@@ -287,7 +287,11 @@ function ConsoleBody({
           onSkip={(e) => agent?.skip(time, e)}
           approving={agent?.approving ?? null}
         />
-        {ops.error && <p className="text-xs text-danger">Couldn&apos;t load outreach data: {ops.error}</p>}
+        {ops.error && (
+          <p role="alert" className="rounded-md border border-danger/40 px-3 py-2 text-xs text-danger">
+            Couldn’t load this hour’s outreach: {ops.error}. Move the timeline or reload to try again.
+          </p>
+        )}
       </aside>
     </div>
   );
@@ -314,9 +318,9 @@ export default function ConsoleShell({ homes, zones }: { homes: ConsoleHome[]; z
       ) : liveModel ? (
         <ConsoleBody key="live" homes={homes} zones={zones} model={liveModel} startHour={liveStart} />
       ) : live.state.status === "error" ? (
-        <ModeMessage title="Couldn't load the live forecast">
+        <ModeMessage title="Couldn’t load the live forecast">
           <p>{live.state.message}</p>
-          <button type="button" onClick={live.retry} className="mt-4 rounded-full bg-accent px-4 py-2 text-sm font-medium text-bg">
+          <button type="button" onClick={live.retry} className="btn btn-primary mt-4">
             Try again
           </button>
         </ModeMessage>

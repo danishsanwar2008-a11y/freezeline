@@ -188,5 +188,5 @@ export function stage2Sentence(p: Pick<Stage2Proposal, "area" | "stop" | "kitche
 
 /** Why the agent proposes it: the forecast low, using only computed numbers. */
 export function stage2Reason(p: Pick<Stage2Proposal, "area" | "forecastPsi">, when: string): string {
-  return `If today's drips continue, ${p.area} pressure falls to ${p.forecastPsi.toFixed(1)} psi (${when}), below the ${STOP_NEW_DRIPS_PSI} psi stop-new-drips line.`;
+  return `If today’s drips continue, ${p.area} pressure falls to ${p.forecastPsi.toFixed(1)} psi (${when}), below the ${STOP_NEW_DRIPS_PSI} psi stop-new-drips line.`;
 }

@@ -42,11 +42,11 @@ function EntryRow({
                   type="button"
                   onClick={onApprove}
                   disabled={busy}
-                  className="rounded-full bg-accent px-3 py-1 text-xs font-medium text-bg transition hover:brightness-110 disabled:opacity-60"
+                  className="btn btn-primary btn-sm"
                 >
                   {busy ? "Working…" : "Approve"}
                 </button>
-                <button type="button" onClick={onSkip} disabled={busy} className="rounded-full px-3 py-1 text-xs text-muted hover:text-text">
+                <button type="button" onClick={onSkip} disabled={busy} className="btn btn-quiet btn-sm">
                   Skip
                 </button>
               </>
@@ -93,7 +93,7 @@ export default function AgentPanel({ enabled, run, mode, onMode, onRun, onApprov
           type="button"
           onClick={onRun}
           disabled={running}
-          className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-bg transition hover:brightness-110 disabled:opacity-60"
+          className="btn btn-primary"
         >
           {running ? "Agent is working…" : "Run agent"}
         </button>
@@ -113,7 +113,7 @@ export default function AgentPanel({ enabled, run, mode, onMode, onRun, onApprov
         </div>
       </div>
 
-      {run?.status === "error" && <p className="mt-3 text-sm text-danger">The agent couldn&apos;t run: {run.error}</p>}
+      {run?.status === "error" && <p className="mt-3 text-sm text-danger">The agent couldn’t run: {run.error}</p>}
 
       {entries.length > 0 && (
         <>

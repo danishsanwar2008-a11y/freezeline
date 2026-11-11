@@ -439,7 +439,7 @@ export async function sendStage2Alert(ctx: AgentCtx, input: z.output<typeof Inpu
   if (!zoneIds(ctx.city).includes(input.zone_id)) throw new Error(`Unknown zone_id. Valid: ${zoneIds(ctx.city).join(", ")}`);
   const area = monitorAt(ctx.city, ctx.hour).find((a) => a.zoneId === input.zone_id)!;
   const p = area.stage2;
-  if (!p) throw new Error(`${area.area} doesn't need a Stage 2 alert at this hour (forecast stays at or above 25 psi).`);
+  if (!p) throw new Error(`${area.area} doesn’t need a Stage 2 alert at this hour (forecast stays at or above 25 psi).`);
   const sentence = stage2Sentence(p);
   if (!approved) return { status: "awaiting_approval", summary: `Stage 2 alert ready · needs supervisor approval. ${sentence}.` };
 

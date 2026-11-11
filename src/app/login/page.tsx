@@ -6,9 +6,9 @@ import { consolePassword, safeNext, SESSION_COOKIE, validSession } from "@/lib/s
 export const metadata = { title: "Sign in · FreezeLine" };
 
 const ERRORS: Record<string, string> = {
-  wrong: "That password isn't right. Try again.",
+  wrong: "That password isn’t right. Try again.",
   wait: "Too many tries. Wait a few minutes, then try again.",
-  unset: "The console password isn't set on this server.",
+  unset: "The console password isn’t set on this server.",
 };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
@@ -47,7 +47,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
                 {error}
               </p>
             )}
-            <button type="submit" className="w-full rounded-full bg-accent px-4 py-2 text-sm font-semibold text-bg transition hover:brightness-110">
+            <button type="submit" className="btn btn-primary w-full">
               Sign in
             </button>
           </form>

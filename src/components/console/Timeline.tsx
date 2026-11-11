@@ -62,10 +62,10 @@ export default function Timeline({ hours, hour, playing, onHour, onTogglePlay }:
             ))}
             <line x1={hour} x2={hour} y1="0" y2={H} stroke="var(--accent)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
           </svg>
-          <span className="pointer-events-none absolute right-1 font-mono text-[10px] text-accent" style={{ top: `${(y(32) / H) * 100}%`, transform: "translateY(-115%)" }}>
+          <span className="pointer-events-none absolute right-1 font-mono text-[11px] text-accent" style={{ top: `${(y(32) / H) * 100}%`, transform: "translateY(-115%)" }}>
             32°F freeze line
           </span>
-          <span className="pointer-events-none absolute right-1 font-mono text-[10px] text-risk-high" style={{ top: `${(y(20) / H) * 100}%`, transform: "translateY(-115%)" }}>
+          <span className="pointer-events-none absolute right-1 font-mono text-[11px] text-risk-high" style={{ top: `${(y(20) / H) * 100}%`, transform: "translateY(-115%)" }}>
             20°F
           </span>
           <input
@@ -80,7 +80,7 @@ export default function Timeline({ hours, hour, playing, onHour, onTogglePlay }:
             className="timeline-range absolute inset-0 size-full cursor-ew-resize"
           />
         </div>
-        <div className="relative mt-1 h-4 font-mono text-[10px] text-muted">
+        <div className="relative mt-1 h-4 font-mono text-[11px] text-muted">
           {labels.map(({ i, h }) => (
             <span key={i} className="absolute -translate-x-1/2 whitespace-nowrap max-sm:[&:nth-child(even)]:hidden" style={{ left: `${(i / (n - 1)) * 100}%` }}>
               {formatDay(h.time)}

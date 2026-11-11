@@ -30,5 +30,5 @@ export const EXTRA_TAP_LABEL = "Assumption: some homes drip more than told (simu
 
 /** Tooltip for the "simplified model" label on the pressure monitor. */
 export const MODEL_NOTE =
-  "Simplified model: base pressure per area minus freeze demand minus drip flow. Constants are calibrated assumptions, not Houston's pipe network. " +
-  "In a real deployment this panel reads the utility's own pressure sensors; the same calculation decides how many homes to stop.";
+  "Simplified model: base pressure per area minus freeze demand minus drip flow. Constants are calibrated assumptions, not Houston’s pipe network. " +
+  "In a real deployment this panel reads the utility’s own pressure sensors; the same calculation decides how many homes to stop.";

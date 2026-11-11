@@ -73,10 +73,10 @@ function PressureChart({ a, hour, times }: { a: AreaPressure; hour: number; time
         {/* thresholds */}
         <line x1={0} x2={W} y1={y(STOP_NEW_DRIPS_PSI)} y2={y(STOP_NEW_DRIPS_PSI)} stroke="var(--psi-warn)" strokeWidth={1} strokeDasharray="4 3" opacity={0.8} />
         <line x1={0} x2={W} y1={y(BOIL_WATER_PSI)} y2={y(BOIL_WATER_PSI)} stroke="var(--psi-bad)" strokeWidth={1} opacity={0.9} />
-        <text x={4} y={y(STOP_NEW_DRIPS_PSI) - 3} textAnchor="start" fontSize={9} fill="var(--psi-warn)">
+        <text x={4} y={y(STOP_NEW_DRIPS_PSI) - 3} textAnchor="start" fontSize={10} fill="var(--psi-warn)">
           Stop new drips
         </text>
-        <text x={4} y={y(BOIL_WATER_PSI) + 10} textAnchor="start" fontSize={9} fill="var(--psi-bad)">
+        <text x={4} y={y(BOIL_WATER_PSI) + 10} textAnchor="start" fontSize={10} fill="var(--psi-bad)">
           Boil-water notice
         </text>
         {/* now */}
@@ -136,16 +136,16 @@ function Stage2Card({
               type="button"
               onClick={onApprove}
               disabled={busy}
-              className="rounded-full bg-accent px-3 py-1 text-xs font-semibold text-bg transition hover:brightness-110 disabled:opacity-60"
+              className="btn btn-primary btn-sm"
             >
               {busy ? "Sending…" : "Approve"}
             </button>
-            <button type="button" onClick={onSkip} disabled={busy} className="rounded-full px-3 py-1 text-xs text-muted hover:text-text">
+            <button type="button" onClick={onSkip} disabled={busy} className="btn btn-quiet btn-sm">
               Not yet
             </button>
           </>
         ) : (
-          <span className="text-xs text-muted">Approve the agent&apos;s earlier steps first</span>
+          <span className="text-xs text-muted">Approve the agent’s earlier steps first</span>
         )}
       </div>
     </div>
@@ -181,13 +181,13 @@ export default function PressureMonitor({
   return (
     <section className="rounded-panel border border-border bg-bg/40 p-4" aria-labelledby="pressure-title">
       <div className="flex items-start justify-between gap-2">
-        <h3 id="pressure-title" className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted">
+        <h3 id="pressure-title" className="eyebrow">
           Water pressure by area
         </h3>
         <InfoTip label="Simplified model" text={MODEL_NOTE} />
       </div>
 
-      <div className="mt-3 space-y-2">
+      <div className="mt-3 space-y-2" aria-live="polite">
         {stage2Entries.map((e) => {
           const a = areas.find((x) => x.zoneId === zoneOf(e));
           if (e.status === "pending" && a?.stage2)
@@ -245,7 +245,7 @@ export default function PressureMonitor({
           </svg>
           {BOIL_WATER_PSI} psi · Boil-water notice
         </span>
-        <span>Past 12 h · solid · next 12 h · dashed (if today&apos;s drips continue)</span>
+        <span>Past 12 h · solid · next 12 h · dashed (if today’s drips continue)</span>
       </div>
       <p className="mt-2 text-[11px] leading-relaxed text-muted">{EXTRA_TAP_LABEL}</p>
 

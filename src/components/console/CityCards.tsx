@@ -17,7 +17,7 @@ import { fmtF, formatHour } from "./format";
 export function Card({ title, children, className = "" }: { title: string; children: React.ReactNode; className?: string }) {
   return (
     <section className={`rounded-panel border border-border bg-bg/40 p-4 ${className}`}>
-      <h3 className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted">{title}</h3>
+      <h3 className="eyebrow">{title}</h3>
       <div className="mt-3">{children}</div>
     </section>
   );
@@ -27,11 +27,27 @@ const rgb = (s: HomeStatus) => `rgb(${STATUS_RGB[s].join(" ")})`;
 
 // ---------- Ready check ----------
 
-export function ReadyCheck({ counts, total, ran, lowHomes }: { counts: Record<HomeStatus, number>; total: number; ran: boolean; lowHomes: number }) {
+export function ReadyCheck({
+  counts,
+  total,
+  ran,
+  loading = false,
+  live = false,
+  lowHomes,
+}: {
+  counts: Record<HomeStatus, number>;
+  total: number;
+  ran: boolean;
+  /** This hour's outreach is still loading. */
+  loading?: boolean;
+  /** Live forecast mode: outreach runs on the replay only. */
+  live?: boolean;
+  lowHomes: number;
+}) {
   return (
     <Card title="Ready check">
-      <p className="text-3xl font-semibold tracking-tight tabular-nums">
-        {counts.ready.toLocaleString()} <span className="text-lg font-normal text-muted">of {plural(total, "home")} ready</span>
+      <p className="stat">
+        {counts.ready.toLocaleString("en-US")} <span className="stat-unit">of {plural(total, "home")} ready</span>
       </p>
       <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-border" role="img" aria-label="Homes by status">
         {STATUS_ORDER.map((s) =>
@@ -49,12 +65,18 @@ export function ReadyCheck({ counts, total, ran, lowHomes }: { counts: Record<Ho
           <li key={s} className="flex items-center gap-2">
             <span className={`size-2.5 shrink-0 rounded-full ${STATUS_BG[s]}`} aria-hidden />
             <span className="text-muted">{STATUS_LABEL[s]}</span>
-            <span className="ml-auto font-mono tabular-nums">{counts[s].toLocaleString()}</span>
+            <span className="ml-auto font-mono tabular-nums">{counts[s].toLocaleString("en-US")}</span>
           </li>
         ))}
       </ul>
       <p className="mt-3 text-xs text-muted">
-        {ran ? "Homes that need action tonight. " : "Outreach hasn't run for this hour yet. "}
+        {loading
+          ? "Loading this hour’s outreach… "
+          : live
+            ? "Outreach runs on the Uri replay in this phase. "
+            : ran
+              ? "Homes that need action tonight. "
+              : "Outreach hasn’t run for this hour yet. Run the agent below to text these homes. "}
         {plural(lowHomes, "low-risk home")} {verb(lowHomes, "needs", "need")} no action.
       </p>
     </Card>
@@ -63,7 +85,19 @@ export function ReadyCheck({ counts, total, ran, lowHomes }: { counts: Record<Ho
 
 // ---------- Outreach funnel ----------
 
-export function OutreachFunnel({ texted, called, doorChecks, neighborFlags }: { texted: number; called: number; doorChecks: number; neighborFlags: number }) {
+export function OutreachFunnel({
+  texted,
+  called,
+  doorChecks,
+  neighborFlags,
+  live = false,
+}: {
+  texted: number;
+  called: number;
+  doorChecks: number;
+  neighborFlags: number;
+  live?: boolean;
+}) {
   const rows = [
     { label: "Texted", n: texted },
     { label: "Called", n: called },
@@ -79,7 +113,7 @@ export function OutreachFunnel({ texted, called, doorChecks, neighborFlags }: { 
                 {k > 0 && <span className="mr-1 text-muted" aria-hidden>→</span>}
                 {r.label}
               </span>
-              <span className="font-mono tabular-nums">{r.n.toLocaleString()}</span>
+              <span className="font-mono tabular-nums">{r.n.toLocaleString("en-US")}</span>
             </div>
             <div className="mt-1 h-2 rounded-full bg-border">
               <div className="h-full rounded-full bg-accent/70" style={{ width: `${texted ? (r.n / texted) * 100 : 0}%` }} />
@@ -87,6 +121,11 @@ export function OutreachFunnel({ texted, called, doorChecks, neighborFlags }: { 
           </li>
         ))}
       </ol>
+      {texted === 0 && (
+        <p className="mt-3 text-xs text-muted">
+          {live ? "Outreach runs on the Uri replay in this phase." : "No texts yet for this hour. The agent texts Watch and High homes first."}
+        </p>
+      )}
       {neighborFlags > 0 && <p className="mt-3 text-xs text-muted">{plural(neighborFlags, "home")} flagged by a neighbor moved up the call list.</p>}
     </Card>
   );
@@ -146,8 +185,8 @@ export function CrewsPanel({
   const standby = crews.filter((c) => !c.assignment);
   return (
     <Card title="Help crews (sample)">
-      <p className="text-2xl font-semibold tracking-tight tabular-nums">
-        {working.length} of {crews.length} <span className="text-base font-normal text-muted">crews helping</span>
+      <p className="stat">
+        {working.length} <span className="stat-unit">of {crews.length} crews helping</span>
       </p>
       {/* One dot per crew: filled = on a job. */}
       <div className="mt-2 flex flex-wrap gap-1" role="img" aria-label={`${working.length} of ${crews.length} crews on a job`}>
@@ -191,7 +230,7 @@ export function CrewsPanel({
                   type="button"
                   onClick={() => onApprove(p)}
                   disabled={approving === p.id}
-                  className="shrink-0 rounded-full bg-accent px-3 py-1 text-xs font-medium text-bg disabled:opacity-60"
+                  className="btn btn-primary btn-sm shrink-0"
                 >
                   {approving === p.id ? "Assigning…" : "Approve"}
                 </button>
@@ -204,7 +243,7 @@ export function CrewsPanel({
       )}
       <p className="mt-3 text-xs text-muted">
         {queue > 0 ? `${plural(queue, "more home")} ${verb(queue, "needs a crew and waits", "need a crew and wait")} in the queue, highest risk first.` : "No homes waiting for a crew."} Crews only go to homes whose
-        call says they can&apos;t do the steps themselves.
+        call says they can’t do the steps themselves.
       </p>
     </Card>
   );

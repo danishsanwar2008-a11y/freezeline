@@ -2,17 +2,36 @@
 
 // The one map key (top left): hex shading steps, home dot colors with live counts, and the crew marker.
 
+import { useState, useSyncExternalStore } from "react";
 import type { HomeStatus } from "@/lib/household";
 import { NEED_STEPS, STATUS_BG, STATUS_ORDER } from "@/lib/riskScale";
 import { STATUS_LABEL } from "@/lib/cityWording";
+
+const DESKTOP = "(min-width: 1024px)";
+const isDesktop = () => window.matchMedia(DESKTOP).matches;
+function subscribeDesktop(onChange: () => void) {
+  const mq = window.matchMedia(DESKTOP);
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+}
 
 function Heading({ children }: { children: React.ReactNode }) {
   return <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted">{children}</p>;
 }
 
 export default function MapLegend({ counts }: { counts: Record<HomeStatus, number> }) {
+  // Open on desktop; folded on tablets and phones so the map stays visible (one tap opens it).
+  const desktop = useSyncExternalStore(subscribeDesktop, isDesktop, () => true);
+  const [userOpen, setUserOpen] = useState<boolean | null>(null);
+  const open = userOpen ?? desktop;
   return (
-    <details open className="group w-56 rounded-panel border border-border bg-surface/90 text-xs shadow-lg backdrop-blur">
+    <details
+      open={open}
+      onToggle={(e) => {
+        const now = e.currentTarget.open;
+        if (now !== open) setUserOpen(now);
+      }}
+      className="group w-56 rounded-panel border border-border bg-surface/90 text-xs shadow-lg backdrop-blur">
       <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 font-medium text-text marker:hidden">
         Map key
         <span className="text-muted transition group-open:rotate-180" aria-hidden>

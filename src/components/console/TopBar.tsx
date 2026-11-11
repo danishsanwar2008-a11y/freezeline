@@ -24,7 +24,7 @@ function InfoTip() {
         className="pointer-events-none absolute right-0 top-9 z-20 w-64 rounded-panel border border-border bg-surface p-3 text-xs leading-relaxed text-muted opacity-0 shadow-lg transition group-focus-within:opacity-100 group-hover:opacity-100"
       >
         Home locations are real house footprints from OpenStreetMap (© OpenStreetMap contributors, ODbL). Everything about each
-        household is <span className="text-text">simulated sample data</span>. Weather is real: Open-Meteo&apos;s archive for Feb 2021
+        household is <span className="text-text">simulated sample data</span>. Weather is real: Open-Meteo’s archive for Feb 2021
         in Replay, and the current forecast in Live.
       </span>
     </span>
@@ -46,7 +46,7 @@ export default function TopBar({ mode, onMode }: Props) {
       <ModeToggle mode={mode} onMode={onMode} />
       <InfoTip />
       <form method="post" action="/api/logout">
-        <button type="submit" className="rounded-md px-2 py-1.5 text-xs text-muted transition hover:bg-border hover:text-text focus-visible:outline-2 focus-visible:outline-accent">
+        <button type="submit" className="btn btn-quiet btn-sm">
           Sign out
         </button>
       </form>
@@ -67,12 +67,12 @@ function ModeToggle({ mode, onMode }: { mode: Mode; onMode: (m: Mode) => void })
               aria-checked={active}
               aria-label={m.label}
               onClick={() => onMode(m.id)}
-              className={`truncate rounded-full px-3 py-1.5 text-xs font-medium transition sm:px-4 sm:text-sm ${
+              className={`truncate rounded-full px-3 py-1.5 text-xs font-medium transition lg:px-4 lg:text-sm ${
                 active ? "bg-accent text-bg" : "text-muted hover:text-text"
               }`}
             >
-              <span className="sm:hidden">{m.short}</span>
-              <span className="hidden sm:inline">{m.label}</span>
+              <span className="lg:hidden">{m.short}</span>
+              <span className="hidden lg:inline">{m.label}</span>
             </button>
           );
         })}

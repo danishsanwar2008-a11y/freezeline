@@ -35,6 +35,10 @@
   --radius-panel: 12px;
 }
 
+html { color-scheme: dark; }
+h1, h2, h3 { text-wrap: balance; }
+button, summary, a, input { touch-action: manipulation; }
+
 body {
   background: var(--bg);
   color: var(--text);
@@ -102,3 +106,59 @@ body {
   --color-psi-warn: var(--psi-warn);
   --color-psi-bad: var(--psi-bad);
 }
+
+/* ---------- Restyle (DESIGN.md): motion tokens, one button system, focus, stats ---------- */
+:root {
+  --m-in: 150ms;
+  --m-out: 120ms;
+  --m-press: 90ms;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Focus shows at once: a 2px ice ring, 2px off the control, never animated. */
+:where(a, button, input, select, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  transition: none;
+}
+
+/* Buttons: one filled primary per context, quiet text buttons for everything secondary. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 16px;
+  border-radius: 9999px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    transform var(--m-out) var(--ease),
+    background-color var(--m-out) var(--ease),
+    color var(--m-out) var(--ease);
+}
+.btn-sm { min-height: 32px; padding: 0 12px; font-size: 13px; }
+.btn-primary { background: var(--accent); color: var(--bg); }
+.btn-quiet { background: transparent; color: var(--muted); font-weight: 500; }
+.btn:disabled { opacity: 0.6; cursor: progress; }
+@media (hover: hover) and (pointer: fine) {
+  .btn:not(:disabled):hover { transition-duration: var(--m-in); transform: translateY(-1px); }
+  .btn-primary:not(:disabled):hover { background: color-mix(in oklab, var(--accent) 86%, var(--text)); }
+  .btn-quiet:not(:disabled):hover { color: var(--text); background: color-mix(in oklab, var(--border) 60%, transparent); }
+}
+.btn:not(:disabled):active { transition-duration: var(--m-press); transform: translateY(1px) scale(0.985); }
+@media (pointer: coarse) {
+  .btn { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn, .btn:hover, .btn:active { transform: none !important; transition-property: background-color, color; }
+  .btn-primary:not(:disabled):active { background: color-mix(in oklab, var(--accent) 75%, var(--bg)); }
+}
+
+/* Panel eyebrow and the one headline number per panel. */
+.eyebrow { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
+.stat { font-size: 28px; line-height: 1.1; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.stat-unit { font-size: 15px; font-weight: 400; letter-spacing: 0; color: var(--muted); }

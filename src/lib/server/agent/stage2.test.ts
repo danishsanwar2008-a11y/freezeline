@@ -52,7 +52,7 @@ describe("Stage 2 alert (Uri peak, simulated data)", () => {
 
   it("refuses an area that doesn't need Stage 2", async () => {
     await expect(runTool(ctx("auto"), "send_stage2_alert", { zone_id: "heights", reason: "Forecast below 25 psi." }, true)).rejects.toThrow(
-      /doesn't need a Stage 2 alert/,
+      /doesn’t need a Stage 2 alert/,
     );
   });
 });

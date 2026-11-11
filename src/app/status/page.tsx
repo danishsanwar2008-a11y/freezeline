@@ -36,7 +36,7 @@ function CountTile({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-panel border border-border bg-surface p-5">
       <p className="text-xs uppercase tracking-[0.14em] text-muted">{label}</p>
-      <p className="mt-2 font-mono text-4xl tabular-nums text-text">{value.toLocaleString()}</p>
+      <p className="mt-2 font-mono text-4xl tabular-nums text-text">{value.toLocaleString("en-US")}</p>
     </div>
   );
 }
