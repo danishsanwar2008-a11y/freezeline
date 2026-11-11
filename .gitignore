@@ -50,3 +50,7 @@ next-env.d.ts
 
 # /demo-check screenshots
 demo-screens/
+# Playwright CLI output (may contain credentials)
+.playwright-cli/
+# local Claude Code settings (personal)
+.claude/settings.local.json
