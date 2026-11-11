@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FreezeLine
 
-## Getting Started
+FreezeLine is an AI agent for water utilities during hard freezes: it scores freeze risk house by house and builds a coordinated drip plan, so at-risk homes are protected while water pressure stays above 20 psi. The demo replays Winter Storm Uri (Feb 14–18, 2021) over Houston, with a City Operations console for officials and a personal plan page for each household.
 
-First, run the development server:
+## Run it on Windows
 
-```bash
+1. Install [Node.js 20 or newer](https://nodejs.org) and [Git](https://git-scm.com/download/win).
+2. In PowerShell:
+
+```powershell
+git clone https://github.com/<owner>/freezeline.git
+cd freezeline
+npm install                          # also copies the MapLibre worker into public/
+Copy-Item .env.example .env.local    # then fill in the values (see below)
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. Open http://localhost:3000/console.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Checks before you push: `npm test` and `npm run messages:check`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Values to get from Danish
 
-## Learn More
+Put these in `.env.local`. Never commit that file; it is git-ignored.
 
-To learn more about Next.js, take a look at the following resources:
+| Variable | Needed? |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes (server and scripts only) |
+| `LLM_PROVIDER` | No. Keep `pregenerated` (pre-written text, no AI calls) |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | Only if `LLM_PROVIDER=gemini` |
+| `ANTHROPIC_API_KEY` | Only if `LLM_PROVIDER=anthropic` |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project rules
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`CLAUDE.md` (and `AGENTS.md`, which it includes) holds the project rules: the phase plan, the two audiences, the honesty and crew rules, and the visual design rules. Read it before changing anything.
