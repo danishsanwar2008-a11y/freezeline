@@ -2,6 +2,7 @@
 // Risk = weather exposure at an hour x how vulnerable a home's plumbing is.
 
 import type { WeatherHour } from "./weather";
+import { plural } from "./plural";
 
 export type RiskLevel = "Low" | "Medium" | "High";
 
@@ -100,10 +101,10 @@ export function scoreFrom(exposure: number, vuln: number): number {
 function weatherPhrase(ctx: HourContext): string {
   if (ctx.temperature_f >= 32) {
     return ctx.hoursBelow20 > 0
-      ? `thawing at ${Math.round(ctx.temperature_f)}°F after ${ctx.hoursBelow20} hours below 20°F`
+      ? `thawing at ${Math.round(ctx.temperature_f)}°F after ${plural(ctx.hoursBelow20, "hour")} below 20°F`
       : `above freezing (${Math.round(ctx.temperature_f)}°F)`;
   }
-  if (ctx.hoursBelow20 > 0) return `${ctx.hoursBelow20} hours below 20°F`;
+  if (ctx.hoursBelow20 > 0) return `${plural(ctx.hoursBelow20, "hour")} below 20°F`;
   return `wind chill ${Math.round(ctx.apparent_temperature_f)}°F`;
 }
 

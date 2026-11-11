@@ -6,9 +6,9 @@ FreezeLine is an AI agent for water utilities during hard freezes.
 
 In February 2021, Houston told residents "do NOT drip faucets" because dripping was crashing water pressure, while standard advice says to drip. One message for everyone backfires. FreezeLine scores freeze risk house by house and builds a coordinated drip plan (who drips, which faucet, who shouldn't) so at-risk homes are protected and pressure stays above **20 psi** (below 20 psi triggers a boil-water notice in Texas).
 
-Two audiences, never mixed (see "Two audiences" below):
-- **City Operations** (officials) — map of every home, cells, metrics, crews, agent log.
-- **Homeowner** (one household) — their plan, house diagram, the agent's call with them, storm view.
+Who sees what (see "City Operations" below):
+- **City Operations** (officials, password-protected) is the only screen: map of every home, cells, metrics, pressure, crews, agent log.
+- **Homeowners** never see the console. They get texts and calls only (Phase 4), plus a separate sign-up and home survey page (later).
 
 The demo replays **Winter Storm Uri (Feb 14–18, 2021)** over Houston.
 
@@ -38,11 +38,10 @@ Only build the phase (or sub-phase) currently asked for.
 
 Replay Uri hour by hour. Temperatures fall into the teens; the risk engine lights up older pier-and-beam homes with exterior-wall and attic/crawlspace pipes. A blanket "everyone drip" message would drag zone pressure under 20 psi; a blanket "don't drip" leaves vulnerable homes to burst. FreezeLine instead targets drips to the homes that need them, holds every zone above 20 psi on the gauge, and sends each homeowner a plain-language personal plan.
 
-## Two audiences
+## City Operations (the only screen)
 
-- **/console — City Operations tab** (officials, third-person wording: "Blair St home needs help; Crew 2 assigned"): every home as a status dot, hexes by % of homes needing action, crews on the map, Ready check, outreach funnel (Texted → Called → Door check), Crews panel, two-futures pressure tiles, freeze readings, collapsed agent log. No transcripts or homeowner instructions.
-- **/console/home/[homeId] — Homeowner tab** (officials looking at one household exactly as the household sees it).
-- **/h/[homeId] — the household's own page** (the link in their text; "you" wording): "Your home" (level, house diagram, 3 steps with the coordinated drip instruction most prominent, freeze clock, the agent's call, pipe-burst steps, photo check, English/Español) and "Storm in your area" (aggregated only: area shading + their own pin, one sentence per day). Never other homes' status, needs, transcripts or crews.
+- **/console** (officials, third-person wording: "Blair St home needs help; Crew 2 assigned"): every home as a status dot, hexes by % of homes needing action, crews on the map, Ready check, outreach funnel (Texted → Called → Door check), Crews panel, pressure monitor, freeze readings, collapsed agent log. No transcripts or homeowner instructions.
+- The Homeowner tab, `/console/home/[homeId]` and the household page `/h/[homeId]` (house diagram, "Storm in your area", photo check) were removed in Phase 3.6. Restore them from commit `f8994d6` if ever needed. Queued sample texts still carry `/h` links until Phase 4 replaces them.
 - Household details (sample) are server-only: homes, household_calls, crews and crew_assignments are not readable with the anon key.
 
 ## Outreach and the crew rule
@@ -63,10 +62,11 @@ Replay Uri hour by hour. Temperatures fall into the teens; the risk engine light
 - Every number gets a visual: dot/unit grids (one dot per home), stacked color bars, color tiles or simple icons. No bare numbers in a list.
 - One big headline number per panel, with details collapsed underneath.
 - Facts as short tiles, not sentences (e.g. "Can do steps: No", "Lives alone: Yes").
-- Status colors (home status only, both tabs): green = ready, red = needs help, yellow = waiting, black = no answer, gray = not contacted (`STATUS_*` in `src/lib/riskScale.ts`).
+- Status colors (home status only): green = ready, red = needs help, yellow = waiting, black = no answer, gray = not contacted (`STATUS_*` in `src/lib/riskScale.ts`).
 - The hex "need" scale uses its own pale → deep violet ramp (`needRgba`), never a status color.
-- Two-audience wording: officials' third-person wording only on City Operations; "you" wording only on the Homeowner tab and /h pages (tested in `src/lib/audience.test.ts`).
-- Homeowner pages are friendlier and less technical: larger text, icons, plain sentences, weather icons instead of charts, nothing that needs explaining.
+- Two-audience wording: officials' third-person wording only on City Operations; "you" wording only in texts and calls to households (tested in `src/lib/audience.test.ts`).
+- Anything a household reads (texts, calls, the future sign-up page) is friendlier and less technical: plain sentences, nothing that needs explaining.
+- Counts always agree with their noun: use `plural()` from `src/lib/plural.ts` ("1 home", "2 homes"), never "1 homes".
 - Honesty in the UI: sample or simulated data is always marked, and confirmed vs estimated looks different (solid vs dashed).
 
 ## AI providers (`LLM_PROVIDER` in .env.local, default `pregenerated`)
@@ -90,7 +90,7 @@ Replay Uri hour by hour. Temperatures fall into the teens; the risk engine light
 
 ## Layout
 
-- `src/app` — routes (`/console` City Operations, `/console/home/[homeId]` Homeowner tab, `/h/[homeId]` household page, `/status` connection test); APIs `/api/ops`, `/api/ops/home`, `/api/agent/*`, `/api/photo-check`
+- `src/app` — routes (`/console` City Operations, `/status` connection test); APIs `/api/ops`, `/api/ops/home`, `/api/agent/*`
 - `data/osm-homes.json` — 8,034 real house footprints from OpenStreetMap (`npm run osm:homes`, fetched once); `src/lib/seed/generate.ts` adds simulated details (incl. elderly / mobility / lives alone / indoor faucet valve)
 - `src/lib/household.ts` — simulated outreach funnel, call answers, assessments, crew proposals (pure, tested); `src/lib/server/outreachState.ts` saves them; `src/lib/cityWording.ts` officials' wording
 - `src/lib/callScript.ts` — the agent's conversation with a household (pre-written lines, honesty rule)
@@ -99,12 +99,10 @@ Replay Uri hour by hour. Temperatures fall into the teens; the risk engine light
 - `src/lib/planner.ts` — deterministic drip planner + zone pressure model (who drips, which tap, ≥ 20 psi + 3 psi reserve)
 - `src/lib/replay.ts` — precomputes H3 hex averages + level counts per hour for the console
 - `src/lib/server/` — server-only Claude layer (Haiku 5.5 writing/translation/photo, Opus 5.5 agent), content-keyed cache, agent tools + loop; `supabase/002_phase3.sql` adds ai_cache, photo_checks, idempotency indexes
-- `/h/[homeId]?t=…&lang=es` — homeowner page; `/api/agent/run`, `/api/agent/execute`, `/api/photo-check`
 - `data/messages.json` + `src/lib/pregenerated.ts` — pre-written wording (English + Spanish) keyed by step / reason / SMS / agent keys; `npm run messages:check` proves every fact combination is covered
-- `src/lib/server/provider.ts` — `LLM_PROVIDER` switch; `src/lib/server/gemini.ts` — free-tier photo check
-- `src/lib/steps.ts` — homeowner plan card: level headline, exactly 3 steps (from the drip plan + home details), 3 sourced reasons; Medium is shown as "Watch"
-- `src/components/console` — top bar (City Operations | Homeowner, Live | Replay), map (status dots, need hexes, crews), City cards, agent panel
-- `src/components/homeowner` + `src/components/plan` — Your home, Storm in your area, house diagram, Why list
+- `src/lib/server/provider.ts` — `LLM_PROVIDER` switch; `src/lib/server/gemini.ts` + `photoCheck.ts` — free-tier photo check (no UI since Phase 3.6; kept for Phase 4)
+- `src/lib/steps.ts` — a household's plan (level, exactly 3 steps from the drip plan + home details, 3 sourced reasons) used by texts and calls; Medium is shown as "Watch"
+- `src/components/console` — top bar (City Operations, Live | Replay), map (status dots, need hexes, crews), City cards, agent panel
 - `src/lib` — also supabase client, homes loader, weather fetchers
 - `public/maplibre-gl-worker.mjs` — copied from node_modules on `npm install` (git-ignored); MapLibre 6's worker can't be resolved through Turbopack
 - `supabase/001_schema.sql` — schema to paste into the Supabase SQL Editor

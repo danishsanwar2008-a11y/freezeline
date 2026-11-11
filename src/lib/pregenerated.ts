@@ -2,6 +2,7 @@
 // Pure and client-safe. `checkCoverage()` proves every fact combination renders in both languages.
 
 import pack from "../../data/messages.json";
+import { singularizeOnes } from "./plural";
 import { buildPlanCard, type CardHome, type DisplayLevel, type FaucetPhoto, type Params, type PlanCard } from "./steps";
 import { isValidSms, smsGroupKey, type SmsFacts } from "./messages";
 import type { HomePlan } from "./planner";
@@ -37,7 +38,7 @@ const SLOT = /\{(\w+)\}/g;
 
 /** Fill {slots}. Unknown slots are left as-is (the coverage check catches them). */
 export function fill(template: string, params: Params = {}): string {
-  return template.replace(SLOT, (m, k: string) => (k in params ? String(params[k]) : m));
+  return singularizeOnes(template.replace(SLOT, (m, k: string) => (k in params ? String(params[k]) : m)));
 }
 
 export class MissingMessage extends Error {}

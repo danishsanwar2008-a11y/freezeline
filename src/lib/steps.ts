@@ -7,6 +7,7 @@
 
 import type { HomePlan } from "./planner";
 import type { HomeAttributes, RiskLevel } from "./risk";
+import { plural } from "./plural";
 
 export type DisplayLevel = "High" | "Watch" | "Low";
 /** Homeowners see "Watch" instead of "Medium". */
@@ -222,7 +223,7 @@ function forecastReason(w: CardWeather): PlanReason {
   const params = { temp: Math.round(w.temperature_f), feels: Math.round(w.apparent_temperature_f), hours: w.hoursBelow20 };
   const now = `${params.temp}°F now, feels like ${params.feels}°F`;
   return w.hoursBelow20 > 0
-    ? { text: `${now}. ${w.hoursBelow20} hours below 20°F so far.`, source: "Forecast", parts: [{ key: "forecast_hours", params }] }
+    ? { text: `${now}. ${plural(w.hoursBelow20, "hour")} below 20°F so far.`, source: "Forecast", parts: [{ key: "forecast_hours", params }] }
     : { text: `${now}.`, source: "Forecast", parts: [{ key: "forecast_now", params }] };
 }
 

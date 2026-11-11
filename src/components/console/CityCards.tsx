@@ -10,6 +10,7 @@ import { STATUS_BG, STATUS_ORDER, STATUS_RGB } from "@/lib/riskScale";
 import { BOIL_WATER_PSI, type CityPlan } from "@/lib/planner";
 import type { WeatherHour } from "@/lib/weather";
 import type { OpsCrew } from "./useOps";
+import { plural, verb } from "@/lib/plural";
 import type { AgentEntry } from "./useAgent";
 import { fmtF, formatHour } from "./format";
 
@@ -30,7 +31,7 @@ export function ReadyCheck({ counts, total, ran, lowHomes }: { counts: Record<Ho
   return (
     <Card title="Ready check">
       <p className="text-3xl font-semibold tracking-tight tabular-nums">
-        {counts.ready.toLocaleString()} <span className="text-lg font-normal text-muted">of {total.toLocaleString()} homes ready</span>
+        {counts.ready.toLocaleString()} <span className="text-lg font-normal text-muted">of {plural(total, "home")} ready</span>
       </p>
       <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-border" role="img" aria-label="Homes by status">
         {STATUS_ORDER.map((s) =>
@@ -54,7 +55,7 @@ export function ReadyCheck({ counts, total, ran, lowHomes }: { counts: Record<Ho
       </ul>
       <p className="mt-3 text-xs text-muted">
         {ran ? "Homes that need action tonight. " : "Outreach hasn't run for this hour yet. "}
-        {lowHomes.toLocaleString()} low-risk homes need no action.
+        {plural(lowHomes, "low-risk home")} {verb(lowHomes, "needs", "need")} no action.
       </p>
     </Card>
   );
@@ -86,7 +87,7 @@ export function OutreachFunnel({ texted, called, doorChecks, neighborFlags }: { 
           </li>
         ))}
       </ol>
-      {neighborFlags > 0 && <p className="mt-3 text-xs text-muted">{neighborFlags.toLocaleString()} homes flagged by a neighbor moved up the call list.</p>}
+      {neighborFlags > 0 && <p className="mt-3 text-xs text-muted">{plural(neighborFlags, "home")} flagged by a neighbor moved up the call list.</p>}
     </Card>
   );
 }
@@ -169,7 +170,7 @@ export function CrewsPanel({
         </ul>
       )}
       <p className="mt-3 text-xs text-muted">
-        {queue > 0 ? `${queue.toLocaleString()} more homes need a crew and wait in the queue, highest risk first.` : "No homes waiting for a crew."} Crews only go to homes whose
+        {queue > 0 ? `${plural(queue, "more home")} ${verb(queue, "needs a crew and waits", "need a crew and wait")} in the queue, highest risk first.` : "No homes waiting for a crew."} Crews only go to homes whose
         call says they can&apos;t do the steps themselves.
       </p>
     </Card>
@@ -304,12 +305,6 @@ export function HomeSummaryCard({ homeId, time, level, onClose }: { homeId: stri
             </p>
           )}
           {s.flaggedByNeighbor && <p className="mt-2 text-xs text-muted">A neighbor asked for a check on this home.</p>}
-          <a
-            href={`/console/home/${encodeURIComponent(homeId)}${time ? `?t=${time}` : ""}`}
-            className="mt-3 block rounded-full bg-accent px-3 py-2 text-center text-sm font-semibold text-bg transition hover:brightness-110"
-          >
-            Open in Homeowner tab →
-          </a>
         </>
       )}
     </div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { AgentEntry, AgentMode, AgentRun } from "./useAgent";
+import { plural } from "@/lib/plural";
 
 const MODES: { id: AgentMode; label: string }[] = [
   { id: "auto", label: "Auto" },
@@ -137,7 +138,7 @@ export default function AgentPanel({ enabled, run, mode, onMode, onRun, onApprov
               <span />
             )}
             <span>
-              {run?.source === "claude" && run.usage ? `Claude Opus 5.5 · ${run.usage.calls} calls` : run?.source === "rules" ? "Pre-written explanations" : ""}
+              {run?.source === "claude" && run.usage ? `Claude Opus 5.5 · ${plural(run.usage.calls, "call")}` : run?.source === "rules" ? "Pre-written explanations" : ""}
             </span>
           </div>
         </>

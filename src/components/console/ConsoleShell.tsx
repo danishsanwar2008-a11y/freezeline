@@ -1,7 +1,7 @@
 "use client";
 
 // City Operations: officials only. The map, the cells and the metrics, in third-person wording.
-// No transcripts or homeowner instructions here (those live in the Homeowner tab).
+// No transcripts or homeowner instructions: households are reached only by texts and calls.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
@@ -75,7 +75,6 @@ function ConsoleBody({
   model,
   startHour,
   agent,
-  onHomeHref,
 }: {
   homes: ConsoleHome[];
   zones: ConsoleZone[];
@@ -83,7 +82,6 @@ function ConsoleBody({
   startHour: number;
   /** Present in Replay mode only (the agent runs on the Uri replay). */
   agent?: ReturnType<typeof useAgent>;
-  onHomeHref: (href: string) => void;
 }) {
   const hours = model.hours;
   const last = hours.length - 1;
@@ -189,12 +187,6 @@ function ConsoleBody({
   const firstPending = entries.find((e) => e.status === "pending")?.id;
   const crewProposals = entries.filter((e) => e.tool === "propose_crew" && e.status === "pending");
 
-  // Homeowner tab link: the selected home, else the highest-risk home this hour.
-  const topHome = useMemo(() => plan.homes.reduce((best, p, i) => (p.score > plan.homes[best].score ? i : best), 0), [plan]);
-  const homeIdx = selectedHome ?? topHome;
-  const homeHref = `/console/home/${encodeURIComponent(homes[homeIdx].id)}${agent ? `?t=${time}` : ""}`;
-  useEffect(() => onHomeHref(homeHref), [homeHref, onHomeHref]);
-
   const selectHex = useCallback((h3: string | null) => {
     setFocusHex(h3);
     setSelectedHome(null);
@@ -271,7 +263,6 @@ function ConsoleBody({
 
 export default function ConsoleShell({ homes, zones }: { homes: ConsoleHome[]; zones: ConsoleZone[] }) {
   const [mode, setMode] = useState<Mode>("replay");
-  const [homeHref, setHomeHref] = useState("/console/home/" + encodeURIComponent(homes[0]?.id ?? ""));
   const agent = useAgent();
   const replayModel = useMemo(() => buildReplay(homes, URI_HOURS, ZONE_HOURS), [homes]);
   const live = useLiveForecast(mode === "live");
@@ -285,11 +276,11 @@ export default function ConsoleShell({ homes, zones }: { homes: ConsoleHome[]; z
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-text lg:h-dvh lg:overflow-hidden">
-      <TopBar audience="city" homeHref={homeHref} mode={mode} onMode={setMode} />
+      <TopBar mode={mode} onMode={setMode} />
       {mode === "replay" ? (
-        <ConsoleBody key="replay" homes={homes} zones={zones} model={replayModel} startHour={0} agent={agent} onHomeHref={setHomeHref} />
+        <ConsoleBody key="replay" homes={homes} zones={zones} model={replayModel} startHour={0} agent={agent} />
       ) : liveModel ? (
-        <ConsoleBody key="live" homes={homes} zones={zones} model={liveModel} startHour={liveStart} onHomeHref={setHomeHref} />
+        <ConsoleBody key="live" homes={homes} zones={zones} model={liveModel} startHour={liveStart} />
       ) : live.state.status === "error" ? (
         <ModeMessage title="Couldn't load the live forecast">
           <p>{live.state.message}</p>

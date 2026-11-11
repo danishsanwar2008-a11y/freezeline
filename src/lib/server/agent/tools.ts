@@ -3,6 +3,7 @@ import { z } from "zod";
 import type Anthropic from "@anthropic-ai/sdk";
 import { BOIL_WATER_PSI, MAX_RESERVE_PSI, MIN_RESERVE_PSI, clampReserve, type CityPlan } from "@/lib/planner";
 import { compareFutures } from "@/lib/summary";
+import { plural, verb } from "@/lib/plural";
 import { displayLevel } from "@/lib/steps";
 import { fillLink, smsGroupKey, type SmsFacts } from "@/lib/messages";
 import { getSupabaseAdmin } from "../supabaseAdmin";
@@ -265,8 +266,8 @@ function publishSummary(ctx: AgentCtx, plan: CityPlan, reserves: Record<string, 
     .filter(([, psi]) => psi > MIN_RESERVE_PSI)
     .map(([id, psi]) => `${areaName(ctx.city, id)} reserve raised to ${psi} psi`);
   return (
-    `${done ? "Published" : "Publish"} the drip plan: ${dripping.toLocaleString()} homes drip one tap, ` +
-    (s.planFail === 0 ? `all ${s.n} areas stay safe (lowest ${Math.round(s.lowestPlan)} psi)` : `${s.planFail} of ${s.n} areas below 20 psi`) +
+    `${done ? "Published" : "Publish"} the drip plan: ${plural(dripping, "home")} ${verb(dripping, "drips", "drip")} one tap, ` +
+    (s.planFail === 0 ? `all ${s.n} areas stay safe (lowest ${Math.round(s.lowestPlan)} psi)` : `${s.planFail} of ${plural(s.n, "area")} below 20 psi`) +
     (stricter.length ? `; ${stricter.join(", ")}` : "") +
     "."
   );
@@ -322,7 +323,7 @@ export async function queueOutreach(ctx: AgentCtx, input: z.output<typeof Inputs
   const picked = candidates(ctx, plan, input.zone_id, input.level).slice(0, input.limit);
 
   if (!execute) {
-    return { status: "awaiting_approval", summary: `Text ${picked.length.toLocaleString()} ${input.level} homes${where} (simulated, queued).` };
+    return { status: "awaiting_approval", summary: `Text ${plural(picked.length, `${input.level} home`)}${where} (simulated, queued).` };
   }
 
   const published = await loadPublished(ctx);
@@ -367,7 +368,7 @@ export async function queueOutreach(ctx: AgentCtx, input: z.output<typeof Inputs
     queued += data?.length ?? 0;
   }
   const skipped = rows.length - queued;
-  const summary = `Queued texts to ${queued.toLocaleString()} ${input.level} homes${where} (simulated)${skipped ? `; ${skipped} already queued` : ""}.`;
+  const summary = `Queued texts to ${plural(queued, `${input.level} home`)}${where} (simulated)${skipped ? `; ${skipped.toLocaleString()} already queued` : ""}.`;
   await logRow(ctx, "outreach_queued", summary, input.zone_id, { level: input.level, queued, skipped });
   return { status: "done", summary, queued, already_queued: skipped, message_groups: drafts.size };
 }
