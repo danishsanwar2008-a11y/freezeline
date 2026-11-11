@@ -8,7 +8,7 @@ FreezeLine is an AI agent for water utilities during hard freezes: it scores fre
 2. In PowerShell:
 
 ```powershell
-git clone https://github.com/<owner>/freezeline.git
+git clone https://github.com/danishsanwar2008-a11y/freezeline.git
 cd freezeline
 npm install                          # also copies the MapLibre worker into public/
 Copy-Item .env.example .env.local    # then fill in the values (see below)
