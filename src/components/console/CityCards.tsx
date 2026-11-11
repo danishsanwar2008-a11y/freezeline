@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from "react";
 import type { HomeStatus } from "@/lib/household";
+import { CREW_TRIP } from "@/lib/crewTrip";
 import { STATUS_LABEL } from "@/lib/cityWording";
 import { STATUS_BG, STATUS_ORDER, STATUS_RGB } from "@/lib/riskScale";
 import type { WeatherHour } from "@/lib/weather";
@@ -93,13 +94,24 @@ export function OutreachFunnel({ texted, called, doorChecks, neighborFlags }: { 
 
 // ---------- Crews ----------
 
-/** A crew is "heading" for the first 90 s after assignment, then "helping". */
-export const HEADING_MS = 90_000;
+/** On screen, one simulated minute of driving takes this long, so a 6-minute drive animates for 30 s. */
+export const MS_PER_DRIVE_MINUTE = 5_000;
+export const headingMs = (minutes: number) => minutes * MS_PER_DRIVE_MINUTE;
 
+/** Still driving: assigned this replay hour and the on-screen drive hasn't finished. */
+export function isHeading(c: OpsCrew, now: number): boolean {
+  const a = c.assignment;
+  return !!a && a.hoursAgo === 0 && now - Date.parse(a.assigned_at) < headingMs(a.minutes);
+}
+
+/** "Crew 7 · Heading to W 11th St · 1.2 mi · ~6 min" / "Crew 3 · On standby · Heights". */
 export function crewLine(c: OpsCrew, now: number): string {
-  if (!c.assignment) return `${c.name} · On standby`;
-  const heading = now - Date.parse(c.assignment.assigned_at) < HEADING_MS;
-  return heading ? `${c.name} · Heading to ${c.assignment.street}` : `${c.name} · Helping a home on ${c.assignment.street} (${c.assignment.needs})`;
+  const a = c.assignment;
+  if (!a) return `${c.name} · On standby · ${c.area}`;
+  const from = a.otherArea ? ` · from ${c.area}` : "";
+  return isHeading(c, now)
+    ? `${c.name} · Heading to ${a.street} · ${a.miles.toFixed(1)} mi · ~${a.minutes} min${from}`
+    : `${c.name} · Helping a home on ${a.street} (${a.needs}) · ${a.miles.toFixed(1)} mi${from}`;
 }
 
 function CrewIcon({ id, active }: { id: number; active: boolean }) {
@@ -130,20 +142,42 @@ export function CrewsPanel({
   approving: string | null;
   onApprove: (e: AgentEntry) => void;
 }) {
-  const busy = crews.filter((c) => c.assignment).length;
+  const working = crews.filter((c) => c.assignment);
+  const standby = crews.filter((c) => !c.assignment);
   return (
     <Card title="Help crews (sample)">
-      <p className="text-2xl font-semibold tracking-tight">
-        {busy} of {crews.length} <span className="text-base font-normal text-muted">crews helping</span>
+      <p className="text-2xl font-semibold tracking-tight tabular-nums">
+        {working.length} of {crews.length} <span className="text-base font-normal text-muted">crews helping</span>
       </p>
-      <ul className="mt-3 space-y-2">
+      {/* One dot per crew: filled = on a job. */}
+      <div className="mt-2 flex flex-wrap gap-1" role="img" aria-label={`${working.length} of ${crews.length} crews on a job`}>
         {crews.map((c) => (
-          <li key={c.id} className="flex items-start gap-3 text-sm">
-            <CrewIcon id={c.id} active={!!c.assignment} />
-            <span className="pt-1 leading-snug">{crewLine(c, now)}</span>
-          </li>
+          <span key={c.id} className={`size-2.5 rounded-full ${c.assignment ? "bg-accent" : "border border-border"}`} />
         ))}
-      </ul>
+      </div>
+      {working.length > 0 && (
+        <ul className="mt-3 space-y-2" aria-label="Crews on a job">
+          {working.map((c) => (
+            <li key={c.id} className="flex items-start gap-3 text-sm">
+              <CrewIcon id={c.id} active />
+              <span className="pt-1 leading-snug">{crewLine(c, now)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {standby.length > 0 && (
+        <ul className="mt-3 grid grid-cols-1 gap-x-3 gap-y-1 text-xs text-muted sm:grid-cols-2" aria-label="Crews on standby">
+          {standby.map((c) => (
+            <li key={c.id} className="truncate">
+              {crewLine(c, now)}
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-2 text-[11px] text-muted">
+        Distance by road (straight line × {CREW_TRIP.roadFactor}) at {CREW_TRIP.mph} mph, {CREW_TRIP.jobMinutes} min on site (simulated). Nearest free crew in
+        the same area goes first; if none is free there, the nearest crew from another area.
+      </p>
       {proposals.length > 0 && (
         <ul className="mt-3 space-y-2 border-t border-border pt-3">
           {proposals.map((p) => (

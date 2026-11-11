@@ -1,10 +1,10 @@
-// Seeds zones + homes into Supabase. Homes are REAL OpenStreetMap footprints (data/osm-homes.json)
+// Seeds zones, homes and the 20 sample crews (5 per area) into Supabase. Homes are REAL OpenStreetMap footprints (data/osm-homes.json)
 // with SIMULATED details. Safe to re-run: upserts on id, then removes homes no longer in the set
 // (their test drip plans, texts, calls and photo results go with them via ON DELETE CASCADE).
 // Usage: npm run seed   (reads .env.local; run supabase/003_phase35.sql first)
 import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
-import { generateHomes, generateZones } from "../src/lib/seed/generate";
+import { generateCrews, generateHomes, generateZones } from "../src/lib/seed/generate";
 
 config({ path: ".env.local" });
 
@@ -38,6 +38,12 @@ async function main() {
   const homes = generateHomes();
   await upsert("zones", generateZones());
   await upsert("homes", homes);
+  const crews = generateCrews();
+  await upsert("crews", crews.map((c) => ({ ...c, simulated: true })));
+  {
+    const { error } = await supabase.from("crews").delete().gt("id", crews.length);
+    if (error) throw new Error(`removing extra crews: ${error.message}`);
+  }
 
   const keep = new Set(homes.map((h) => h.id));
   const stale = (await existingHomeIds()).filter((id) => !keep.has(id));
@@ -46,11 +52,12 @@ async function main() {
     if (error) throw new Error(`removing old homes: ${error.message}`);
   }
 
-  const [zones, total] = await Promise.all([
+  const [zones, total, crewCount] = await Promise.all([
     supabase.from("zones").select("*", { count: "exact", head: true }),
     supabase.from("homes").select("*", { count: "exact", head: true }),
+    supabase.from("crews").select("*", { count: "exact", head: true }),
   ]);
-  console.log(`Seeded: ${zones.count} zones, ${total.count} homes (real OpenStreetMap footprints, simulated details).`);
+  console.log(`Seeded: ${zones.count} zones, ${total.count} homes (real OpenStreetMap footprints, simulated details), ${crewCount.count} crews (sample).`);
   if (stale.length) console.log(`Removed ${stale.length} homes no longer in the set (old sample homes).`);
 }
 

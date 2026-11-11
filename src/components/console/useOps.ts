@@ -9,7 +9,24 @@ export interface OpsCrew {
   name: string;
   depot_lat: number;
   depot_lng: number;
-  assignment: { home_id: string; street: string; lat: number; lng: number; needs: string; assigned_at: string } | null;
+  /** Area the crew's depot is in. */
+  area: string;
+  zone_id?: string;
+  assignment: {
+    home_id: string;
+    street: string;
+    lat: number;
+    lng: number;
+    needs: string;
+    assigned_at: string;
+    /** Road miles from the depot and drive time (simulated). */
+    miles: number;
+    minutes: number;
+    /** Replay hours since the job was assigned (0 = this hour). */
+    hoursAgo: number;
+    /** The crew came from another area (none free in the home's own area). */
+    otherArea: boolean;
+  } | null;
 }
 
 export interface OpsData {

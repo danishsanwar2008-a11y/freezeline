@@ -48,7 +48,7 @@ Replay Uri hour by hour. Temperatures fall into the teens; the risk engine light
 
 - Outreach (SAMPLE until Phase 4): text every Watch/High home → call those who don't reply → door check High homes that don't answer. The call asks 7 questions; answers are deterministic per home id (`src/lib/household.ts`) and saved in `household_calls`. A neighbor named on a call moves up the call list.
 - Assessment per home: Ready / Needs a reminder / Needs a crew, with a one-line reason and a confidence (confirmed = answered; estimated = not yet).
-- **Crew rule**: crews go only to homes whose call (confirmed) says they can't do the steps themselves, highest risk first, nearest free crew. The agent proposes; an official approves (Approve first) or Auto assigns. The rest wait in the crew queue.
+- **Crew rule**: crews go only to homes whose call (confirmed) says they can't do the steps themselves, highest risk first, nearest free crew in the same area (else the nearest free crew from another area). 20 sample crews, 5 per area, each starting at a depot in its area (`npm run seed`). A job is the drive (road miles = straight line × 1.3 at 15 mph) plus 30 min on site, then the crew is back on standby; homes already helped leave the queue. The agent proposes; an official approves (Approve first) or Auto assigns. The rest wait in the crew queue.
 - **Honesty rule**: a household hears "a crew is on the way" only after a crew is actually assigned (a `crew_assignments` row with status `assigned`). Before that: "I'm requesting a crew… we'll text you as soon as one is assigned." Enforced in `src/lib/callScript.ts` and checked by tests and `npm run messages:check`.
 
 ## UX principles
@@ -93,7 +93,7 @@ Replay Uri hour by hour. Temperatures fall into the teens; the risk engine light
 
 - `src/app` — routes (`/console` City Operations, `/status` connection test); APIs `/api/ops`, `/api/ops/home`, `/api/agent/*`
 - `data/osm-homes.json` — 8,034 real house footprints from OpenStreetMap (`npm run osm:homes`, fetched once); `src/lib/seed/generate.ts` adds simulated details (incl. elderly / mobility / lives alone / indoor faucet valve)
-- `src/lib/household.ts` — simulated outreach funnel, call answers, assessments, crew proposals (pure, tested); `src/lib/server/outreachState.ts` saves them; `src/lib/cityWording.ts` officials' wording
+- `src/lib/household.ts` — simulated outreach funnel, call answers, assessments, crew proposals (pure, tested); `src/lib/crewTrip.ts` crew distance, drive time and job length (simulated); `src/lib/server/outreachState.ts` saves them; `src/lib/cityWording.ts` officials' wording
 - `src/lib/callScript.ts` — the agent's conversation with a household (pre-written lines, honesty rule)
 - `supabase/003_phase35.sql` — home columns, household_calls, crews, crew_assignments, outreach channels; removes anon access to homes
 - `src/lib/risk.ts` — deterministic risk engine (score 0–100, level, plain-English why)

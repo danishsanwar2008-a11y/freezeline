@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import DeckGL from "@deck.gl/react";
 import { H3HexagonLayer } from "@deck.gl/geo-layers";
-import { LineLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
+import { LineLayer, ScatterplotLayer } from "@deck.gl/layers";
 import { FlyToInterpolator, WebMercatorViewport, type MapViewState, type PickingInfo } from "@deck.gl/core";
 import { cellToLatLng } from "h3-js";
 import { Map } from "react-map-gl/maplibre";
@@ -22,9 +22,9 @@ const TOP_BAR = 52;
 const PANEL = 440;
 const AREA_ZOOM = 16;
 
+/** Crew marker + line (no text labels on the map; names and trips are in the sidebar). */
 export interface CrewMarker {
   id: number;
-  label: string;
   position: [number, number];
   target: [number, number] | null;
 }
@@ -158,24 +158,12 @@ export default function RiskMap({ hexes, need, homes, statusOf, statusKey, crews
     getPosition: (d) => d.position,
     getFillColor: [125, 211, 252, 255],
     getLineColor: [11, 16, 22, 255],
-    getRadius: 11,
+    getRadius: 7,
     radiusUnits: "pixels",
     stroked: true,
     getLineWidth: 2,
     lineWidthUnits: "pixels",
-    pickable: true,
-    parameters: { depthCompare: "always" },
-  });
-  const crewLabels = new TextLayer<CrewMarker>({
-    id: "crew-labels",
-    data: crews,
-    getPosition: (d) => d.position,
-    getText: (d) => String(d.id),
-    getColor: [11, 16, 22, 255],
-    getSize: 13,
-    fontWeight: 700,
-    getTextAnchor: "middle",
-    getAlignmentBaseline: "center",
+    pickable: false,
     parameters: { depthCompare: "always" },
   });
 
@@ -183,14 +171,13 @@ export default function RiskMap({ hexes, need, homes, statusOf, statusKey, crews
     <DeckGL
       initialViewState={initialViewState}
       controller={{ dragRotate: false }}
-      layers={[hexLayer, dotLayer, crewLines, crewDots, crewLabels]}
+      layers={[hexLayer, dotLayer, crewLines, crewDots]}
       onError={(err) => console.error("[FreezeLine map]", err)}
       getCursor={({ isHovering }) => (isHovering ? "pointer" : "grab")}
       getTooltip={({ object, layer }: PickingInfo<HexBin | Dot | CrewMarker>) => {
         if (!object) return null;
         let text: string | null = null;
         if (layer?.id === "homes") text = homes[(object as Dot).i].label;
-        else if (layer?.id === "crews") text = (object as CrewMarker).label;
         else if (layer?.id === "need-hexes" && (object as HexBin).h3 !== focusHex) {
           const k = hexIndex.get((object as HexBin).h3)!;
           text = `${(object as HexBin).neighborhood} · ${Math.round((need[k] ?? 0) * 100)}% of ${(object as HexBin).homeIdx.length} homes need action`;

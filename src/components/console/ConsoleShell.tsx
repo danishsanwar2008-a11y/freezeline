@@ -23,7 +23,7 @@ import { useAgent } from "./useAgent";
 import { statusAt, useOps } from "./useOps";
 import { useLiveForecast } from "./useLiveForecast";
 import { houstonNowHour } from "./format";
-import { CrewsPanel, FreezeReadings, HEADING_MS, HomeSummaryCard, OutreachFunnel, ReadyCheck } from "./CityCards";
+import { CrewsPanel, FreezeReadings, HomeSummaryCard, OutreachFunnel, ReadyCheck, headingMs, isHeading } from "./CityCards";
 import type { CrewMarker } from "./RiskMap";
 
 // WebGL map is browser-only.
@@ -168,11 +168,12 @@ function ConsoleBody({
     return c;
   }, [homes, data]);
 
-  // Crew positions: "heading" for 90 s after assignment (moving from the depot), then at the home.
+  // Crew positions: driving from the depot for the trip's drive time (scaled on screen), then at the home.
+  // Jobs from an earlier replay hour are already on site.
   const [tick, setNow] = useState(() => Date.now());
   const now = Math.max(tick, ops.at); // advance to the moment fresh data arrived
   const crewsData = useMemo(() => data?.crews ?? [], [data]);
-  const anyHeading = crewsData.some((c) => c.assignment && now - Date.parse(c.assignment.assigned_at) < HEADING_MS);
+  const anyHeading = crewsData.some((c) => isHeading(c, now));
   useEffect(() => {
     if (!anyHeading) return;
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -182,16 +183,12 @@ function ConsoleBody({
     () =>
       crewsData.map((c) => {
         const depot: [number, number] = [c.depot_lng, c.depot_lat];
-        if (!c.assignment) return { id: c.id, label: `${c.name} · On standby`, position: depot, target: null };
-        const home: [number, number] = [c.assignment.lng, c.assignment.lat];
-        const t = Math.min(1, (now - Date.parse(c.assignment.assigned_at)) / HEADING_MS);
+        if (!c.assignment) return { id: c.id, position: depot, target: null };
+        const a = c.assignment;
+        const home: [number, number] = [a.lng, a.lat];
+        const t = a.hoursAgo > 0 ? 1 : Math.min(1, (now - Date.parse(a.assigned_at)) / headingMs(a.minutes));
         const pos: [number, number] = [depot[0] + (home[0] - depot[0]) * t, depot[1] + (home[1] - depot[1]) * t];
-        return {
-          id: c.id,
-          label: `${c.name} · ${t < 1 ? "Heading to" : "Helping a home on"} ${c.assignment.street}`,
-          position: pos,
-          target: t < 1 ? home : null,
-        };
+        return { id: c.id, position: pos, target: t < 1 ? home : null };
       }),
     [crewsData, now],
   );

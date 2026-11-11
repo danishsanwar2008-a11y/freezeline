@@ -4,6 +4,8 @@ import {
   assess,
   nearestNeighbors,
   outreachSummary,
+  crewTrip,
+  jobActive,
   proposeCrews,
   simulateOutreach,
   type Assessment,
@@ -11,6 +13,7 @@ import {
   type Confidence,
   type Contact,
   type Crew,
+  type CrewJob,
   type HomeAssessment,
   type HomeOutreach,
   type ReasonFactor,
@@ -18,14 +21,50 @@ import {
 import { assessmentSentence, needsList } from "@/lib/cityWording";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { planAt, toTimestamp, type City } from "./cityState";
+import { areaOf, generateCrews } from "@/lib/seed/generate";
 import type { AgentCtx } from "./agent/tools";
 
-/** Sample crews if the crews table isn't there yet (same rows as 003_phase35.sql). */
-export const DEFAULT_CREWS: Crew[] = [
-  { id: 1, name: "Crew 1", depot_lat: 29.7925, depot_lng: -95.4005 },
-  { id: 2, name: "Crew 2", depot_lat: 29.738, depot_lng: -95.379 },
-  { id: 3, name: "Crew 3", depot_lat: 29.702, depot_lng: -95.44 },
-];
+function withArea(rows: Omit<Crew, "zone_id">[]): Crew[] {
+  return rows.map((c) => ({ ...c, zone_id: areaOf(c.depot_lat, c.depot_lng) }));
+}
+
+/** Sample crews if the crews table is empty or missing: 20 crews, 5 per area (same rows `npm run seed` writes). */
+export const DEFAULT_CREWS: Crew[] = withArea(generateCrews());
+
+/** Assignments look back this many replay hours for jobs still running (a long cross-area drive). */
+const JOB_LOOKBACK_HOURS = 3;
+
+/**
+ * Crew jobs as of a replay hour: jobs still running (busy crews) and every home already helped
+ * (this hour or earlier), which leaves the queue.
+ */
+export async function loadCrewJobs(
+  city: City,
+  time: string,
+  crews: Crew[],
+): Promise<{ active: (CrewJob & { assigned_at: string })[]; helpedHomes: Set<string> }> {
+  const d = getSupabaseAdmin();
+  if (!d) return { active: [], helpedHomes: new Set() };
+  const now = Date.parse(toTimestamp(time));
+  const { data, error } = await d
+    .from("crew_assignments")
+    .select("crew_id,home_id,plan_for,created_at")
+    .eq("status", "assigned")
+    .lte("plan_for", toTimestamp(time))
+    .order("created_at");
+  if (error || !data) return { active: [], helpedHomes: new Set() };
+  const helpedHomes = new Set(data.map((r) => r.home_id as string));
+  const active: (CrewJob & { assigned_at: string })[] = [];
+  for (const r of data) {
+    const hoursAgo = Math.round((now - Date.parse(r.plan_for as string)) / 3_600_000);
+    const crew = crews.find((c) => c.id === r.crew_id);
+    const i = city.byId.get(r.home_id as string);
+    if (!crew || i === undefined || hoursAgo > JOB_LOOKBACK_HOURS) continue;
+    const job = { crew_id: crew.id, home_id: r.home_id as string, hoursAgo, minutes: crewTrip(crew, city.homes[i]).minutes, assigned_at: r.created_at as string };
+    if (jobActive(job)) active.push(job);
+  }
+  return { active, helpedHomes };
+}
 
 const neighborCache = new WeakMap<City, (string | null)[]>();
 function neighborsOf(city: City) {
@@ -74,7 +113,7 @@ export async function getCrews(): Promise<Crew[]> {
   const d = getSupabaseAdmin();
   if (!d) return DEFAULT_CREWS;
   const { data, error } = await d.from("crews").select("id,name,depot_lat,depot_lng").order("id");
-  return error || !data?.length ? DEFAULT_CREWS : (data as Crew[]);
+  return error || !data?.length ? DEFAULT_CREWS : withArea(data as Crew[]);
 }
 
 /** Saved call records and crew assignments for one storm hour (empty until the agent runs outreach). */
@@ -198,16 +237,16 @@ export async function simulateAndSave(ctx: AgentCtx, execute: boolean) {
 }
 
 export async function crewStatus(ctx: AgentCtx) {
-  const [crews, records] = await Promise.all([getCrews(), loadHourRecords(ctx.time)]);
-  const assigned = records.assignments.filter((a) => a.status === "assigned");
+  const crews = await getCrews();
+  const jobs = await loadCrewJobs(ctx.city, ctx.time, crews);
   const { assessments, plan } = simulateHour(ctx);
   const { proposals, queue } = proposeCrews(
     ctx.city.homes,
     plan,
     assessments,
     crews,
-    new Set(assigned.map((a) => a.crew_id!).filter(Boolean)),
-    new Set(assigned.map((a) => a.home_id)),
+    new Set(jobs.active.map((j) => j.crew_id)),
+    jobs.helpedHomes,
   );
   const homeLabel = (i: number) => ({
     home_id: ctx.city.homes[i].id,
@@ -216,10 +255,16 @@ export async function crewStatus(ctx: AgentCtx) {
   });
   return {
     crews: crews.map((c) => {
-      const a = assigned.find((x) => x.crew_id === c.id);
-      return { crew_id: c.id, name: c.name, busy: !!a, helping: a ? a.home_id : null };
+      const a = jobs.active.find((x) => x.crew_id === c.id);
+      return { crew_id: c.id, name: c.name, area: c.zone_id, busy: !!a, helping: a ? a.home_id : null };
     }),
-    suggested: proposals.map((p) => ({ crew_id: p.crew_id, ...homeLabel(p.homeIdx) })),
+    suggested: proposals.map((p) => ({
+      crew_id: p.crew_id,
+      ...homeLabel(p.homeIdx),
+      miles: Math.round(p.miles * 10) / 10,
+      minutes: p.minutes,
+      from_other_area: p.fromOtherArea,
+    })),
     queue_length: queue.length,
     queue_top: queue.slice(0, 5).map(homeLabel),
   };
@@ -248,13 +293,15 @@ export async function proposeCrew(ctx: AgentCtx, input: z.output<typeof Outreach
   if (assessment !== "needs_crew" || confidence !== "confirmed")
     throw new Error(`Crews only go to homes whose call says they can't do the steps. This home is: ${assessmentSentence(assessment, reasons)}.`);
 
-  const line = `${crew.name} → home on ${home.street} (${needsList(reasons)})`;
+  const trip = crewTrip(crew, home);
+  const line = `${crew.name} → home on ${home.street} (${needsList(reasons)}) · ${trip.miles.toFixed(1)} mi · ~${trip.minutes} min`;
   if (!execute) return { status: "awaiting_approval", summary: `Assign ${line}.` };
 
   const d = db();
   const planFor = toTimestamp(ctx.time);
-  const { data: busy } = await d.from("crew_assignments").select("home_id").eq("plan_for", planFor).eq("crew_id", crew.id).eq("status", "assigned");
-  if (busy?.length) throw new Error(`${crew.name} is already helping another home this hour.`);
+  const jobs = await loadCrewJobs(ctx.city, ctx.time, crews);
+  if (jobs.active.some((j) => j.crew_id === crew.id)) throw new Error(`${crew.name} is still on another job.`);
+  if (jobs.helpedHomes.has(home.id)) throw new Error("A crew has already been assigned to this home.");
   const { error } = await d
     .from("crew_assignments")
     .upsert(

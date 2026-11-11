@@ -178,3 +178,45 @@ export function simulateHome(o: OsmHome): HomeRow {
 export function generateHomes(): HomeRow[] {
   return OSM_HOMES.map(simulateHome);
 }
+
+// ---------- crews (sample) ----------
+
+export interface CrewRow {
+  id: number;
+  name: string;
+  depot_lat: number;
+  depot_lng: number;
+}
+
+/** Spots inside an area's box (share of the way south->north, west->east) where its 5 crews start. */
+const DEPOT_SPOTS: [number, number][] = [
+  [0.25, 0.25],
+  [0.25, 0.75],
+  [0.5, 0.5],
+  [0.75, 0.25],
+  [0.75, 0.75],
+];
+export const CREWS_PER_AREA = DEPOT_SPOTS.length;
+
+/** 20 sample crews: 5 per area, each starting at a depot inside its area. Crew 1–5 Heights, 6–10 Montrose, ... */
+export function generateCrews(): CrewRow[] {
+  return NEIGHBORHOODS.flatMap((n, a) =>
+    DEPOT_SPOTS.map(([fy, fx], k) => {
+      const [s, w, north, e] = n.bbox;
+      const id = a * CREWS_PER_AREA + k + 1;
+      return { id, name: `Crew ${id}`, depot_lat: round(s + (north - s) * fy, 6), depot_lng: round(w + (e - w) * fx, 6) };
+    }),
+  );
+}
+
+/** The area (zone id) a depot sits in: the box that contains it, else the nearest area center. */
+export function areaOf(lat: number, lng: number): string {
+  const inside = NEIGHBORHOODS.find(({ bbox: [s, w, n, e] }) => lat >= s && lat <= n && lng >= w && lng <= e);
+  if (inside) return inside.id;
+  let best = NEIGHBORHOODS[0], bestD = Infinity;
+  for (const n of NEIGHBORHOODS) {
+    const d = (lat - (n.bbox[0] + n.bbox[2]) / 2) ** 2 + (lng - (n.bbox[1] + n.bbox[3]) / 2) ** 2;
+    if (d < bestD) [best, bestD] = [n, d];
+  }
+  return best.id;
+}

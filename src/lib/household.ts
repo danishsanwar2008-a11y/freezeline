@@ -242,17 +242,41 @@ export interface Crew {
   name: string;
   depot_lat: number;
   depot_lng: number;
+  /** Area the crew's depot is in (derived from the depot location). */
+  zone_id?: string;
 }
+
+export { CREW_TRIP, crewTrip, jobActive, milesBetween, type CrewJob } from "./crewTrip";
+import { crewTrip, milesBetween } from "./crewTrip";
 
 export interface CrewProposal {
   crew_id: number;
   home_id: string;
   homeIdx: number;
+  miles: number;
+  minutes: number;
+  /** True when no crew in the home's own area was free. */
+  fromOtherArea: boolean;
+}
+
+/** Nearest free crew for a home: same area first; if none is free there, the nearest free crew anywhere. */
+export function nearestCrew(home: { lat: number; lng: number; zone_id: string }, free: Crew[]): Crew | null {
+  if (!free.length) return null;
+  const local = free.filter((c) => c.zone_id === home.zone_id);
+  const pool = local.length ? local : free;
+  let best = pool[0];
+  let bestMiles = milesBetween(best.depot_lat, best.depot_lng, home.lat, home.lng);
+  for (const c of pool.slice(1)) {
+    const m = milesBetween(c.depot_lat, c.depot_lng, home.lat, home.lng);
+    if (m < bestMiles || (m === bestMiles && c.id < best.id)) [best, bestMiles] = [c, m];
+  }
+  return best;
 }
 
 /**
  * Crew rule: crews go ONLY to homes whose call (confirmed) says they can't do the steps themselves,
- * highest risk first, each to the nearest free crew. Homes beyond the free crews wait in the queue.
+ * highest risk first, each to the nearest free crew (same area first, then any area).
+ * Homes beyond the free crews wait in the queue. Homes already helped are skipped.
  */
 export function proposeCrews(
   homes: ConsoleHome[],
@@ -271,19 +295,15 @@ export function proposeCrews(
   const proposals: CrewProposal[] = [];
   const queue: number[] = [];
   for (const i of needs) {
-    if (!free.length) {
+    const h = homes[i];
+    const crew = nearestCrew(h, free);
+    if (!crew) {
       queue.push(i);
       continue;
     }
-    const h = homes[i];
-    let k = 0;
-    free.forEach((c, j) => {
-      const d = (c.depot_lat - h.lat) ** 2 + (c.depot_lng - h.lng) ** 2;
-      const best = (free[k].depot_lat - h.lat) ** 2 + (free[k].depot_lng - h.lng) ** 2;
-      if (d < best) k = j;
-    });
-    proposals.push({ crew_id: free[k].id, home_id: h.id, homeIdx: i });
-    free.splice(k, 1);
+    const trip = crewTrip(crew, h);
+    proposals.push({ crew_id: crew.id, home_id: h.id, homeIdx: i, ...trip, fromOtherArea: crew.zone_id !== h.zone_id });
+    free.splice(free.indexOf(crew), 1);
   }
   return { proposals, queue };
 }
