@@ -4,7 +4,7 @@
 
 import { useState, useSyncExternalStore } from "react";
 import type { HomeStatus } from "@/lib/household";
-import { NEED_STEPS, STATUS_BG, STATUS_ORDER } from "@/lib/riskScale";
+import { NEED_STEPS, STATUS_BG, STATUS_ORDER, type NeedStep } from "@/lib/riskScale";
 import { STATUS_LABEL } from "@/lib/cityWording";
 
 const DESKTOP = "(min-width: 1024px)";
@@ -19,7 +19,7 @@ function Heading({ children }: { children: React.ReactNode }) {
   return <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted">{children}</p>;
 }
 
-export default function MapLegend({ counts }: { counts: Record<HomeStatus, number> }) {
+export default function MapLegend({ counts, steps = NEED_STEPS }: { counts: Record<HomeStatus, number>; steps?: NeedStep[] }) {
   // Open on desktop; folded on tablets and phones so the map stays visible (one tap opens it).
   const desktop = useSyncExternalStore(subscribeDesktop, isDesktop, () => true);
   const [userOpen, setUserOpen] = useState<boolean | null>(null);
@@ -31,7 +31,7 @@ export default function MapLegend({ counts }: { counts: Record<HomeStatus, numbe
         const now = e.currentTarget.open;
         if (now !== open) setUserOpen(now);
       }}
-      className="group w-56 rounded-panel border border-border bg-surface/90 text-xs shadow-lg backdrop-blur">
+      className="glass group w-56 rounded-panel border border-border bg-surface/90 text-xs shadow-lg backdrop-blur">
       <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 font-medium text-text marker:hidden">
         Map key
         <span className="text-muted transition group-open:rotate-180" aria-hidden>
@@ -40,11 +40,11 @@ export default function MapLegend({ counts }: { counts: Record<HomeStatus, numbe
       </summary>
       <div className="space-y-3 border-t border-border px-3 pb-3 pt-2.5">
         <section aria-label="Area shading">
-          <Heading>Area shading · % of homes needing action</Heading>
+          <Heading>Cells · darker = more homes need action</Heading>
           <ul className="space-y-1">
-            {NEED_STEPS.map((s) => (
+            {steps.map((s) => (
               <li key={s.label} className="flex items-center gap-2">
-                <span className="h-3 w-5 rounded-sm ring-1 ring-white/10" style={{ background: s.swatch }} aria-hidden />
+                <span className="h-3 w-5 rounded-sm ring-1 ring-text/35" style={{ background: s.swatch }} aria-hidden />
                 <span className="text-text">{s.label}</span>
               </li>
             ))}

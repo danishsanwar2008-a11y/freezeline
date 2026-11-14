@@ -50,11 +50,11 @@ import type { HomeStatus } from "./household";
 
 export const STATUS_ORDER: HomeStatus[] = ["ready", "needs_help", "waiting", "no_answer", "not_contacted"];
 export const STATUS_RGB: Record<HomeStatus, RGB> = {
-  ready: [76, 175, 125], // green  #4caf7d
-  needs_help: [229, 72, 77], // red    #e5484d
-  waiting: [242, 201, 76], // yellow #f2c94c
-  no_answer: [12, 14, 18], // black  #0c0e12 (drawn with a light outline on the dark map)
-  not_contacted: [138, 155, 174], // gray #8a9bae
+  ready: [56, 167, 121], // green  #38a779
+  needs_help: [224, 82, 82], // red    #e05252
+  waiting: [232, 188, 79], // yellow #e8bc4f
+  no_answer: [17, 24, 39], // black  #111827
+  not_contacted: [148, 163, 184], // gray #94a3b8
 };
 export const STATUS_BG: Record<HomeStatus, string> = {
   ready: "bg-status-ready",
@@ -74,21 +74,28 @@ export const STATUS_TEXT: Record<HomeStatus, string> = {
 export const STATUS_CODE: Record<HomeStatus, string> = { ready: "r", needs_help: "h", waiting: "w", no_answer: "n", not_contacted: "c" };
 export const STATUS_FROM_CODE: Record<string, HomeStatus> = { r: "ready", h: "needs_help", w: "waiting", n: "no_answer", c: "not_contacted" };
 
-// ---------- Hex "need" scale: % of homes needing action tonight (its own violet ramp, never a status color) ----------
-// Four steps, faint -> deep violet. The map draws exactly these classes, so the legend matches every cell.
-// `fill` is drawn over the dark basemap; `swatch` is what that looks like on screen (the legend uses it).
-// Checked with the dataviz validator over the dark map: adjacent steps ΔE ≥ 15.5 (normal vision), ≥ 14.9 (CVD).
+// ---------- Hex "need" scale: % of homes needing action (its own blue ramp, never a status color) ----------
+// Four steps on the off-white map, pale → deep navy-blue: the darker the cell, the more homes need action.
+// The map draws exactly these classes, so the legend matches every cell. dataviz: one hue, lightness falls
+// step by step, every adjacent pair ΔE ≥ 16.5 (≥ 15 = easy to tell apart). The palest step is 1.4:1 against
+// the map (under dataviz's 2:1 for a bare fill), so every cell carries an outline: pale cells a mid-blue
+// line, dark cells a white hairline that also separates neighbors. Fills are 94% opaque.
 export interface NeedStep {
   min: number;
   label: string;
   fill: [number, number, number, number];
+  /** What the fill looks like on screen over the map (the legend uses it). */
   swatch: string;
+  /** Cell outline. */
+  line: [number, number, number, number];
 }
+const BLUE_LINE: [number, number, number, number] = [42, 100, 173, 210];
+const WHITE_LINE: [number, number, number, number] = [255, 255, 255, 175];
 export const NEED_STEPS: NeedStep[] = [
-  { min: 0, label: "Under 25%", fill: [42, 32, 74, 153], swatch: "#1f1932" },
-  { min: 0.25, label: "25–49%", fill: [78, 54, 155, 199], swatch: "#402d7c" },
-  { min: 0.5, label: "50–74%", fill: [122, 79, 239, 224], swatch: "#6d47d4" },
-  { min: 0.75, label: "75% or more", fill: [179, 141, 255, 240], swatch: "#a985f1" },
+  { min: 0, label: "Under 25%", fill: [158, 205, 241, 240], swatch: "#a3cff1", line: BLUE_LINE },
+  { min: 0.25, label: "25–49%", fill: [86, 150, 215, 240], swatch: "#5f9bd8", line: BLUE_LINE },
+  { min: 0.5, label: "50–74%", fill: [30, 91, 169, 240], swatch: "#2a64ad", line: WHITE_LINE },
+  { min: 0.75, label: "75% or more", fill: [0, 41, 104, 240], swatch: "#0e3570", line: WHITE_LINE },
 ];
 
 /** Step index (0–3) for a share 0–1 of homes needing action. */
@@ -100,3 +107,30 @@ export function needStep(share: number): number {
 
 /** share 0–1 -> RGBA of its step. */
 export const needRgba = (share: number): [number, number, number, number] => NEED_STEPS[needStep(share)].fill;
+
+// ---------- The map's look (light basemap; everything drawn on it) ----------
+type RGBA = [number, number, number, number];
+const CLOUD: RGB = [243, 246, 250];
+const DARK_RING: RGBA = [11, 18, 32, 225];
+export const MAP_LOOK = {
+  /** CARTO Positron: free light basemap, no API key. */
+  basemap: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+  /** Faint gray wash over the basemap: off-white, slightly gray (#eaecec). */
+  wash: [196, 203, 210, 60] as RGBA,
+  hexLineFocus: [16, 28, 46, 235] as RGBA,
+  highlight: [16, 28, 46, 40] as RGBA,
+  /** Every dot: a thin dark ring (reads on the map and pale cells) over a light halo (reads on dark cells). */
+  dotRing: DARK_RING,
+  halo: {
+    ready: [...CLOUD, 215],
+    needs_help: [...CLOUD, 215],
+    waiting: [...CLOUD, 215],
+    no_answer: [...CLOUD, 245],
+    not_contacted: [...CLOUD, 215],
+  } as Record<HomeStatus, RGBA>,
+  selectedLine: [16, 28, 46, 255] as RGBA,
+  /** Crews: Deep Blue dots with a white ring; routes in Action Blue. */
+  crew: [29, 53, 87] as RGB,
+  crewRing: [255, 255, 255] as RGB,
+  route: [74, 131, 204] as RGB,
+};

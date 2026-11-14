@@ -10,7 +10,7 @@ export const metadata = { title: "Utility console · FreezeLine" };
 
 function FullScreenMessage({ title, children, tone = "muted" }: { title: string; children?: React.ReactNode; tone?: "muted" | "danger" }) {
   return (
-    <div className="flex h-dvh items-center justify-center bg-bg px-4">
+    <div className="console-theme flex h-dvh items-center justify-center bg-bg px-4">
       <div className="max-w-md rounded-panel border border-border bg-surface p-6">
         <p className="font-mono text-xs tracking-[0.2em] text-accent">FREEZELINE</p>
         <p className={`mt-2 font-medium ${tone === "danger" ? "text-danger" : "text-text"}`}>{title}</p>

@@ -36,12 +36,12 @@ export default function Timeline({ hours, hour, playing, onHour, onTogglePlay }:
   }, [hours]);
 
   return (
-    <div className="flex items-center gap-3 rounded-panel border border-border bg-surface/90 p-3 backdrop-blur">
+    <div className="glass flex items-center gap-3 rounded-panel border border-border bg-surface/90 p-3 backdrop-blur">
       <button
         type="button"
         onClick={onTogglePlay}
         aria-label={playing ? "Pause replay" : "Play replay"}
-        className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-bg transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="flex size-11 shrink-0 items-center justify-center rounded-full bg-btn text-on-btn transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         {playing ? (
           <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden><rect x="2" y="1" width="3.5" height="12" rx="1" fill="currentColor" /><rect x="8.5" y="1" width="3.5" height="12" rx="1" fill="currentColor" /></svg>

@@ -41,7 +41,7 @@ interface Props {
 /** City Operations is the only screen (officials only). */
 export default function TopBar({ mode, onMode }: Props) {
   return (
-    <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border bg-surface px-4 py-2.5">
+    <header className="console-topbar flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border bg-surface px-4 py-2.5">
       <p className="hidden font-mono text-xs tracking-[0.2em] text-accent sm:block">FREEZELINE</p>
       <h1 className="text-sm font-medium">City Operations</h1>
       <span className="flex-1" />
@@ -73,7 +73,7 @@ function ModeToggle({ mode, onMode }: { mode: Mode; onMode: (m: Mode) => void })
               aria-label={m.label}
               onClick={() => onMode(m.id)}
               className={`truncate rounded-full px-3 py-1.5 text-xs font-medium transition lg:px-4 lg:text-sm ${
-                active ? "bg-accent text-bg" : "text-muted hover:text-text"
+                active ? "bg-btn text-on-btn" : "text-muted hover:text-text"
               }`}
             >
               <span className="lg:hidden">{m.short}</span>

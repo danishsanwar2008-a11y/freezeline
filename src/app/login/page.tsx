@@ -58,7 +58,7 @@ async function LoginForm({ searchParams }: { searchParams: PageProps<"/login">["
 
 export default function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-bg px-4 text-text">
+    <main className="console-theme flex min-h-dvh items-center justify-center bg-bg px-4 text-text">
       <div className="w-full max-w-sm">
         <div className="rounded-panel border border-border bg-surface p-6 shadow-xl">
           <p className="font-mono text-xs tracking-[0.2em] text-accent">FREEZELINE</p>

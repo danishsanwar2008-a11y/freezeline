@@ -16,7 +16,7 @@ import { fmtF, formatHour } from "./format";
 
 export function Card({ title, children, className = "" }: { title: string; children: React.ReactNode; className?: string }) {
   return (
-    <section className={`rounded-panel border border-border bg-bg/40 p-4 ${className}`}>
+    <section className={`box rounded-panel border border-border bg-bg/40 p-4 ${className}`}>
       <h3 className="eyebrow">{title}</h3>
       <div className="mt-3">{children}</div>
     </section>
@@ -156,7 +156,7 @@ export function crewLine(c: OpsCrew, now: number): string {
 function CrewIcon({ id, active }: { id: number; active: boolean }) {
   return (
     <span
-      className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${active ? "bg-accent text-bg" : "border border-border text-muted"}`}
+      className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${active ? "bg-btn text-on-btn" : "border border-border text-muted"}`}
       aria-hidden
     >
       {id}
@@ -273,7 +273,7 @@ export function FreezeReadings({ w, hoursBelow20 }: { w: WeatherHour; hoursBelow
     <Card title={`Freeze readings · ${formatHour(w.time)}`}>
       <div className="grid grid-cols-2 gap-2">
         {tiles.map((t) => (
-          <div key={t.label} className="flex items-center gap-2.5 rounded-md bg-surface px-3 py-2">
+          <div key={t.label} className="flex items-center gap-2.5 rounded-md bg-bg px-3 py-2">
             <Icon d={t.icon} />
             <div>
               <p className="text-[11px] text-muted">{t.label}</p>

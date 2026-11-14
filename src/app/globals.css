@@ -81,11 +81,11 @@ body {
 
 /* Home status colors (both tabs; mirror STATUS_RGB in src/lib/riskScale.ts) */
 :root {
-  --status-ready: #4caf7d;
-  --status-help: #e5484d;
-  --status-waiting: #f2c94c;
-  --status-none: #0c0e12;
-  --status-gray: #8a9bae;
+  --status-ready: #38a779;
+  --status-help: #e05252;
+  --status-waiting: #e8bc4f;
+  --status-none: #111827;
+  --status-gray: #94a3b8;
 }
 @theme inline {
   --color-status-ready: var(--status-ready);
@@ -141,12 +141,12 @@ body {
     color var(--m-out) var(--ease);
 }
 .btn-sm { min-height: 32px; padding: 0 12px; font-size: 13px; }
-.btn-primary { background: var(--accent); color: var(--bg); }
+.btn-primary { background: var(--btn); color: var(--on-btn); }
 .btn-quiet { background: transparent; color: var(--muted); font-weight: 500; }
 .btn:disabled { opacity: 0.6; cursor: progress; }
 @media (hover: hover) and (pointer: fine) {
   .btn:not(:disabled):hover { transition-duration: var(--m-in); transform: translateY(-1px); }
-  .btn-primary:not(:disabled):hover { background: color-mix(in oklab, var(--accent) 86%, var(--text)); }
+  .btn-primary:not(:disabled):hover { background: color-mix(in oklab, var(--btn) 86%, var(--text)); }
   .btn-quiet:not(:disabled):hover { color: var(--text); background: color-mix(in oklab, var(--border) 60%, transparent); }
 }
 .btn:not(:disabled):active { transition-duration: var(--m-press); transform: translateY(1px) scale(0.985); }
@@ -155,10 +155,79 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .btn, .btn:hover, .btn:active { transform: none !important; transition-property: background-color, color; }
-  .btn-primary:not(:disabled):active { background: color-mix(in oklab, var(--accent) 75%, var(--bg)); }
+  .btn-primary:not(:disabled):active { background: color-mix(in oklab, var(--btn) 75%, var(--bg)); }
 }
 
 /* Panel eyebrow and the one headline number per panel. */
 .eyebrow { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
 .stat { font-size: 28px; line-height: 1.1; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .stat-unit { font-size: 15px; font-weight: 400; letter-spacing: 0; color: var(--muted); }
+
+/* ---------- Buttons: fill + label tokens ---------- */
+:root {
+  /* Filled-button color and its label (outside the console: ice fill, dark label). */
+  --btn: var(--accent);
+  --on-btn: var(--bg);
+}
+@theme inline {
+  --color-btn: var(--btn);
+  --color-on-btn: var(--on-btn);
+}
+/* ---------- City Operations theme (palette E2): Midnight Navy boxes on an off-white map, Action Blue for actions.
+   Scoped to the officials' screens (.console-theme), so the public /register page keeps its own look. ---------- */
+.console-theme {
+  color-scheme: dark;
+  --surface: #1a2a40; /* the metric boxes: Midnight Navy, a little lighter */
+  --bg: #101c2e; /* Midnight Navy: inset tiles and bar tracks inside the boxes */
+  --border: #2d3f5a;
+  --text: #f3f6fa; /* Cloud White */
+  --muted: #a9b8cc; /* light gray-blue labels */
+  --accent: #4a83cc; /* Action Blue: marks, lines, selections */
+  --accent-ink: #a9d9f5; /* Ice Blue: small blue text and links on the navy boxes */
+  --btn: #3c75be; /* Action Blue deepened slightly so white button labels reach 4.5:1 */
+  --on-btn: #ffffff;
+  --ok: #4ade80;
+  --warn: #fbbf24;
+  --danger: #f87171;
+  --risk-high: #f87171;
+}
+.console-theme .text-accent { color: var(--accent-ink); }
+/* Top bar: Midnight Navy; Deep Blue for its inset controls. */
+.console-theme .console-topbar {
+  --surface: #101c2e;
+  --bg: #1d3557;
+  --border: #2a3f5f;
+  background: var(--surface);
+  border-color: #1d3557;
+}
+/* Boxes: separate, rounded, subtle border, restrained shadow. Right solid, left slightly transparent. */
+.console-theme .box {
+  background: var(--surface);
+  border-color: rgb(243 246 250 / 0.1);
+  border-radius: 14px;
+  box-shadow: 0 2px 10px rgb(16 28 46 / 0.22);
+}
+.console-theme .glass {
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border-color: rgb(243 246 250 / 0.1);
+  border-radius: 14px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 10px rgb(16 28 46 / 0.22);
+}
+@media (min-width: 1024px) {
+  .console-theme .console-body { position: relative; }
+  .console-theme .console-side {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: 404px;
+    height: auto;
+    padding: 0 0 4px;
+    background: transparent;
+    border: 0;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .console-theme .console-timeline { right: 432px; }
+}

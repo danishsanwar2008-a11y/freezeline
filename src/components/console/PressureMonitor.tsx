@@ -179,7 +179,7 @@ export default function PressureMonitor({
   const needsRun = agentReady && areas.some((a) => a.stage2) && stage2Entries.length === 0;
 
   return (
-    <section className="rounded-panel border border-border bg-bg/40 p-4" aria-labelledby="pressure-title">
+    <section className="box rounded-panel border border-border bg-bg/40 p-4" aria-labelledby="pressure-title">
       <div className="flex items-start justify-between gap-2">
         <h3 id="pressure-title" className="eyebrow">
           Water pressure by area

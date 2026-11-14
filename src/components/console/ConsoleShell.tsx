@@ -214,7 +214,7 @@ function ConsoleBody({
   }, []);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+    <div className="console-body flex min-h-0 flex-1 flex-col lg:flex-row">
       <main className="relative h-[58svh] min-h-[400px] lg:h-auto lg:flex-1">
         <RiskMap
           hexes={model.hexes}
@@ -231,7 +231,7 @@ function ConsoleBody({
         />
         <div className="absolute left-3 top-3 flex flex-col items-start gap-2">
           {focusHex && (
-            <button type="button" onClick={() => selectHex(null)} className="rounded-full bg-surface/90 px-3 py-1.5 text-sm font-medium text-accent backdrop-blur">
+            <button type="button" onClick={() => selectHex(null)} className="glass rounded-full bg-surface/90 px-3 py-1.5 text-sm font-medium text-accent backdrop-blur">
               ← All areas
             </button>
           )}
@@ -247,12 +247,12 @@ function ConsoleBody({
             />
           </div>
         )}
-        <div className="absolute inset-x-3 bottom-3 lg:inset-x-4 lg:bottom-4">
+        <div className="console-timeline absolute inset-x-3 bottom-3 lg:inset-x-4 lg:bottom-4">
           <Timeline hours={hours} hour={hour} playing={isPlaying} onHour={scrub} onTogglePlay={togglePlay} />
         </div>
       </main>
 
-      <aside className="flex min-h-0 flex-col gap-3 border-border bg-surface p-4 lg:h-full lg:w-[440px] lg:shrink-0 lg:overflow-y-auto lg:border-l">
+      <aside className="console-side flex min-h-0 flex-col gap-3 border-border bg-surface p-4 lg:h-full lg:w-[440px] lg:shrink-0 lg:overflow-y-auto lg:border-l">
         <ReadyCheck counts={counts.c} total={counts.total} ran={!!data?.ran} loading={!!agent && !ops.fresh && !ops.error} live={!agent} lowHomes={homes.length - counts.total} />
         <OutreachFunnel {...(data?.funnel ?? { texted: 0, called: 0, doorChecks: 0, neighborFlags: 0 })} live={!agent} />
         <CrewsPanel
@@ -311,7 +311,7 @@ export default function ConsoleShell({ homes, zones }: { homes: ConsoleHome[]; z
   }, [liveSeries]);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-bg text-text lg:h-dvh lg:overflow-hidden">
+    <div className="console-theme flex min-h-dvh flex-col bg-bg text-text lg:h-dvh lg:overflow-hidden">
       <TopBar mode={mode} onMode={setMode} />
       {mode === "replay" ? (
         <ConsoleBody key="replay" homes={homes} zones={zones} model={replayModel} startHour={0} agent={agent} />

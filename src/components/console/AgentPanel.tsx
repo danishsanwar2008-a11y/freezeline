@@ -87,7 +87,7 @@ export default function AgentPanel({ enabled, run, mode, onMode, onRun, onApprov
     return <p className="text-sm text-muted">The agent runs on the Uri replay in this phase. Switch to Replay to try it.</p>;
 
   return (
-    <section aria-label="Agent" className="rounded-panel border border-border p-4">
+    <section aria-label="Agent" className="box rounded-panel border border-border p-4">
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"

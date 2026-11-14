@@ -65,7 +65,7 @@ const cleanSearch = (q: string) => q.replace(/[,()*%\\:"']/g, " ").replace(/\s+/
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-dvh bg-bg text-text">
+    <div className="console-theme min-h-dvh bg-bg text-text">
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border bg-surface px-4 py-2.5">
         <p className="hidden font-mono text-xs tracking-[0.2em] text-accent sm:block">FREEZELINE</p>
         <h1 className="text-sm font-medium">
