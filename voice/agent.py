@@ -376,6 +376,88 @@ def make_app():
             "idle_seconds": IDLE_SECONDS,
         })
 
+    # ---------- turn-by-turn calls (works on a trial account) ----------
+    #
+    # Trial accounts strip <Stream> from TwiML, so a media-stream call can only ever say
+    # "not available on trial accounts" and hang up. <Say> and <Gather> are allowed, so this
+    # path does the conversation in turns: Twilio speaks the line and transcribes the answer,
+    # and the same script decides what comes next. It needs no WebSocket at all.
+
+    sessions: dict[str, Any] = {}
+
+    def _xml(inner: str) -> Any:
+        return Response(
+            '<?xml version="1.0" encoding="UTF-8"?><Response>' + inner + "</Response>",
+            media_type="application/xml",
+        )
+
+    def _voice_for(lang: str) -> str:
+        return "Polly.Lupe" if lang == "es" else "Polly.Joanna"
+
+    def _say_xml(text: str, lang: str) -> str:
+        from xml.sax.saxutils import escape
+
+        return f'<Say voice="{_voice_for(lang)}">{escape(text)}</Say>'
+
+    def _host(request: Request) -> str:
+        return os.environ.get("PUBLIC_HOSTNAME") or request.headers.get("host", "")
+
+    def _gather_xml(call: Any, host: str) -> Any:
+        """Everything to say, then the next question with an open microphone."""
+        lang = getattr(call, "lang", "en")
+        spoken: list[str] = []
+        while (turn := call.current) is not None:
+            if turn.kind == "say":
+                spoken.append(call.next_speech() or "")
+                continue
+            question = call.next_speech() or ""
+            inner = "".join(_say_xml(s, lang) for s in spoken)
+            inner += (
+                f'<Gather input="speech" language="{"es-US" if lang == "es" else "en-US"}"'
+                f' speechTimeout="auto" method="POST" action="https://{host}/voice/step">'
+                + _say_xml(question, lang)
+                + "</Gather>"
+                # Nothing heard: end the call rather than leave the line open in silence.
+                + "<Hangup/>"
+            )
+            return _xml(inner)
+        return _xml("".join(_say_xml(s, lang) for s in spoken) + "<Hangup/>")
+
+    async def _form(request: Request) -> dict[str, str]:
+        raw = await request.body()
+        if not raw:
+            return {}
+        try:
+            return {k: v[0] for k, v in urllib.parse.parse_qs(raw.decode("utf-8", "replace")).items()}
+        except Exception:  # noqa: BLE001 - an unreadable body is the same as no body
+            return {}
+
+    @app.api_route("/voice/start", methods=["GET", "POST"])
+    async def voice_start(request: Request) -> Any:
+        form = await _form(request)
+        sid = form.get("CallSid") or request.query_params.get("CallSid") or ""
+        home = home_from_parameter(request.query_params.get("home"))
+        sessions[sid] = call_from_params(home)
+        print(f"[agent] gather call started mode={home.get('mode') or 'storm'}", flush=True)
+        return _gather_xml(sessions[sid], _host(request))
+
+    @app.api_route("/voice/step", methods=["GET", "POST"])
+    async def voice_step(request: Request) -> Any:
+        form = await _form(request)
+        sid = form.get("CallSid") or ""
+        call = sessions.get(sid)
+        if call is None:
+            return _xml('<Say>Sorry, this call lost its place. Goodbye.</Say><Hangup/>')
+        said = (form.get("SpeechResult") or "").strip()
+        print(f"[agent] heard: {said!r}", flush=True)
+        if said:
+            outcome = call.hear(said)
+            print(f"[agent] -> {outcome}", flush=True)
+        if call.current is None:
+            print(f"[agent] call finished: {json.dumps(call.result(), ensure_ascii=False)[:400]}", flush=True)
+            sessions.pop(sid, None)
+        return _gather_xml(call, _host(request))
+
     @app.post("/twiml")
     async def twiml_route(request: Request) -> Any:
         # The first evidence that Twilio reached us at all. If a call never prints this line,
@@ -499,7 +581,11 @@ def make_app():
             # The home's facts ride in the query string; Twilio echoes the URL back to us.
             # The payload is URL-encoded: base64 contains +, / and =, and a bare + in a query
             # string decodes to a space, which corrupts the JSON before we ever read it.
-            "Url": f"https://{host}/twiml?home={urllib.parse.quote(base64.b64encode(json.dumps(body.get('home') or {}).encode()).decode(), safe='')}",
+            # engine "gather" rides the turn-by-turn path, which a trial account allows.
+            "Url": (
+                f"https://{host}/{'voice/start' if str((body.get('home') or {}).get('engine')) == 'gather' else 'twiml'}"
+                f"?home={urllib.parse.quote(base64.b64encode(json.dumps(body.get('home') or {}).encode()).decode(), safe='')}"
+            ),
         }
         # Twilio trial accounts only accept To and the TwiML Url: any other parameter is refused
         # with "trial accounts have limited parameter access", which reads like our bug but is
