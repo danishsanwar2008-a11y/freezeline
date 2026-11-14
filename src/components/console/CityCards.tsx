@@ -42,12 +42,30 @@ const rgb = (s: HomeStatus) => `rgb(${STATUS_RGB[s].join(" ")})`;
 /** Status order inside the box: what's settled first, then what still needs a hand. */
 const CONTACT_ORDER: HomeStatus[] = ["ready", "waiting", "needs_help", "no_answer", "not_contacted"];
 
+/** A quiet 12px spinner in a box's header while newer numbers load ("Updating" for screen readers; no layout shift). */
+function Refreshing({ on }: { on: boolean }) {
+  return (
+    <span role="status" title={on ? "Updating" : undefined} className={`flex size-4 items-center justify-center text-muted transition-opacity duration-150 ease-[var(--ease)] ${on ? "opacity-100" : "opacity-0"}`}>
+      {on && (
+        <>
+          <svg viewBox="0 0 12 12" className="size-3 animate-spin motion-reduce:animate-none" aria-hidden>
+            <circle cx="6" cy="6" r="4.5" fill="none" stroke="currentColor" strokeOpacity="0.3" strokeWidth="1.5" />
+            <path d="M6 1.5a4.5 4.5 0 0 1 4.5 4.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          <span className="sr-only">Updating</span>
+        </>
+      )}
+    </span>
+  );
+}
+
 export function HomesContacted({
   counts,
   total,
   funnel,
   ran,
   loading = false,
+  refreshing = false,
   live = false,
   lowHomes,
 }: {
@@ -57,8 +75,10 @@ export function HomesContacted({
   total: number;
   funnel: { texted: number; called: number; doorChecks: number; neighborFlags: number };
   ran: boolean;
-  /** This hour's outreach is still loading. */
+  /** Nothing to show yet: this hour's outreach is still loading. */
   loading?: boolean;
+  /** Numbers are showing and a newer copy is on its way (after an approval): keep them, show a quiet note. */
+  refreshing?: boolean;
   /** Live forecast mode: outreach runs on the replay only. */
   live?: boolean;
   lowHomes: number;
@@ -69,7 +89,7 @@ export function HomesContacted({
     { label: "Door check", n: funnel.doorChecks },
   ];
   return (
-    <Card title="Homes contacted (sample)" tone="glass">
+    <Card title="Homes contacted (sample)" tone="glass" action={<Refreshing on={refreshing} />}>
       <p className="stat">
         {funnel.texted.toLocaleString("en-US")} <span className="stat-unit">{funnel.texted === 1 ? "home" : "homes"} contacted</span>
       </p>

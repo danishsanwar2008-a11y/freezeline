@@ -313,7 +313,8 @@ function ConsoleBody({
             total={counts.total}
             funnel={data?.funnel ?? { texted: 0, called: 0, doorChecks: 0, neighborFlags: 0 }}
             ran={!!data?.ran}
-            loading={!!agent && !ops.fresh && !ops.error}
+            loading={!!agent && !data && !ops.error}
+            refreshing={!!agent && !!data && !ops.fresh && !ops.error}
             live={!agent}
             lowHomes={homes.length - counts.total}
           />
