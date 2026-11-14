@@ -269,7 +269,8 @@ function ConsoleBody({
             </button>
           )}
           <div
-            className={`absolute inset-x-3 bottom-3 ${panelsHidden ? "lg:inset-x-3" : "lg:left-[304px] lg:right-[364px] xl:left-[324px] xl:right-[404px]"}`}
+            // Bottom left under the left column (Agentation note: 702 × ~91 px), never under the right column.
+            className={`absolute inset-x-3 bottom-3 ${panelsHidden ? "" : "lg:right-[364px] xl:right-auto xl:w-[702px] xl:max-w-[calc(100%-416px)]"}`}
           >
             <Timeline
               hours={hours}
@@ -282,9 +283,9 @@ function ConsoleBody({
           </div>
         </main>
 
-        {/* Left column (see-through boxes): map key, homes contacted. */}
+        {/* Left column (see-through boxes): map key, homes contacted. It stops 12px above the timeline (91px). */}
         <div
-          className={`${panelsHidden ? "hidden" : "flex"} no-scrollbar flex-col gap-3 p-3 lg:absolute lg:left-3 lg:top-3 lg:max-h-[calc(100%-1.5rem)] lg:w-[280px] lg:overflow-y-auto lg:p-0 xl:w-[300px]`}
+          className={`${panelsHidden ? "hidden" : "flex"} no-scrollbar flex-col gap-3 p-3 lg:absolute lg:left-3 lg:top-3 lg:max-h-[calc(100%-1.5rem-103px)] lg:w-[280px] lg:overflow-y-auto lg:p-0 xl:w-[300px]`}
         >
           <MapLegend />
           <HomesContacted

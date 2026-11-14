@@ -40,7 +40,7 @@ Replay Uri hour by hour. Temperatures fall into the teens; the risk engine light
 
 ## City Operations (the only screen)
 
-- **/console** (officials, third-person wording: "Blair St home needs help; Crew 2 assigned"): the map fills the screen (every home as a status dot, cells by % of homes needing action, crews driving real streets); separate floating boxes over it: Map key and Homes contacted (left), Water pressure, Crews (area picker) and the agent's Decision trace (right); the storm replay timeline with this hour's readings at the bottom; Run agent in the top bar. Every box collapses; one button hides them all. No transcripts or homeowner instructions.
+- **/console** (officials, third-person wording: "Blair St home needs help; Crew 2 assigned"): the map fills the screen (every home as a status dot, cells by % of homes needing action, crews driving real streets); separate floating boxes over it: Map key and Homes contacted (left), Water pressure, Crews (area picker) and the agent's Decision trace (right); the storm replay timeline with this hour's readings at the bottom left, under the left column; Run agent in the top bar. Every box collapses; one button hides them all. No transcripts or homeowner instructions.
 - The Homeowner tab, `/console/home/[homeId]` and the household page `/h/[homeId]` (house diagram, "Storm in your area", photo check) were removed in Phase 3.6. Restore them from commit `f8994d6` if ever needed. Queued sample texts still carry `/h` links until Phase 4 replaces them.
 - Household details (sample) are server-only: homes, household_calls, crews and crew_assignments are not readable with the anon key.
 

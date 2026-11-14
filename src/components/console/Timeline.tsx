@@ -39,7 +39,7 @@ export default function Timeline({ hours, hour, playing, onHour, onTogglePlay, h
   }, [hours]);
 
   return (
-    <div className="glass flex items-center gap-3 p-3">
+    <div className="glass flex items-center gap-3 px-3 py-2">
       <button
         type="button"
         onClick={onTogglePlay}
@@ -55,7 +55,7 @@ export default function Timeline({ hours, hour, playing, onHour, onTogglePlay, h
 
       <div className="min-w-0 flex-1">
         <Readings w={hours[hour]} hoursBelow20={hoursBelow20} />
-        <div className="relative h-14">
+        <div className="relative h-[37px]">
           <svg viewBox={`0 0 ${n - 1} ${H}`} preserveAspectRatio="none" className="absolute inset-0 size-full overflow-visible" aria-hidden>
             <path d={area} fill="var(--accent)" opacity="0.08" />
             <line x1="0" x2={n - 1} y1={y(32)} y2={y(32)} stroke="var(--accent)" strokeDasharray="3 3" strokeWidth="1" vectorEffect="non-scaling-stroke" opacity="0.7" />
@@ -66,10 +66,11 @@ export default function Timeline({ hours, hour, playing, onHour, onTogglePlay, h
             ))}
             <line x1={hour} x2={hour} y1="0" y2={H} stroke="var(--accent)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
           </svg>
-          <span className="pointer-events-none absolute right-1 font-mono text-[11px] text-accent" style={{ top: `${(y(32) / H) * 100}%`, transform: "translateY(-115%)" }}>
+          {/* The chart is short (91px box): 32°F sits above its line, 20°F below its own, both haloed so the curve never cuts the text. */}
+          <span className="pointer-events-none absolute right-1 font-mono text-[11px] leading-none text-accent [text-shadow:0_0_3px_var(--surface),0_0_3px_var(--surface)]" style={{ top: `${(y(32) / H) * 100}%`, transform: "translateY(-120%)" }}>
             32°F freeze line
           </span>
-          <span className="pointer-events-none absolute right-1 font-mono text-[11px] text-risk-high" style={{ top: `${(y(20) / H) * 100}%`, transform: "translateY(-115%)" }}>
+          <span className="pointer-events-none absolute right-1 font-mono text-[11px] leading-none text-risk-high [text-shadow:0_0_3px_var(--surface),0_0_3px_var(--surface)]" style={{ top: `${(y(20) / H) * 100}%`, transform: "translateY(20%)" }}>
             20°F
           </span>
           <input
@@ -84,7 +85,7 @@ export default function Timeline({ hours, hour, playing, onHour, onTogglePlay, h
             className="timeline-range absolute inset-0 size-full cursor-ew-resize"
           />
         </div>
-        <div className="relative mt-1 h-4 font-mono text-[11px] text-muted">
+        <div className="relative mt-0.5 h-4 font-mono text-[11px] text-muted">
           {labels.map(({ i, h }) => (
             <span key={i} className="absolute -translate-x-1/2 whitespace-nowrap max-sm:[&:nth-child(even)]:hidden lg:max-xl:[&:nth-child(even)]:hidden" style={{ left: `${(i / (n - 1)) * 100}%` }}>
               {formatDay(h.time)}
@@ -115,14 +116,15 @@ function Readings({ w, hoursBelow20 }: { w: WeatherHour; hoursBelow20: number })
   const items = [
     { d: ICON.thermo, text: `${fmtF(w.temperature_f)} now` },
     { d: ICON.thermo, text: `feels like ${fmtF(w.apparent_temperature_f)}` },
-    { d: ICON.wind, text: `wind ${Math.round(w.wind_speed_mph)} mph` },
+    // Wind is folded into "feels like"; dropped at 1024-1279px so the timeline stays one line (91px) tall.
+    { d: ICON.wind, text: `wind ${Math.round(w.wind_speed_mph)} mph`, cls: "lg:max-xl:hidden" },
     { d: ICON.clock, text: `${plural(hoursBelow20, "hour")} below 20°F` },
   ];
   return (
-    <p className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
+    <p className="mb-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
       <span className="font-medium text-text">{formatHour(w.time)}</span>
       {items.map((it) => (
-        <span key={it.text} className="flex items-center gap-1 text-muted">
+        <span key={it.text} className={`flex items-center gap-1 text-muted ${"cls" in it ? it.cls : ""}`}>
           <Glyph d={it.d} />
           <span className="font-mono tabular-nums">{it.text}</span>
         </span>

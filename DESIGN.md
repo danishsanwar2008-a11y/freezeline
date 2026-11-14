@@ -78,7 +78,7 @@ Sentence case everywhere. No all-caps titles, no text under 11px.
 - **Desktop (≥1024px)**: a 52px Midnight Navy top bar with the name, **Run agent** on the left (always Auto; only a Stage 2 alert waits for approval, in the trace), a quiet **Winter Storm Uri** label (hairline chip, not a control; there is no Live mode), Sign-ups, ⓘ, Sign out and Hide panels on the right. Below it the map fills the whole window. Boxes float over it in two columns with 12px gaps:
   - Left (300px, see-through): Map key, Homes contacted.
   - Right (380px, solid): Water pressure by area, Crews, Decision trace (fills the remaining height and scrolls inside itself).
-  - Bottom center, between the columns: the storm replay timeline with this hour's readings (now, feels like, wind, hours below 20°F).
+  - Bottom left, under the left column: the storm replay timeline with this hour's readings (now, feels like, wind, hours below 20°F), 702px wide and 91px tall from 1280px (the left column stops 12px above it and scrolls); from 1024 to 1279px it runs from the left edge to the right column and drops the wind reading so it stays one line.
 - **Below 1024px**: the map on top (58% of the viewport, min 400px) with the timeline along its bottom edge; every box, the map key included, stacks underneath at full width in the same order (map key, Homes contacted, pressure, crews, decision trace). Nothing floats over the map at this width.
 - **Spacing**: a 4px base unit; 12px between boxes and from the window edge, 16px inside boxes, 8px between a number and its visual.
 - **Fit**: at 1440×900 every box is visible without scrolling the page; only the decision trace scrolls inside itself.
@@ -113,8 +113,8 @@ No gradients on boxes. Shadows only on things floating over the map.
 
 ## 8. Responsive
 
-- **1440×900**: full layout, every box visible, timeline between the columns.
-- **1024–1279px**: columns narrow to 280px / 340px; the timeline keeps at least 360px.
+- **1440×900**: full layout, every box visible, timeline at the bottom left under the left column.
+- **1024–1279px**: columns narrow to 280px / 340px; the timeline spans from the left edge to the right column (648px at 1024).
 - **768px**: map on top, boxes stacked full width; the map key starts collapsed; the top bar wraps Run agent onto its own row if needed.
 - **390px**: same stack; touch targets at least 44px; crew rows wrap rather than truncate.
 - Text never truncates a number.
