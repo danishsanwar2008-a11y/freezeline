@@ -8,7 +8,7 @@ In February 2021, Houston told residents "do NOT drip faucets" because dripping 
 
 Who sees what (see "City Operations" below):
 - **City Operations** (officials, password-protected) is the only screen: map of every home, cells, metrics, pressure, crews, agent log.
-- **Homeowners** never see the console. They get texts and calls only (Phase 4), plus a separate sign-up and home survey page (later).
+- **Homeowners** never see the console. They get texts and calls only (Phase 4), plus the public sign-up and home survey page `/register`.
 
 The demo replays **Winter Storm Uri (Feb 14–18, 2021)** over Houston.
 
@@ -68,7 +68,7 @@ DESIGN.md is the source of truth for how FreezeLine looks.
 - The hex "need" scale uses its own faint → deep violet ramp in 4 labeled steps (`NEED_STEPS` / `needRgba`; the map and the legend share them), never a status color.
 - Water pressure uses its own tokens (`--psi-ok` / `--psi-warn` / `--psi-bad`: green above 25 psi, amber 20–25, red below 20), never the home status colors.
 - Two-audience wording: officials' third-person wording only on City Operations; "you" wording only in texts and calls to households (tested in `src/lib/audience.test.ts`).
-- Anything a household reads (texts, calls, the future sign-up page) is friendlier and less technical: plain sentences, nothing that needs explaining.
+- Anything a household reads (texts, calls, the `/register` sign-up page) is friendlier and less technical: plain sentences, nothing that needs explaining.
 - Counts always agree with their noun: use `plural()` from `src/lib/plural.ts` ("1 home", "2 homes"), never "1 homes".
 - Honesty in the UI: sample or simulated data is always marked, and confirmed vs estimated looks different (solid vs dashed).
 - The City Operations sidebar may be semi-transparent with a light backdrop blur over the map (coming in the color-scheme phase). This overrides Taste's "no glass or backdrop blur" default for the sidebar only. Text contrast rules still apply on top of the blur: check them against the brightest map area behind the panel.
@@ -112,14 +112,18 @@ ui-studio and self-check are installed as `anthropic-skills:ui-studio` and `anth
 - **The console is password-protected.** `CONSOLE_PASSWORD` (server-only) gates `/console`, `/status`, `/api/ops*` and `/api/agent*` via `src/proxy.ts`, and every protected page and API route checks again itself (`src/lib/server/consoleAuth.ts`). Shared password, httpOnly cookie, 12 hours; not an account system. New protected routes must call `requireConsole`.
 - **`SUPABASE_SERVICE_ROLE_KEY` is used only in scripts and server code**, never with a `NEXT_PUBLIC_` prefix and never imported into a client component.
 - Supabase access: the anon key may read only zones, drip_plans and events. Homes, household calls, crews and outreach are read on the server with the service role.
+- **Sign-ups** (`registrations`: names, emails, phones, addresses, survey, consent) have no anon access at all; only `/api/register` and scripts write them with the service role. `/register` and `/api/register` are public (not behind the console password); a sign-up needs the consent box (texts + calls) and is validated by the same rules on client and server (`src/lib/registration.ts`). Placeholder sign-ups are `source = 'placeholder'`, `simulated = true`, example.com emails and 555-01XX numbers only.
+- **Address matching** (`src/lib/addressMatch.ts` pure + tested, `src/lib/nominatim.ts` fetch): a sign-up's address is looked up with OpenStreetMap's Nominatim (only the address is sent; max 1 request/second, identifying User-Agent `NOMINATIM_USER_AGENT`), then matched to the OSM footprints in `data/osm-homes.json`: within 40 m = `matched` (confirmed), else nearest home on the same street within 250 m = `nearby_on_street` (estimated, shown dashed), else `no_home_nearby` / `outside_area` / `address_not_found`. A busy or failed lookup never blocks the sign-up: it saves as `pending` and `npm run registrations:match` retries.
 
 ## Layout
 
-- `src/app` — routes (`/console` City Operations, `/status` connection test, `/login`); APIs `/api/ops`, `/api/ops/home`, `/api/agent/*`, `/api/login`, `/api/logout`; `src/proxy.ts` password gate
+- `src/app` — routes (`/console` City Operations, `/status` connection test, `/login`, public `/` front door and `/register` sign-up, officials' `/console/registrations` sign-ups list); APIs `/api/register` (public), `/api/ops`, `/api/ops/home`, `/api/agent/*`, `/api/login`, `/api/logout`; `src/proxy.ts` password gate
 - `data/osm-homes.json` — 8,034 real house footprints from OpenStreetMap (`npm run osm:homes`, fetched once); `src/lib/seed/generate.ts` adds simulated details (incl. elderly / mobility / lives alone / indoor faucet valve)
 - `src/lib/household.ts` — simulated outreach funnel, call answers, assessments, crew proposals (pure, tested); `src/lib/crewTrip.ts` crew distance, drive time and job length (simulated); `src/lib/server/outreachState.ts` saves them; `src/lib/cityWording.ts` officials' wording
 - `src/lib/callScript.ts` — the agent's conversation with a household (pre-written lines, honesty rule)
 - `supabase/003_phase35.sql` — home columns, household_calls, crews, crew_assignments, outreach channels; removes anon access to homes
+- `supabase/005_registration_matching.sql` — address-match columns (match_status, home_id, zone_id, distance, geocoded point)
+- `supabase/004_registrations.sql` — household sign-ups + home survey + consent (server-only); `src/lib/registration.ts` validation, `src/lib/seed/registrations.ts` placeholder sign-ups, `src/components/register/RegisterForm.tsx` the form
 - `src/lib/risk.ts` — deterministic risk engine (score 0–100, level, plain-English why)
 - `src/lib/planner.ts` — deterministic drip planner + zone pressure model (who drips, which tap; new drips stop at 25 psi = 20 + 5 psi reserve)
 - `src/lib/pressureConfig.ts` — the one pressure config file: every pressure constant and the "some homes drip more than told" assumption (simulated; label it wherever it affects what's shown)
@@ -133,6 +137,6 @@ ui-studio and self-check are installed as `anthropic-skills:ui-studio` and `anth
 - `src/lib` — also supabase client, homes loader, weather fetchers
 - `public/maplibre-gl-worker.mjs` — copied from node_modules on `npm install` (git-ignored); MapLibre 6's worker can't be resolved through Turbopack
 - `supabase/001_schema.sql` — schema to paste into the Supabase SQL Editor
-- `scripts/` — `npm run osm:homes`, `npm run seed` (safe to re-run; removes homes no longer in the set), `npm run weather:uri`, `npm run messages:check`, `npm run db:status`
+- `scripts/` — `npm run osm:homes`, `npm run seed` (safe to re-run; removes homes no longer in the set), `npm run seed:registrations` (400 placeholder sign-ups, upsert on email; never touches real ones), `npm run registrations:match` (look up pending sign-ups; `-- --all` redoes every real one), `npm run weather:uri`, `npm run messages:check`, `npm run db:status`
 - `data/uri-2021.json` — hourly Houston weather for Feb 13–19, 2021 (timeline + city headline)
 - `data/uri-2021-neighborhoods.json` — same window per neighborhood center, one multi-point request (`npm run weather:neighborhoods`)

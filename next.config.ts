@@ -11,10 +11,6 @@ const nextConfig: NextConfig = {
       },
     },
   },
-  // Phase 1A has no console yet; send "/" to the connection test page.
-  async redirects() {
-    return [{ source: "/", destination: "/status", permanent: false }];
-  },
 };
 
 export default nextConfig;

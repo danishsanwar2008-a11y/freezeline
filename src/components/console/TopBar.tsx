@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 export type Mode = "live" | "replay";
 
 const MODES: { id: Mode; label: string; short: string }[] = [
@@ -44,6 +46,9 @@ export default function TopBar({ mode, onMode }: Props) {
       <h1 className="text-sm font-medium">City Operations</h1>
       <span className="flex-1" />
       <ModeToggle mode={mode} onMode={onMode} />
+      <Link href="/console/registrations" className="btn btn-quiet btn-sm">
+        Sign-ups
+      </Link>
       <InfoTip />
       <form method="post" action="/api/logout">
         <button type="submit" className="btn btn-quiet btn-sm">
