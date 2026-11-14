@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { requireConsole } from "@/lib/server/consoleAuth";
 import { getSupabaseAdmin } from "@/lib/server/supabaseAdmin";
-import { isUsMobile, sendSms, smsConfig, type SmsResult } from "@/lib/twilioSms";
+import { isUsMobile, sendSms, smsConfigured, smsProvider, type SmsResult } from "@/lib/sms";
 
 // Sends one text, or one to every household that signed up and consented on /register.
 // Behind the console password: this reaches real phones and spends real money.
@@ -84,7 +84,8 @@ export async function POST(req: Request) {
   if (dryRun) {
     return Response.json({
       dryRun: true,
-      configured: Boolean(smsConfig()),
+      configured: smsConfigured(),
+      provider: smsProvider(),
       wouldSendTo: recipients,
       body,
     });

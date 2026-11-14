@@ -8,7 +8,7 @@
 // Only households that ticked the consent box are included.
 import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
-import { isUsMobile, sendSms, smsConfig } from "../src/lib/twilioSms";
+import { isUsMobile, sendSms, smsConfigured, smsProvider, smsSetupHint } from "../src/lib/sms";
 
 config({ path: ".env.local" });
 config(); // .env as the fallback; dotenv never overwrites a value that is already set
@@ -63,10 +63,11 @@ async function main() {
   if (!message) return usage();
   if (!all && !single) return usage();
 
-  if (!smsConfig()) {
-    console.error("Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_PHONE_NUMBER in .env.local or .env");
+  if (!smsConfigured()) {
+    console.error(`SMS_PROVIDER=${smsProvider()} is not ready. ${smsSetupHint()}`);
     process.exit(1);
   }
+  console.log(`Sending via ${smsProvider()}${send ? "" : " (preview only - add --send to send)"}\n`);
 
   const recipients: Recipient[] = all ? await consentedHouseholds() : [{ phone: single!.trim(), name: null }];
   if (recipients.length === 0) {
