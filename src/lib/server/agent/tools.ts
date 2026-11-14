@@ -11,6 +11,7 @@ import { OutreachInputs, crewStatus, proposeCrew, simulateAndSave } from "../out
 import { smsDraft } from "../writer";
 import { monitorAt, planAt, toTimestamp, URI_HOURS, type City } from "../cityState";
 import { stage2Sentence } from "@/lib/pressure";
+import { chunks, pool, readAllPages } from "../batch";
 
 // ---------- shared types ----------
 
@@ -53,6 +54,8 @@ export interface AgentCtx {
   entries: LogEntry[];
   /** Called for every step as it happens (the live decision trace). */
   onEvent?: (e: TraceEvent) => void;
+  /** The published plan for this hour, read once per run (cleared when the plan is published again). */
+  published?: Promise<Map<string, { id: string; action: string; faucet: string | null }>>;
 }
 
 let seq = 0;
@@ -311,25 +314,35 @@ export async function publishDripPlan(ctx: AgentCtx, input: z.output<typeof Inpu
       created_by: "agent",
       simulated: true,
     }));
-  for (let k = 0; k < rows.length; k += 500) {
-    const { error } = await db.from("drip_plans").upsert(rows.slice(k, k + 500), { onConflict: "home_id,plan_for" });
+  await pool(chunks(rows, 500), async (batch) => {
+    const { error } = await db.from("drip_plans").upsert(batch, { onConflict: "home_id,plan_for" });
     if (error) throw new Error(`drip_plans: ${error.message}${/unique|constraint/i.test(error.message) ? " (run supabase/002_phase3.sql)" : ""}`);
-  }
+  });
+  ctx.published = undefined; // the next texting step reads the plan just written
   await logRow(ctx, "plan_published", summary, null, { reserves });
   return { status: "done", summary, rows_written: rows.length };
 }
 
-async function loadPublished(ctx: AgentCtx) {
-  const db = requireDb();
-  const planFor = toTimestamp(ctx.time);
-  const out = new Map<string, { id: string; action: string; faucet: string | null }>();
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await db.from("drip_plans").select("id,home_id,action,faucet").eq("plan_for", planFor).order("home_id").range(from, from + 999);
-    if (error) throw new Error(`drip_plans: ${error.message}`);
-    for (const r of data ?? []) out.set(r.home_id, { id: r.id, action: r.action, faucet: r.faucet });
-    if (!data || data.length < 1000) break;
-  }
-  return out;
+/** The published plan for this hour (all pages in parallel), read once per run. */
+function loadPublished(ctx: AgentCtx) {
+  ctx.published ??= (async () => {
+    const db = requireDb();
+    const planFor = toTimestamp(ctx.time);
+    const rows = await readAllPages<{ id: string; home_id: string; action: string; faucet: string | null }>((from, to, withCount) =>
+      db
+        .from("drip_plans")
+        .select("id,home_id,action,faucet", withCount ? { count: "exact" } : undefined)
+        .eq("plan_for", planFor)
+        .order("home_id")
+        .range(from, to),
+    ).catch((e: Error) => {
+      throw new Error(`drip_plans: ${e.message}`);
+    });
+    return new Map(rows.map((r) => [r.home_id, { id: r.id, action: r.action, faucet: r.faucet }]));
+  })();
+  // A failed read is not remembered: the next step tries again.
+  ctx.published.catch(() => (ctx.published = undefined));
+  return ctx.published;
 }
 
 export async function queueOutreach(ctx: AgentCtx, input: z.output<typeof Inputs.queue_outreach>, execute: boolean) {
@@ -374,15 +387,15 @@ export async function queueOutreach(ctx: AgentCtx, input: z.output<typeof Inputs
     });
   }
 
-  let queued = 0;
-  for (let k = 0; k < rows.length; k += 500) {
+  const counts = await pool(chunks(rows, 500), async (batch) => {
     const { data, error } = await db
       .from("outreach")
-      .upsert(rows.slice(k, k + 500), { onConflict: "home_id,plan_for,channel", ignoreDuplicates: true })
+      .upsert(batch, { onConflict: "home_id,plan_for,channel", ignoreDuplicates: true })
       .select("id");
     if (error) throw new Error(`outreach: ${error.message}${/plan_for|constraint/i.test(error.message) ? " (run supabase/002_phase3.sql)" : ""}`);
-    queued += data?.length ?? 0;
-  }
+    return data?.length ?? 0;
+  });
+  const queued = counts.reduce((a, b) => a + b, 0);
   const skipped = rows.length - queued;
   const summary = `Queued texts to ${plural(queued, `${input.level} home`)}${where} (simulated)${skipped ? `; ${skipped.toLocaleString()} already queued` : ""}.`;
   await logRow(ctx, "outreach_queued", summary, input.zone_id, { level: input.level, queued, skipped });

@@ -23,6 +23,7 @@ import { routedTrip } from "./crewRoutes";
 import { planAt, toTimestamp, type City } from "./cityState";
 import { areaOf, generateCrews } from "@/lib/seed/generate";
 import type { AgentCtx } from "./agent/tools";
+import { chunks, pool, readAllPages } from "./batch";
 
 function withArea(rows: Omit<Crew, "zone_id">[]): Crew[] {
   return rows.map((c) => ({ ...c, zone_id: areaOf(c.depot_lat, c.depot_lng) }));
@@ -177,13 +178,18 @@ function funnelSentence(s: ReturnType<typeof outreachSummary>) {
 /** Homes whose text message is actually queued for this hour. */
 export async function queuedTextIds(planFor: string): Promise<Set<string>> {
   const d = db();
-  const ids = new Set<string>();
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await d.from("outreach").select("home_id").eq("plan_for", planFor).eq("channel", "sms").order("home_id").range(from, from + 999);
-    if (error) throw new Error(`outreach: ${error.message}`);
-    for (const r of data ?? []) ids.add(r.home_id);
-    if (!data || data.length < 1000) return ids;
-  }
+  const rows = await readAllPages<{ home_id: string }>((from, to, withCount) =>
+    d
+      .from("outreach")
+      .select("home_id", withCount ? { count: "exact" } : undefined)
+      .eq("plan_for", planFor)
+      .eq("channel", "sms")
+      .order("home_id")
+      .range(from, to),
+  ).catch((e: Error) => {
+    throw new Error(`outreach: ${e.message}`);
+  });
+  return new Set(rows.map((r) => r.home_id));
 }
 
 /**
@@ -208,17 +214,17 @@ export async function simulateAndSave(ctx: AgentCtx, execute: boolean) {
   const homes = ctx.city.homes;
   // Homes that were not texted have no call record (clear any stale one from an earlier run).
   const notContacted = homes.filter((_, i) => outreach[i].contact === "none").map((h) => h.id);
-  for (let k = 0; k < notContacted.length; k += 200) {
-    await d.from("household_calls").delete().eq("plan_for", planFor).in("home_id", notContacted.slice(k, k + 200));
-  }
+  await pool(chunks(notContacted, 200), async (ids) => {
+    await d.from("household_calls").delete().eq("plan_for", planFor).in("home_id", ids);
+  });
   const calls = outreach
     .map((o, i) => ({ o, i }))
     .filter(({ o }) => o.contact !== "none")
     .map(({ o, i }) => ({ ...toRecord(homes[i].id, o, assessments[i]), plan_for: planFor, reason_params: {}, simulated: true }));
-  for (let k = 0; k < calls.length; k += 500) {
-    const { error } = await d.from("household_calls").upsert(calls.slice(k, k + 500), { onConflict: "home_id,plan_for" });
+  await pool(chunks(calls, 500), async (batch) => {
+    const { error } = await d.from("household_calls").upsert(batch, { onConflict: "home_id,plan_for" });
     if (error) throw new Error(`household_calls: ${error.message}${tableHint(error.message)}`);
-  }
+  });
   const contactRows = outreach.flatMap((o, i) => {
     const rows = [];
     if (o.called)
@@ -227,10 +233,10 @@ export async function simulateAndSave(ctx: AgentCtx, execute: boolean) {
       rows.push({ home_id: homes[i].id, plan_for: planFor, channel: "door", status: "scheduled", message: "Door check (simulated)", simulated: true });
     return rows;
   });
-  for (let k = 0; k < contactRows.length; k += 500) {
-    const { error } = await d.from("outreach").upsert(contactRows.slice(k, k + 500), { onConflict: "home_id,plan_for,channel" });
+  await pool(chunks(contactRows, 500), async (batch) => {
+    const { error } = await d.from("outreach").upsert(batch, { onConflict: "home_id,plan_for,channel" });
     if (error) throw new Error(`outreach: ${error.message}${tableHint(error.message)}`);
-  }
+  });
   const s = `Ran outreach: ${funnelSentence(summary)}.`;
   await d.from("events").insert({ type: "outreach_simulated", occurred_at: planFor, payload: { message: s, by: "agent", funnel: summary }, simulated: true });
   return { status: "done", summary: s, funnel: summary };
@@ -283,15 +289,22 @@ export async function crewStatus(ctx: AgentCtx) {
 export async function proposeCrew(ctx: AgentCtx, input: z.output<typeof OutreachInputs.propose_crew>, execute: boolean) {
   const idx = ctx.city.byId.get(input.home_id);
   if (idx === undefined) throw new Error("Unknown home_id");
-  const crews = await getCrews();
+  const home = ctx.city.homes[idx];
+  // When executing, the three reads go out together (they don't depend on each other); the checks below
+  // still run in the same order with the same messages.
+  const crewsP = getCrews();
+  const recordP = execute ? loadHomeRecord(home.id, ctx.time) : null;
+  const jobsP = execute ? crewsP.then((cs) => loadCrewJobs(ctx.city, ctx.time, cs)) : null;
+  recordP?.catch(() => {});
+  jobsP?.catch(() => {});
+  const crews = await crewsP;
   const crew = crews.find((c) => c.id === input.crew_id);
   if (!crew) throw new Error(`Unknown crew_id. Valid: ${crews.map((c) => c.id).join(", ")}`);
-  const home = ctx.city.homes[idx];
 
   // What the call says (saved record when executing; the deterministic simulation when previewing).
   let assessment: Assessment, confidence: Confidence, reasons: ReasonFactor[];
-  if (execute) {
-    const { call } = await loadHomeRecord(home.id, ctx.time);
+  if (recordP) {
+    const { call } = await recordP;
     if (!call) throw new Error("This home has no call record for this hour yet. Run outreach first.");
     ({ assessment, confidence } = call);
     reasons = call.reason_key.split(",") as ReasonFactor[];
@@ -308,7 +321,7 @@ export async function proposeCrew(ctx: AgentCtx, input: z.output<typeof Outreach
 
   const d = db();
   const planFor = toTimestamp(ctx.time);
-  const jobs = await loadCrewJobs(ctx.city, ctx.time, crews);
+  const jobs = await jobsP!;
   if (jobs.active.some((j) => j.crew_id === crew.id)) throw new Error(`${crew.name} is still on another job.`);
   if (jobs.helpedHomes.has(home.id)) throw new Error("A crew has already been assigned to this home.");
   const { error } = await d
