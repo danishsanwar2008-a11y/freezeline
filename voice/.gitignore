@@ -1,0 +1,6 @@
+# Generated or downloaded - never committed.
+audio/
+models/
+.venv/
+__pycache__/
+*.pyc

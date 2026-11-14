@@ -1,0 +1,17 @@
+# FreezeLine voice agent - Python side. All permissively licensed and free at any volume.
+# The only metered thing here is the phone line itself (Twilio), never the speech pipeline.
+
+# Pipeline: VAD, transports, the Kokoro TTS service, frame processors.
+pipecat-ai[kokoro,silero]>=0.0.60
+
+# Text-to-speech, locally, on CPU. Apache-2.0 weights (54 voices, English + Spanish).
+kokoro-onnx>=0.4.0
+
+# Speech-to-text, locally. MIT. large-v3-turbo runs in int8 on a laptop.
+faster-whisper>=1.0.0
+
+numpy>=1.26
+
+# Twilio Media Streams arrives over a websocket.
+fastapi>=0.115
+uvicorn[standard]>=0.30
