@@ -342,18 +342,30 @@ def make_app():
             print("[agent] PUBLIC_HOSTNAME is not set - Twilio has no URL to call back to.", file=sys.stderr, flush=True)
             return
         url = f"https://{host}/health"
-        try:
-            with urllib.request.urlopen(url, timeout=8) as r:
-                status = r.status
-            print(f"[agent] tunnel reachable: {url} -> {status}", flush=True)
-        except Exception as e:  # noqa: BLE001 - a warning, not a reason to refuse to start
-            print(
-                f"[agent] TUNNEL NOT REACHABLE: {url} -> {e}\n"
-                f"[agent] Calls will ring and then hang up. Restart cloudflared, copy the new\n"
-                f"[agent] hostname into PUBLIC_HOSTNAME, and start the agent again.",
-                file=sys.stderr,
-                flush=True,
-            )
+
+        def probe() -> None:
+            # Wait until uvicorn is actually serving. Probing inside the startup event asks
+            # cloudflared to reach a port that is not open yet, and reports a false 502 on a
+            # perfectly healthy tunnel.
+            import threading  # noqa: F401 - imported here so the module needs nothing new
+            import time
+
+            time.sleep(4)
+            try:
+                with urllib.request.urlopen(url, timeout=8) as r:
+                    print(f"[agent] tunnel reachable: {url} -> {r.status}", flush=True)
+            except Exception as e:  # noqa: BLE001 - a warning, not a reason to stop
+                print(
+                    f"[agent] TUNNEL NOT REACHABLE: {url} -> {e}\n"
+                    f"[agent] Calls will ring and then hang up before reaching us. Restart\n"
+                    f"[agent] cloudflared, copy the new hostname into PUBLIC_HOSTNAME, restart.",
+                    file=sys.stderr,
+                    flush=True,
+                )
+
+        import threading
+
+        threading.Thread(target=probe, daemon=True).start()
 
     @app.get("/health")
     async def health() -> Any:
@@ -384,6 +396,7 @@ def make_app():
     @app.websocket("/ws")
     async def ws(websocket: WebSocket) -> None:
         await websocket.accept()
+        print("[agent] audio stream connected", flush=True)
         stream_sid = call_sid = None
         home: dict[str, Any] = {}
         # Twilio sends "connected", then "start" with the stream and our custom parameters.
@@ -427,6 +440,7 @@ def make_app():
         )
 
         call = call_from_params(home)
+        print(f"[agent] call mode={home.get('mode') or 'storm'} first_name={home.get('first_name') or '-'} lang={home.get('lang') or '-'}", flush=True)
         speed = call.speech_speed()
         pipeline = build_pipeline(transport, call, speed, lambda r: report(r, home.get("home_id")))
 
@@ -437,6 +451,11 @@ def make_app():
         store[stream_sid] = task
         try:
             await PipelineRunner().run(task)
+        except Exception:  # noqa: BLE001 - the traceback is the only clue why a call drops
+            import traceback
+
+            traceback.print_exc()
+            raise
         finally:
             store.pop(stream_sid, None)
 
