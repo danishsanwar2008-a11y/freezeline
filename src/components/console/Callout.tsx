@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+
 // A quick view that belongs to one thing on the map (a house or a crew): a navy box with a small tail
 // pointing at it, grown out of that point (scale + fade, 200 ms; still under reduced motion), and kept
 // on it while the map pans (RiskMap places it with the live viewport).
@@ -24,6 +26,14 @@ export default function Callout({
   onClose: () => void;
   children?: React.ReactNode;
 }) {
+  // Escape closes it (it is a small non-modal dialog).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
   // Above the point unless that would leave the top of the map; kept inside the map horizontally.
   const below = y < 230;
   const half = CALLOUT_W / 2;
@@ -56,7 +66,7 @@ export default function Callout({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={`Close ${title}`}
             className="-mr-1 -mt-1 flex size-7 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-bg hover:text-text"
           >
             <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>

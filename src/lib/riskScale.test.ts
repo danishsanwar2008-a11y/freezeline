@@ -16,6 +16,6 @@ describe("hex need steps (map + legend share one scale)", () => {
     expect(needRgba(0.9)).toEqual(NEED_STEPS[3].fill);
     const alpha = NEED_STEPS.map((s) => s.fill[3]);
     expect([...alpha].sort((a, b) => a - b)).toEqual(alpha);
-    expect(NEED_STEPS.map((s) => s.label)).toEqual(["Under 25%", "25–49%", "50–74%", "75% or more"]);
+    expect(NEED_STEPS.map((s) => s.label)).toEqual(["Under 25%", "25–49%", "50–74%", "75–100%"]);
   });
 });

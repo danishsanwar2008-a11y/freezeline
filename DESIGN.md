@@ -35,7 +35,7 @@ Professional emergency-management software for a water utility during a hard fre
 | Scale | Source | Values |
 |---|---|---|
 | Home status (dots, Homes contacted box) | `STATUS_RGB`, `--status-*` | ready #38a779 green · needs help #e05252 red · waiting #e8bc4f yellow · no answer #111827 black · not contacted #94a3b8 gray. On the map every dot has a thin dark ring over a light halo, so it reads on the off-white map and on the darkest cells |
-| Cell need (% of homes needing action) | `NEED_STEPS` | 4 steps, **darker = more homes need action**: Under 25% #a3cff1 · 25–49% #5f9bd8 · 50–74% #2a64ad · 75% or more #0e3570. 94% opaque; pale cells have a mid-blue outline, dark cells a white hairline. dataviz: every adjacent pair ΔE ≥ 16.5 |
+| Cell need (% of homes needing action) | `NEED_STEPS` | 4 steps, **darker = more homes need action**: Under 25% #a3cff1 · 25–49% #5f9bd8 · 50–74% #2a64ad · 75–100% #0e3570. 94% opaque; pale cells have a mid-blue outline, dark cells a white hairline. dataviz: every adjacent pair ΔE ≥ 16.5 |
 | Water pressure | `--psi-ok` / `--psi-warn` / `--psi-bad` | green above 25 psi · amber 20–25 · red below 20 |
 
 Status colors are for home status only; blue cells are for need only; pressure uses its own tokens. Color is never the only signal: every colored mark has a label, a count or an icon beside it.
@@ -79,7 +79,7 @@ Sentence case everywhere. No all-caps titles, no text under 11px.
   - Left (300px, see-through): Map key, Homes contacted.
   - Right (380px, solid): Water pressure by area, Crews, Decision trace (fills the remaining height and scrolls inside itself).
   - Bottom center, between the columns: the storm replay timeline with this hour's readings (now, feels like, wind, hours below 20°F).
-- **Below 1024px**: the map on top (58% of the viewport, min 400px) with the map key over it; the other boxes stack underneath at full width in the same order.
+- **Below 1024px**: the map on top (58% of the viewport, min 400px) with the timeline along its bottom edge; every box, the map key included, stacks underneath at full width in the same order (map key, Homes contacted, pressure, crews, decision trace). Nothing floats over the map at this width.
 - **Spacing**: a 4px base unit; 12px between boxes and from the window edge, 16px inside boxes, 8px between a number and its visual.
 - **Fit**: at 1440×900 every box is visible without scrolling the page; only the decision trace scrolls inside itself.
 

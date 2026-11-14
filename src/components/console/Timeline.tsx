@@ -86,7 +86,7 @@ export default function Timeline({ hours, hour, playing, onHour, onTogglePlay, h
         </div>
         <div className="relative mt-1 h-4 font-mono text-[11px] text-muted">
           {labels.map(({ i, h }) => (
-            <span key={i} className="absolute -translate-x-1/2 whitespace-nowrap max-sm:[&:nth-child(even)]:hidden" style={{ left: `${(i / (n - 1)) * 100}%` }}>
+            <span key={i} className="absolute -translate-x-1/2 whitespace-nowrap max-sm:[&:nth-child(even)]:hidden lg:max-xl:[&:nth-child(even)]:hidden" style={{ left: `${(i / (n - 1)) * 100}%` }}>
               {formatDay(h.time)}
             </span>
           ))}

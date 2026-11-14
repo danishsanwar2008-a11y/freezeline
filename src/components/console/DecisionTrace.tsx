@@ -163,9 +163,10 @@ export default function DecisionTrace({
                         type="button"
                         onClick={() => setOpen((o) => ({ ...o, [key]: !isOpen }))}
                         aria-expanded={isOpen}
+                        aria-label={`${isOpen ? "Hide" : "Show"} ${plural(row.items.length, fold.unit)}: ${fold.label.toLowerCase()}`}
                         className="shrink-0 text-xs text-accent-ink hover:underline"
                       >
-                        {plural(row.items.length, fold.unit)} {isOpen ? "▴" : "▾"}
+                        {plural(row.items.length, fold.unit)} <span aria-hidden>{isOpen ? "▴" : "▾"}</span>
                       </button>
                     </div>
                     {isOpen && (

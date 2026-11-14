@@ -50,6 +50,7 @@ export default function Panel({
   const uid = useId();
   const titleId = `${uid}-title`;
   const bodyId = `${uid}-body`;
+  const verbId = `${uid}-verb`;
   return (
     <section
       aria-labelledby={titleId}
@@ -65,9 +66,12 @@ export default function Panel({
           onClick={() => setOpen(!open)}
           aria-expanded={open}
           aria-controls={bodyId}
-          aria-label={open ? "Collapse" : "Expand"}
+          aria-labelledby={`${verbId} ${titleId}`}
           className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-bg hover:text-text"
         >
+          <span id={verbId} hidden>
+            {open ? "Collapse" : "Expand"}
+          </span>
           <Chevron open={open} />
         </button>
       </div>

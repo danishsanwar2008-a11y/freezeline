@@ -29,7 +29,7 @@ function InfoTip({ text, label }: { text: string; label: string }) {
     <span className="group relative inline-flex">
       <button
         type="button"
-        className="flex min-h-8 items-center gap-1 rounded-full border border-border px-2.5 text-[12px] text-muted transition-colors duration-150 hover:text-text"
+        className="flex min-h-8 items-center gap-1 rounded-full border border-border px-2.5 text-[12px] text-muted transition-colors duration-150 ease-[var(--ease)] hover:text-text"
         aria-describedby="model-note"
       >
         {label} <span aria-hidden>ⓘ</span>
@@ -37,7 +37,7 @@ function InfoTip({ text, label }: { text: string; label: string }) {
       <span
         id="model-note"
         role="tooltip"
-        className="pointer-events-none absolute right-0 top-9 z-20 w-72 rounded-lg border border-border bg-bg p-3 text-xs leading-relaxed text-muted opacity-0 shadow-lg transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100"
+        className="pointer-events-none absolute right-0 top-9 z-20 w-72 rounded-lg border border-border bg-bg p-3 text-xs leading-relaxed text-muted opacity-0 shadow-lg transition-opacity duration-150 ease-[var(--ease)] group-focus-within:opacity-100 group-hover:opacity-100"
       >
         {text}
       </span>
@@ -144,8 +144,8 @@ export default function PressureMonitor({
               </p>
               <p className={`text-[11px] leading-tight ${BAND_TEXT[a.band]}`}>{BAND_LABEL[a.band]}</p>
               {stage2Tag(a.zoneId) && (
-                <p className={`mt-0.5 inline-block rounded-full border px-1.5 text-[11px] leading-4 ${stage2Tag(a.zoneId) === "pending" ? "border-psi-warn/70 text-psi-warn" : "border-border text-muted"}`}>
-                  {stage2Tag(a.zoneId) === "pending" ? "Stage 2 · awaiting approval" : stage2Tag(a.zoneId) === "done" ? "Stage 2 sent" : "Stage 2 not sent"}
+                <p className={`mt-0.5 inline-block whitespace-nowrap rounded-full border px-1.5 text-[11px] leading-4 ${stage2Tag(a.zoneId) === "pending" ? "border-psi-warn/70 text-psi-warn" : "border-border text-muted"}`}>
+                  {stage2Tag(a.zoneId) === "pending" ? "Stage 2 pending" : stage2Tag(a.zoneId) === "done" ? "Stage 2 sent" : "Stage 2 not sent"}
                 </p>
               )}
             </div>

@@ -95,7 +95,7 @@ export const NEED_STEPS: NeedStep[] = [
   { min: 0, label: "Under 25%", fill: [158, 205, 241, 240], swatch: "#a3cff1", line: BLUE_LINE },
   { min: 0.25, label: "25–49%", fill: [86, 150, 215, 240], swatch: "#5f9bd8", line: BLUE_LINE },
   { min: 0.5, label: "50–74%", fill: [30, 91, 169, 240], swatch: "#2a64ad", line: WHITE_LINE },
-  { min: 0.75, label: "75% or more", fill: [0, 41, 104, 240], swatch: "#0e3570", line: WHITE_LINE },
+  { min: 0.75, label: "75–100%", fill: [0, 41, 104, 240], swatch: "#0e3570", line: WHITE_LINE },
 ];
 
 /** Step index (0–3) for a share 0–1 of homes needing action. */

@@ -22,7 +22,7 @@ function InfoTip() {
       <button
         type="button"
         aria-describedby="data-note"
-        className="flex size-8 items-center justify-center rounded-full text-sm text-muted transition hover:bg-bg hover:text-text"
+        className="flex size-8 items-center justify-center rounded-full text-sm text-muted transition-colors duration-150 ease-[var(--ease)] hover:bg-bg hover:text-text"
       >
         <span aria-hidden>ⓘ</span>
         <span className="sr-only">About this data</span>
@@ -30,7 +30,7 @@ function InfoTip() {
       <span
         id="data-note"
         role="tooltip"
-        className="pointer-events-none absolute right-0 top-10 z-30 w-64 rounded-lg border border-border bg-surface p-3 text-xs leading-relaxed text-muted opacity-0 shadow-lg transition group-focus-within:opacity-100 group-hover:opacity-100"
+        className="pointer-events-none absolute right-0 top-10 z-30 w-64 rounded-lg border border-border bg-surface p-3 text-xs leading-relaxed text-muted opacity-0 shadow-lg transition-opacity duration-150 ease-[var(--ease)] group-focus-within:opacity-100 group-hover:opacity-100"
       >
         Home locations and streets are real OpenStreetMap data (© OpenStreetMap contributors, ODbL). Everything about each
         household, every crew and route is <span className="text-text">simulated sample data</span>. Weather is real: Open-Meteo’s
@@ -102,7 +102,7 @@ export default function TopBar({ mode, onMode, agent, panelsHidden, onTogglePane
           Sign out
         </button>
       </form>
-      <button type="button" onClick={onTogglePanels} aria-pressed={panelsHidden} className="btn btn-quiet btn-sm gap-1.5">
+      <button type="button" onClick={onTogglePanels} className="btn btn-quiet btn-sm gap-1.5">
         <Chevron open={!panelsHidden} />
         {panelsHidden ? "Show panels" : "Hide panels"}
       </button>
