@@ -160,7 +160,7 @@ body {
 
 /* Panel eyebrow and the one headline number per panel. */
 .eyebrow { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
-.stat { font-size: 28px; line-height: 1.1; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.stat { font-size: 27px; line-height: 1.1; font-weight: 500; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .stat-unit { font-size: 15px; font-weight: 400; letter-spacing: 0; color: var(--muted); }
 
 /* ---------- Buttons: fill + label tokens ---------- */
@@ -170,11 +170,14 @@ body {
   --on-btn: var(--bg);
   /* Small blue text and links (inside the console: Ice Blue on navy). */
   --accent-ink: var(--accent);
+  /* Crew dots: Deep Blue (mirrors MAP_LOOK.crew). */
+  --crew: #1d3557;
 }
 @theme inline {
   --color-btn: var(--btn);
   --color-on-btn: var(--on-btn);
   --color-accent-ink: var(--accent-ink);
+  --color-crew: var(--crew);
 }
 /* ---------- City Operations theme (palette E2): Midnight Navy boxes on an off-white map, Action Blue for actions.
    Scoped to the officials' screens (.console-theme), so the public /register page keeps its own look. ---------- */

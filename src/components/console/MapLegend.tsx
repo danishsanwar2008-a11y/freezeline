@@ -1,85 +1,33 @@
 "use client";
 
-// The one map key (top left): hex shading steps, home dot colors with live counts, and the crew marker.
+// The map key (top left, see-through): the 4 cell steps (darker = more homes need action) and the crew
+// marker + route. Home dot colors live only in the Homes contacted box, so no key is shown twice.
 
-import { useState, useSyncExternalStore } from "react";
-import type { HomeStatus } from "@/lib/household";
-import { NEED_STEPS, STATUS_BG, STATUS_ORDER, type NeedStep } from "@/lib/riskScale";
-import { STATUS_LABEL } from "@/lib/cityWording";
+import { NEED_STEPS } from "@/lib/riskScale";
+import Panel from "./Panel";
 
-const DESKTOP = "(min-width: 1024px)";
-const isDesktop = () => window.matchMedia(DESKTOP).matches;
-function subscribeDesktop(onChange: () => void) {
-  const mq = window.matchMedia(DESKTOP);
-  mq.addEventListener("change", onChange);
-  return () => mq.removeEventListener("change", onChange);
-}
-
-function Heading({ children }: { children: React.ReactNode }) {
-  return <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted">{children}</p>;
-}
-
-export default function MapLegend({ counts, steps = NEED_STEPS }: { counts: Record<HomeStatus, number>; steps?: NeedStep[] }) {
-  // Open on desktop; folded on tablets and phones so the map stays visible (one tap opens it).
-  const desktop = useSyncExternalStore(subscribeDesktop, isDesktop, () => true);
-  const [userOpen, setUserOpen] = useState<boolean | null>(null);
-  const open = userOpen ?? desktop;
+export default function MapLegend() {
   return (
-    <details
-      open={open}
-      onToggle={(e) => {
-        const now = e.currentTarget.open;
-        if (now !== open) setUserOpen(now);
-      }}
-      className="glass group w-56 rounded-panel border border-border bg-surface/90 text-xs shadow-lg backdrop-blur">
-      <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 font-medium text-text marker:hidden">
-        Map key
-        <span className="text-muted transition group-open:rotate-180" aria-hidden>
-          ▾
-        </span>
-      </summary>
-      <div className="space-y-3 border-t border-border px-3 pb-3 pt-2.5">
-        <section aria-label="Area shading">
-          <Heading>Cells · darker = more homes need action</Heading>
-          <ul className="space-y-1">
-            {steps.map((s) => (
-              <li key={s.label} className="flex items-center gap-2">
-                <span className="h-3 w-5 rounded-sm ring-1 ring-text/35" style={{ background: s.swatch }} aria-hidden />
-                <span className="text-text">{s.label}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section aria-label="Home dots">
-          <Heading>Homes · one dot each</Heading>
-          <ul className="space-y-1">
-            {STATUS_ORDER.map((s) => (
-              <li key={s} className="flex items-center gap-2">
-                <span className={`size-2.5 shrink-0 rounded-full ${STATUS_BG[s]}`} aria-hidden />
-                <span className="text-text">{STATUS_LABEL[s]}</span>
-                <span className="ml-auto font-mono tabular-nums text-muted">{counts[s].toLocaleString("en-US")}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section aria-label="Crews">
-          <Heading>Crews</Heading>
-          <ul className="space-y-1">
-            <li className="flex items-center gap-2">
-              <span className="flex w-5 justify-center" aria-hidden>
-                <span className="size-3 rounded-full border-2 border-bg bg-accent" />
-              </span>
-              <span className="text-text">Help crew</span>
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="h-0.5 w-5 rounded-full bg-accent" aria-hidden />
-              <span className="text-text">Heading to a home</span>
-            </li>
-          </ul>
-        </section>
-      </div>
-    </details>
+    <Panel id="map-key" title="Map key" tone="glass">
+      <p className="text-[13px] text-text">Darker cells: more homes need action</p>
+      <ul className="mt-2 grid grid-cols-4 gap-1.5" aria-label="Cell shading, share of homes needing action">
+        {NEED_STEPS.map((s) => (
+          <li key={s.label} className="flex flex-col gap-1">
+            <span className="h-3 rounded-sm ring-1 ring-text/30" style={{ background: s.swatch }} aria-hidden />
+            <span className="text-[11px] leading-tight text-muted">{s.label}</span>
+          </li>
+        ))}
+      </ul>
+      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-text">
+        <li className="flex items-center gap-2">
+          <span className="size-3 rounded-full border-2 border-white bg-crew" aria-hidden />
+          Help crew
+        </li>
+        <li className="flex items-center gap-2">
+          <span className="h-0.5 w-5 rounded-full bg-accent" aria-hidden />
+          Route to a home
+        </li>
+      </ul>
+    </Panel>
   );
 }

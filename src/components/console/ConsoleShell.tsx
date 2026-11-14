@@ -25,7 +25,7 @@ import { useAgent } from "./useAgent";
 import { statusAt, useOps } from "./useOps";
 import { useLiveForecast } from "./useLiveForecast";
 import { houstonNowHour } from "./format";
-import { CrewsPanel, HomeSummaryCard, OutreachFunnel, ReadyCheck, headingMs, isHeading } from "./CityCards";
+import { CrewsPanel, HomeSummaryCard, HomesContacted, headingMs, isHeading } from "./CityCards";
 import type { CrewMarker } from "./RiskMap";
 
 // WebGL map is browser-only.
@@ -176,12 +176,6 @@ function ConsoleBody({
     return { c, total };
   }, [plan, data]);
 
-  // Live counts for the map key: every dot on the map, by status.
-  const dotCounts = useMemo(() => {
-    const c: Record<HomeStatus, number> = { ready: 0, needs_help: 0, waiting: 0, no_answer: 0, not_contacted: 0 };
-    for (let i = 0; i < homes.length; i++) c[statusAt(data, i)]++;
-    return c;
-  }, [homes, data]);
 
   // Crew positions: driving from the depot for the trip's drive time (scaled on screen), then at the home.
   // Jobs from an earlier replay hour are already on site.
@@ -282,9 +276,16 @@ function ConsoleBody({
         <div
           className={`${panelsHidden ? "hidden" : "flex"} no-scrollbar flex-col gap-3 p-3 lg:absolute lg:left-3 lg:top-3 lg:max-h-[calc(100%-1.5rem)] lg:w-[280px] lg:overflow-y-auto lg:p-0 xl:w-[300px]`}
         >
-          <MapLegend counts={dotCounts} />
-          <ReadyCheck counts={counts.c} total={counts.total} ran={!!data?.ran} loading={!!agent && !ops.fresh && !ops.error} live={!agent} lowHomes={homes.length - counts.total} />
-          <OutreachFunnel {...(data?.funnel ?? { texted: 0, called: 0, doorChecks: 0, neighborFlags: 0 })} live={!agent} />
+          <MapLegend />
+          <HomesContacted
+            counts={counts.c}
+            total={counts.total}
+            funnel={data?.funnel ?? { texted: 0, called: 0, doorChecks: 0, neighborFlags: 0 }}
+            ran={!!data?.ran}
+            loading={!!agent && !ops.fresh && !ops.error}
+            live={!agent}
+            lowHomes={homes.length - counts.total}
+          />
         </div>
 
         {/* Right column (solid boxes): pressure, crews, decision trace (fills the rest). */}

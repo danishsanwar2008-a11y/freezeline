@@ -21,7 +21,7 @@ const BAND_LABEL: Record<PsiBand, string> = {
 const Y_MIN = 12;
 const Y_MAX = 52;
 const W = 280;
-const H = 84;
+const H = 46;
 const PAD = { l: 2, r: 2, t: 4, b: 4 };
 
 function InfoTip({ text, label }: { text: string; label: string }) {
@@ -29,7 +29,7 @@ function InfoTip({ text, label }: { text: string; label: string }) {
     <span className="group relative inline-flex">
       <button
         type="button"
-        className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted transition hover:text-text focus-visible:outline-2 focus-visible:outline-accent"
+        className="flex min-h-8 items-center gap-1 rounded-full border border-border px-2.5 text-[12px] text-muted transition-colors duration-150 hover:text-text"
         aria-describedby="model-note"
       >
         {label} <span aria-hidden>ⓘ</span>
@@ -37,7 +37,7 @@ function InfoTip({ text, label }: { text: string; label: string }) {
       <span
         id="model-note"
         role="tooltip"
-        className="pointer-events-none absolute right-0 top-7 z-20 w-72 rounded-panel border border-border bg-surface p-3 text-xs leading-relaxed text-muted opacity-0 shadow-lg transition group-focus-within:opacity-100 group-hover:opacity-100"
+        className="pointer-events-none absolute right-0 top-9 z-20 w-72 rounded-lg border border-border bg-bg p-3 text-xs leading-relaxed text-muted opacity-0 shadow-lg transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100"
       >
         {text}
       </span>
@@ -61,7 +61,7 @@ function PressureChart({ a, hour, times }: { a: AreaPressure; hour: number; time
     <div className="relative min-w-0 flex-1">
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        className="h-[84px] w-full overflow-visible"
+        className="h-[46px] w-full overflow-visible"
         role="img"
         aria-label={`${a.area}: ${Math.round(a.nowPsi)} psi now; lowest in the next 12 hours ${Math.round(a.lowest.psi)} psi.`}
         onMouseLeave={() => setHover(null)}
@@ -74,12 +74,6 @@ function PressureChart({ a, hour, times }: { a: AreaPressure; hour: number; time
         {/* thresholds */}
         <line x1={0} x2={W} y1={y(STOP_NEW_DRIPS_PSI)} y2={y(STOP_NEW_DRIPS_PSI)} stroke="var(--psi-warn)" strokeWidth={1} strokeDasharray="4 3" opacity={0.8} />
         <line x1={0} x2={W} y1={y(BOIL_WATER_PSI)} y2={y(BOIL_WATER_PSI)} stroke="var(--psi-bad)" strokeWidth={1} opacity={0.9} />
-        <text x={4} y={y(STOP_NEW_DRIPS_PSI) - 3} textAnchor="start" fontSize={10} fill="var(--psi-warn)">
-          Stop new drips
-        </text>
-        <text x={4} y={y(BOIL_WATER_PSI) + 10} textAnchor="start" fontSize={10} fill="var(--psi-bad)">
-          Boil-water notice
-        </text>
         {/* now */}
         <line x1={x(hour)} x2={x(hour)} y1={0} y2={H} stroke="var(--muted)" strokeWidth={1} opacity={0.5} />
         {/* past (own plans, solid) and forecast (today's drips held, dashed) */}
@@ -203,19 +197,19 @@ export default function PressureMonitor({
           );
         })}
         {needsRun && (
-          <p className="rounded-md border border-dashed border-psi-warn/60 px-3 py-2 text-xs text-muted">
+          <p className="rounded-md border border-dashed border-psi-warn/60 px-3 py-2 text-[13px] text-text">
             The forecast falls below {STOP_NEW_DRIPS_PSI} psi in {areas.filter((a) => a.stage2).map((a) => a.area).join(", ")}. Run the agent to prepare a Stage 2
             alert for supervisor approval.
           </p>
         )}
       </div>
 
-      <ul className="mt-3 divide-y divide-border">
+      <ul className="divide-y divide-border">
         {areas.map((a) => (
-          <li key={a.zoneId} className="flex items-center gap-3 py-2.5">
-            <div className="w-28 shrink-0">
-              <p className="truncate text-xs text-muted">{a.area}</p>
-              <p className={`font-mono text-2xl font-semibold tabular-nums leading-tight ${BAND_TEXT[a.band]}`}>
+          <li key={a.zoneId} className="flex items-center gap-3 py-2">
+            <div className="w-[104px] shrink-0">
+              <p className="truncate text-[13px] text-text">{a.area}</p>
+              <p className={`font-mono text-xl font-medium tabular-nums leading-tight ${a.band === "ok" ? "text-text" : BAND_TEXT[a.band]}`}>
                 {a.nowPsi.toFixed(1)}
                 <span className="ml-1 text-xs font-normal text-muted">psi</span>
               </p>
@@ -226,7 +220,7 @@ export default function PressureMonitor({
         ))}
       </ul>
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted">
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">
         <span className="flex items-center gap-1.5">
           <svg width="18" height="6" aria-hidden>
             <line x1="0" x2="18" y1="3" y2="3" stroke="var(--psi-warn)" strokeDasharray="4 3" />
@@ -239,14 +233,14 @@ export default function PressureMonitor({
           </svg>
           {BOIL_WATER_PSI} psi · Boil-water notice
         </span>
-        <span>Past 12 h · solid · next 12 h · dashed (if today’s drips continue)</span>
+        <span>Past 12 h solid · next 12 h dashed</span>
       </div>
-      <p className="mt-2 text-[11px] leading-relaxed text-muted">{EXTRA_TAP_LABEL}</p>
 
-      <details className="group mt-3">
+      <details className="group mt-2">
         <summary className="cursor-pointer list-none text-xs font-medium text-accent marker:hidden">
-          Compare: if everyone drips <span className="inline-block transition group-open:rotate-180">▾</span>
+          Model notes · compare if everyone drips <span className="inline-block transition group-open:rotate-180">▾</span>
         </summary>
+        <p className="mt-2 text-[11px] leading-relaxed text-muted">The forecast assumes today’s drips continue. {EXTRA_TAP_LABEL}</p>
         <ul className="mt-2 grid grid-cols-2 gap-2">
           {areas.map((a) => {
             const band = a.blanketPsi > STOP_NEW_DRIPS_PSI ? "ok" : a.blanketPsi >= BOIL_WATER_PSI ? "warn" : "bad";

@@ -7,12 +7,10 @@ import { useEffect, useState } from "react";
 import type { HomeStatus } from "@/lib/household";
 import { CREW_TRIP } from "@/lib/crewTrip";
 import { STATUS_LABEL } from "@/lib/cityWording";
-import { STATUS_BG, STATUS_ORDER, STATUS_RGB } from "@/lib/riskScale";
-import type { WeatherHour } from "@/lib/weather";
+import { STATUS_BG, STATUS_RGB } from "@/lib/riskScale";
 import type { OpsCrew } from "./useOps";
 import { plural, verb } from "@/lib/plural";
 import type { AgentEntry } from "./useAgent";
-import { fmtF, formatHour } from "./format";
 import Panel from "./Panel";
 
 /** A floating box (see Panel.tsx). The id remembers its collapsed state for the session. */
@@ -39,18 +37,25 @@ export function Card({
 
 const rgb = (s: HomeStatus) => `rgb(${STATUS_RGB[s].join(" ")})`;
 
-// ---------- Ready check ----------
+// ---------- Homes contacted (outreach + ready check in one box) ----------
 
-export function ReadyCheck({
+/** Status order inside the box: what's settled first, then what still needs a hand. */
+const CONTACT_ORDER: HomeStatus[] = ["ready", "waiting", "needs_help", "no_answer", "not_contacted"];
+
+export function HomesContacted({
   counts,
   total,
+  funnel,
   ran,
   loading = false,
   live = false,
   lowHomes,
 }: {
+  /** Homes needing action this hour, by status. */
   counts: Record<HomeStatus, number>;
+  /** Homes needing action this hour (Watch or High). */
   total: number;
+  funnel: { texted: number; called: number; doorChecks: number; neighborFlags: number };
   ran: boolean;
   /** This hour's outreach is still loading. */
   loading?: boolean;
@@ -58,89 +63,63 @@ export function ReadyCheck({
   live?: boolean;
   lowHomes: number;
 }) {
+  const steps = [
+    { label: "Texted", n: funnel.texted },
+    { label: "Called", n: funnel.called },
+    { label: "Door check", n: funnel.doorChecks },
+  ];
   return (
-    <Card title="Ready check">
+    <Card title="Homes contacted (sample)" tone="glass">
       <p className="stat">
-        {counts.ready.toLocaleString("en-US")} <span className="stat-unit">of {plural(total, "home")} ready</span>
+        {funnel.texted.toLocaleString("en-US")} <span className="stat-unit">{funnel.texted === 1 ? "home" : "homes"} contacted</span>
       </p>
-      <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-border" role="img" aria-label="Homes by status">
-        {STATUS_ORDER.map((s) =>
+      {/* One bar for the homes that need action this hour, split by status (2px gaps between segments). */}
+      <div className="mt-2.5 flex h-2.5 gap-0.5 overflow-hidden rounded-full" role="img" aria-label={`${plural(total, "home")} needing action, by status`}>
+        {CONTACT_ORDER.map((s) =>
           counts[s] ? (
             <div
               key={s}
-              className={`h-full ${s === "no_answer" ? "border-y border-text/40" : ""}`}
+              className={`h-full first:rounded-l-full last:rounded-r-full ${s === "no_answer" ? "ring-1 ring-inset ring-text/40" : ""}`}
               style={{ width: `${(counts[s] / Math.max(1, total)) * 100}%`, background: rgb(s) }}
             />
           ) : null,
         )}
       </div>
-      <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-        {STATUS_ORDER.map((s) => (
+      <ul className="mt-2.5 space-y-1 text-[13px]">
+        {CONTACT_ORDER.map((s) => (
           <li key={s} className="flex items-center gap-2">
             <span className={`size-2.5 shrink-0 rounded-full ${STATUS_BG[s]}`} aria-hidden />
-            <span className="text-muted">{STATUS_LABEL[s]}</span>
-            <span className="ml-auto font-mono tabular-nums">{counts[s].toLocaleString("en-US")}</span>
+            <span className="text-text">{STATUS_LABEL[s]}</span>
+            <span className="ml-auto font-mono tabular-nums text-text">{counts[s].toLocaleString("en-US")}</span>
           </li>
         ))}
       </ul>
-      <p className="mt-3 text-xs text-muted">
-        {loading
-          ? "Loading this hour’s outreach… "
-          : live
-            ? "Outreach runs on the Uri replay in this phase. "
-            : ran
-              ? "Homes that need action tonight. "
-              : "Outreach hasn’t run for this hour yet. Run the agent below to text these homes. "}
-        {plural(lowHomes, "low-risk home")} {verb(lowHomes, "needs", "need")} no action.
-      </p>
-    </Card>
-  );
-}
-
-// ---------- Outreach funnel ----------
-
-export function OutreachFunnel({
-  texted,
-  called,
-  doorChecks,
-  neighborFlags,
-  live = false,
-}: {
-  texted: number;
-  called: number;
-  doorChecks: number;
-  neighborFlags: number;
-  live?: boolean;
-}) {
-  const rows = [
-    { label: "Texted", n: texted },
-    { label: "Called", n: called },
-    { label: "Door check", n: doorChecks },
-  ];
-  return (
-    <Card title="Outreach (sample)">
-      <ol className="space-y-2.5">
-        {rows.map((r, k) => (
-          <li key={r.label}>
-            <div className="flex items-baseline justify-between text-sm">
-              <span>
-                {k > 0 && <span className="mr-1 text-muted" aria-hidden>→</span>}
-                {r.label}
-              </span>
-              <span className="font-mono tabular-nums">{r.n.toLocaleString("en-US")}</span>
-            </div>
-            <div className="mt-1 h-2 rounded-full bg-border">
-              <div className="h-full rounded-full bg-accent/70" style={{ width: `${texted ? (r.n / texted) * 100 : 0}%` }} />
+      <ol className="mt-3 grid grid-cols-3 gap-1.5" aria-label="Outreach steps">
+        {steps.map((st, k) => (
+          <li key={st.label} className="rounded-md bg-bg px-2 py-1.5">
+            <p className="text-[11px] text-muted">
+              {k > 0 && <span aria-hidden>→ </span>}
+              {st.label}
+            </p>
+            <p className="font-mono text-sm tabular-nums">{st.n.toLocaleString("en-US")}</p>
+            <div className="mt-1 h-1 rounded-full bg-border">
+              <div className="h-full rounded-full bg-accent" style={{ width: `${funnel.texted ? (st.n / funnel.texted) * 100 : 0}%` }} />
             </div>
           </li>
         ))}
       </ol>
-      {texted === 0 && (
-        <p className="mt-3 text-xs text-muted">
-          {live ? "Outreach runs on the Uri replay in this phase." : "No texts yet for this hour. The agent texts Watch and High homes first."}
-        </p>
+      <p className={`mt-3 text-[13px] ${ran || loading || live ? "text-muted" : "text-text"}`}>
+        {loading
+          ? "Loading this hour’s outreach…"
+          : live
+            ? "Outreach runs on the Uri replay in this phase."
+            : ran
+              ? `${plural(lowHomes, "low-risk home")} ${verb(lowHomes, "needs", "need")} no action.`
+              : `Outreach hasn’t run for this hour yet. Run the agent to text the ${plural(total, "home")} that need action.`}
+      </p>
+      {funnel.neighborFlags > 0 && (
+        <p className="mt-1 text-xs text-muted">{plural(funnel.neighborFlags, "home")} flagged by a neighbor moved up the call list.</p>
       )}
-      {neighborFlags > 0 && <p className="mt-3 text-xs text-muted">{plural(neighborFlags, "home")} flagged by a neighbor moved up the call list.</p>}
     </Card>
   );
 }
@@ -259,43 +238,6 @@ export function CrewsPanel({
         {queue > 0 ? `${plural(queue, "more home")} ${verb(queue, "needs a crew and waits", "need a crew and wait")} in the queue, highest risk first.` : "No homes waiting for a crew."} Crews only go to homes whose
         call says they can’t do the steps themselves.
       </p>
-    </Card>
-  );
-}
-
-// ---------- Freeze readings ----------
-
-function Icon({ d }: { d: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className="size-5 text-accent" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d={d} />
-    </svg>
-  );
-}
-const THERMO = "M14 14.76V3.5a2 2 0 1 0-4 0v11.26a4 4 0 1 0 4 0Z";
-const WIND = "M3 8h11a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h7";
-const CLOCK = "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-13v4l3 2";
-
-export function FreezeReadings({ w, hoursBelow20 }: { w: WeatherHour; hoursBelow20: number }) {
-  const tiles = [
-    { icon: THERMO, label: "Now", value: fmtF(w.temperature_f) },
-    { icon: THERMO, label: "Feels like", value: fmtF(w.apparent_temperature_f) },
-    { icon: WIND, label: "Wind", value: `${Math.round(w.wind_speed_mph)} mph` },
-    { icon: CLOCK, label: "Below 20°F", value: `${hoursBelow20} h` },
-  ];
-  return (
-    <Card title={`Freeze readings · ${formatHour(w.time)}`}>
-      <div className="grid grid-cols-2 gap-2">
-        {tiles.map((t) => (
-          <div key={t.label} className="flex items-center gap-2.5 rounded-md bg-bg px-3 py-2">
-            <Icon d={t.icon} />
-            <div>
-              <p className="text-[11px] text-muted">{t.label}</p>
-              <p className="font-mono text-sm font-semibold tabular-nums">{t.value}</p>
-            </div>
-          </div>
-        ))}
-      </div>
     </Card>
   );
 }
