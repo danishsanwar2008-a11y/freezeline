@@ -338,6 +338,42 @@
       "en": "Sorry, I didn't quite catch that.",
       "es": "Disculpe, no le entendí bien."
     },
+    "q_pipe_runs": {
+      "en": "First, do you know where your water pipes run? For example, inside the walls or a heated space, under the concrete slab, or in places like the garage or the basement?",
+      "es": "Primero, ¿sabe por dónde pasan las tuberías de agua? Por ejemplo, dentro de las paredes o en un espacio con calefacción, bajo la losa de concreto, o en lugares como el garaje o el sótano."
+    },
+    "q_insulated": {
+      "en": "Are your exposed pipes insulated?",
+      "es": "¿Las tuberías expuestas están aisladas?"
+    },
+    "q_shutoff_access": {
+      "en": "Do you know where your main shut-off valve is, and would you be able to get to it and turn it?",
+      "es": "¿Sabe dónde está la válvula principal de cierre, y podría llegar a ella y cerrarla?"
+    },
+    "q_frozen_before": {
+      "en": "Have you had frozen or burst pipes before?",
+      "es": "¿Ha tenido tuberías congeladas o rotas antes?"
+    },
+    "q_someone_home": {
+      "en": "Will anyone be in the home for the next three days?",
+      "es": "¿Habrá alguien en casa durante los próximos tres días?"
+    },
+    "survey_low": {
+      "en": "Thanks, that's all I need. Your home looks well protected for the freeze, and I've saved your answers.",
+      "es": "Gracias, eso es todo. Su casa parece bien protegida para la helada y ya guardé sus respuestas."
+    },
+    "survey_medium": {
+      "en": "Thanks, that's all I need. Your home has some risk in a hard freeze, and I've saved your answers for the crew lead.",
+      "es": "Gracias, eso es todo. Su casa tiene algo de riesgo con una helada fuerte y guardé sus respuestas para el jefe de cuadrilla."
+    },
+    "survey_high": {
+      "en": "Thanks, that's all I need. Your home is at high risk in a hard freeze, and I've saved that for the crew lead.",
+      "es": "Gracias, eso es todo. Su casa tiene alto riesgo con una helada fuerte y lo dejé registrado para el jefe de cuadrilla."
+    },
+    "survey_text_pending": {
+      "en": "We'll text you a short checklist before the freeze, so watch for a message from your water utility.",
+      "es": "Le enviaremos una lista corta antes de la helada, así que esté atento a un mensaje de su compañía de agua."
+    },
     "q_is_you": {
       "en": "Am I speaking with {first_name}?",
       "es": "¿Hablo con {first_name}?"

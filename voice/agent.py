@@ -241,8 +241,18 @@ def build_pipeline(transport: Any, call: Call, speed: float, on_done: Callable[[
     ])
 
 
-def call_from_params(params: dict[str, Any]) -> Call:
+def call_from_params(params: dict[str, Any]) -> Any:
     """Everything the script needs, from the TwiML <Parameter> the server put on the call."""
+    if str(params.get("mode") or "").lower() == "survey":
+        # The pre-survey days before the storm: same driver, five different questions.
+        from survey import Survey
+
+        return Survey(
+            lang=params.get("lang", "en"),
+            first_name=str(params.get("first_name") or ""),
+            street=str(params.get("street") or ""),
+            text_sent=bool(params.get("text_sent", False)),
+        )
     steps = params.get("steps") or []
     steps = tuple((list(steps) + ["", "", ""])[:3])
     return Call(
