@@ -71,6 +71,7 @@ DESIGN.md is the source of truth for how FreezeLine looks.
 - Anything a household reads (texts, calls, the future sign-up page) is friendlier and less technical: plain sentences, nothing that needs explaining.
 - Counts always agree with their noun: use `plural()` from `src/lib/plural.ts` ("1 home", "2 homes"), never "1 homes".
 - Honesty in the UI: sample or simulated data is always marked, and confirmed vs estimated looks different (solid vs dashed).
+- The City Operations sidebar may be semi-transparent with a light backdrop blur over the map (coming in the color-scheme phase). This overrides Taste's "no glass or backdrop blur" default for the sidebar only. Text contrast rules still apply on top of the blur: check them against the brightest map area behind the panel.
 
 ## AI providers (`LLM_PROVIDER` in .env.local, default `pregenerated`)
 
@@ -88,9 +89,9 @@ Applies to FreezeLine and overrides the user-level Skill map where they differ. 
 |---|---|---|
 | Backend logic | risk, planner, pressure math, agent tools, API routes, Supabase SQL | engineering:system-design (new pieces only) → engineering:testing-strategy → engineering:code-review before commit; engineering:debug for any bug |
 | Security and deploy | console password, keys, env vars, Vercel, webhooks | security-review, engineering:deploy-checklist |
-| Frontend wiring | components, state, interactions, data loading, no visual change | ui-studio → web-design-guidelines (audit changed files) → playwright-cli (click through) |
-| Metrics and charts | pressure monitor, Ready check, funnel, legend, dot grids, hex scale | dataviz (chart form and colors) → ui-studio → web-design-guidelines → playwright-cli |
-| Visual design and polish | look, type, spacing, panels, empty/loading states, redesigns | design-md-library (update DESIGN.md) → design-taste-frontend (app screens: apply its system and motion rules and keep the palette; Taste 2.5 has no `--app`/`--keep` flags, so no dealt direction or gate scores; type and layout may change unless the prompt says otherwise) → ui-studio → web-design-guidelines → playwright-cli |
+| Frontend wiring | components, state, interactions, data loading | ui-studio → design-taste-frontend (whenever something visible is added or changed) → web-design-guidelines (audit changed files) → playwright-cli (click through) |
+| Metrics and charts | pressure monitor, Ready check, funnel, legend, dot grids, hex scale | dataviz (decides the chart: form and colors) → design-taste-frontend (styles the panel around it) → ui-studio → web-design-guidelines → playwright-cli |
+| Visual design and polish | look, type, spacing, panels, empty/loading states, redesigns | design-md-library (update DESIGN.md) → design-taste-frontend (the rules in "Taste on app screens", `~/.claude/CLAUDE.md`: its system and motion rules, the palette kept; Taste 2.5 has no `--app`/`--keep` flags, so no dealt direction or gate scores; type and layout may change unless the prompt says otherwise) → ui-studio → web-design-guidelines → playwright-cli |
 | Map | deck.gl and MapLibre layers, camera, tilt | ui-studio + dataviz (color scales) → playwright-cli (check smoothness with all 8,034 homes) |
 | Homeowner wording | SMS, call scripts, messages.json | honesty-guard tests (`npm test`: `callScript.test.ts`, `audience.test.ts`, `messages.test.ts`) + `npm run messages:check` |
 | Every task | | self-check, task-observer; headroom-compression when wrapped |
