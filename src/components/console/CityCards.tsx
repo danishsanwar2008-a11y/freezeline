@@ -135,10 +135,9 @@ export function isHeading(c: OpsCrew, now: number): boolean {
 export function crewStatus(c: OpsCrew, now: number): { line: string; detail: string } {
   const a = c.assignment;
   if (!a) return { line: "On standby", detail: `At the ${c.area} depot` };
-  const from = a.otherArea ? ` · from ${c.area}` : "";
   return isHeading(c, now)
-    ? { line: `Heading to ${a.street}`, detail: `${a.miles.toFixed(1)} mi · ~${minutesLeft(a, now)} min left${from}` }
-    : { line: `Helping a home on ${a.street}`, detail: `${a.needs}${from}` };
+    ? { line: `Heading to ${a.street}`, detail: `${a.miles.toFixed(1)} mi · ~${minutesLeft(a, now)} min left` }
+    : { line: `Helping a home on ${a.street}`, detail: a.needs };
 }
 
 /** "Crew 7 · Heading to W 11th St · 1.2 mi · ~6 min left" (one line, for logs and labels). */
@@ -234,12 +233,16 @@ function AreaPicker({
 export function CrewsPanel({
   crews,
   queue,
+  queueByArea,
   now,
   selectedCrew,
   onSelectCrew,
 }: {
   crews: OpsCrew[];
+  /** All areas together. */
   queue: number;
+  /** Per area (zone id): each area's crews only take that area's homes. */
+  queueByArea: Record<string, number>;
   now: number;
   selectedCrew: number | null;
   onSelectCrew: (id: number) => void;
@@ -261,6 +264,7 @@ export function CrewsPanel({
   const area = selectedArea ?? picked ?? areas[0]?.id ?? "";
   const shown = crews.filter((c) => (c.zone_id ?? c.area) === area);
   const areaName = areas.find((x) => x.id === area)?.name ?? "this area";
+  const areaQueue = queueByArea[area] ?? 0;
 
   return (
     <Card title="Crews (sample)" action={areas.length > 0 ? <AreaPicker areas={areas} value={area} onChange={setPicked} /> : undefined}>
@@ -300,13 +304,14 @@ export function CrewsPanel({
         </ul>
       )}
       {crews.length === 0 && <p className="mt-3 text-[13px] text-muted">Crews appear once this hour’s outreach has run.</p>}
-      <p className={`mt-3 text-[13px] ${queue > 0 ? "text-text" : "text-muted"}`}>
-        {queue > 0
-          ? `${plural(queue, "more home")} ${verb(queue, "needs a crew and waits", "need a crew and wait")} in the queue, highest risk first.`
-          : "No homes waiting for a crew."}
+      <p className={`mt-3 text-[13px] ${areaQueue > 0 ? "text-text" : "text-muted"}`}>
+        {areaQueue > 0
+          ? `${plural(areaQueue, "home")} in ${areaName} ${verb(areaQueue, "waits", "wait")} for a crew, highest risk first.`
+          : `No homes in ${areaName} waiting for a crew.`}
+        {queue > areaQueue && <span className="text-muted"> {plural(queue, "home")} waiting in all areas.</span>}
       </p>
       <p className="mt-1 text-xs text-muted">
-        Crews only go to homes whose call says they can’t do the steps themselves. Routes follow real streets; {CREW_TRIP.mph} mph on icy roads
+        Crews stay in their own area and only go to homes whose call says they can’t do the steps themselves. Routes follow that area’s streets; {CREW_TRIP.mph} mph on icy roads
         and {CREW_TRIP.jobMinutes} min on site are simulated.
       </p>
     </Card>

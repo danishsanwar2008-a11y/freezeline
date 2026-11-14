@@ -35,7 +35,13 @@ export async function GET(req: Request) {
     const home = (id: string) => city.homes[city.byId.get(id)!];
     const area = (zoneId?: string) => city.zones.find((z) => z.id === zoneId)?.neighborhood ?? "";
     // Confirmed "needs a crew" homes this hour that no crew has been assigned to yet.
-    const waiting = needsCrewIds.filter((id) => !jobs.helpedHomes.has(id)).length;
+    // Crews never leave their area, so each area keeps its own queue.
+    const waitingIds = needsCrewIds.filter((id) => !jobs.helpedHomes.has(id));
+    const crewQueueByArea: Record<string, number> = {};
+    for (const id of waitingIds) {
+      const z = home(id).zone_id;
+      crewQueueByArea[z] = (crewQueueByArea[z] ?? 0) + 1;
+    }
     return Response.json({
       available: records.available,
       ran: records.calls.size > 0,
@@ -64,12 +70,12 @@ export async function GET(req: Request) {
                   route: trip.path,
                   routed: trip.routed,
                   hoursAgo: j.hoursAgo,
-                  otherArea: h.zone_id !== c.zone_id,
                 }
               : null,
         };
       }),
-      crewQueue: waiting,
+      crewQueue: waitingIds.length,
+      crewQueueByArea,
     });
   } catch (err) {
     return Response.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });

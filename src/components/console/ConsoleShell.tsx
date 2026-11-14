@@ -333,6 +333,7 @@ function ConsoleBody({
           <CrewsPanel
             crews={crewsData}
             queue={data?.crewQueue ?? 0}
+            queueByArea={data?.crewQueueByArea ?? {}}
             now={now}
             selectedCrew={selectedCrew}
             onSelectCrew={selectCrew}

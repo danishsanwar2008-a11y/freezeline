@@ -155,7 +155,7 @@ export const TOOL_DEFS: Anthropic.Beta.BetaTool[] = [
   },
   {
     name: "get_crew_status",
-    description: "Crews (busy or free), suggested crew assignments for homes whose call says they can't do the steps (highest risk first, nearest free crew), and the crew queue. Read-only.",
+    description: "Crews (busy or free), suggested crew assignments for homes whose call says they can't do the steps (highest risk first, nearest free crew in the home's own area; crews never leave their area), and the crew queue per area. Read-only.",
     strict: true,
     input_schema: obj({}),
   },

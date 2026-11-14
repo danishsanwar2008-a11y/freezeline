@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import uri from "../../data/uri-2021.json";
 import { buildHourContexts, vulnerability } from "./risk";
-import { generateHomes, generateZones } from "./seed/generate";
+import { areaOf, generateHomes, generateZones } from "./seed/generate";
 import { planCity } from "./planner";
 import { assess, nearestNeighbors, outreachSummary, proposeCrews, sampleAnswers, simulateOutreach, type Crew } from "./household";
 import type { WeatherSeries } from "./weather";
@@ -16,11 +16,12 @@ const plan = planCity(zones, homes, vuln, ctx[peak].exposure);
 const neighbors = nearestNeighbors(homes);
 const outreach = simulateOutreach(homes, plan, neighbors);
 const assessments = outreach.map(assess);
+// One crew in each of three areas (crews only take homes in their own area).
 const crews: Crew[] = [
   { id: 1, name: "Crew 1", depot_lat: 29.7925, depot_lng: -95.4005 },
-  { id: 2, name: "Crew 2", depot_lat: 29.738, depot_lng: -95.379 },
-  { id: 3, name: "Crew 3", depot_lat: 29.702, depot_lng: -95.44 },
-];
+  { id: 2, name: "Crew 2", depot_lat: 29.745, depot_lng: -95.395 },
+  { id: 3, name: "Crew 3", depot_lat: 29.69, depot_lng: -95.46 },
+].map((c) => ({ ...c, zone_id: areaOf(c.depot_lat, c.depot_lng) }));
 
 describe("simulated outreach (sample)", () => {
   it("is deterministic per home", () => {
@@ -98,9 +99,13 @@ describe("crew rule", () => {
     expect(queue.length).toBeGreaterThan(0);
   });
 
-  it("highest risk first: no queued home outranks a home that got a crew", () => {
-    const minProposed = Math.min(...proposals.map((p) => plan.homes[p.homeIdx].score));
-    expect(Math.max(...queue.map((i) => plan.homes[i].score))).toBeLessThanOrEqual(minProposed);
+  it("highest risk first within an area: no queued home outranks a home in its area that got a crew", () => {
+    expect(new Set(crews.map((c) => c.zone_id)).size).toBe(3);
+    for (const p of proposals) {
+      expect(homes[p.homeIdx].zone_id).toBe(crews.find((c) => c.id === p.crew_id)!.zone_id);
+      for (const i of queue.filter((q) => homes[q].zone_id === homes[p.homeIdx].zone_id))
+        expect(plan.homes[i].score).toBeLessThanOrEqual(plan.homes[p.homeIdx].score);
+    }
   });
 
   it("busy crews and already-helped homes are skipped", () => {

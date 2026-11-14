@@ -28,8 +28,6 @@ export interface OpsCrew {
     routed: boolean;
     /** Replay hours since the job was assigned (0 = this hour). */
     hoursAgo: number;
-    /** The crew came from another area (none free in the home's own area). */
-    otherArea: boolean;
   } | null;
 }
 
@@ -42,6 +40,8 @@ export interface OpsData {
   funnel: { texted: number; called: number; doorChecks: number; neighborFlags: number };
   crews: OpsCrew[];
   crewQueue: number;
+  /** Homes waiting for a crew, per area (zone id). Crews never leave their area. */
+  crewQueueByArea: Record<string, number>;
 }
 
 export const statusAt = (ops: OpsData | null, i: number): HomeStatus => STATUS_FROM_CODE[ops?.statuses[i] ?? "c"] ?? "not_contacted";

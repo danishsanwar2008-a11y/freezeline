@@ -255,15 +255,12 @@ export interface CrewProposal {
   homeIdx: number;
   miles: number;
   minutes: number;
-  /** True when no crew in the home's own area was free. */
-  fromOtherArea: boolean;
 }
 
-/** Nearest free crew for a home: same area first; if none is free there, the nearest free crew anywhere. */
+/** Nearest free crew for a home, from the home's own area only (crews never leave their area). */
 export function nearestCrew(home: { lat: number; lng: number; zone_id: string }, free: Crew[]): Crew | null {
-  if (!free.length) return null;
-  const local = free.filter((c) => c.zone_id === home.zone_id);
-  const pool = local.length ? local : free;
+  const pool = free.filter((c) => c.zone_id === home.zone_id);
+  if (!pool.length) return null;
   let best = pool[0];
   let bestMiles = milesBetween(best.depot_lat, best.depot_lng, home.lat, home.lng);
   for (const c of pool.slice(1)) {
@@ -275,8 +272,8 @@ export function nearestCrew(home: { lat: number; lng: number; zone_id: string },
 
 /**
  * Crew rule: crews go ONLY to homes whose call (confirmed) says they can't do the steps themselves,
- * highest risk first, each to the nearest free crew (same area first, then any area).
- * Homes beyond the free crews wait in the queue. Homes already helped are skipped.
+ * highest risk first, each to the nearest free crew in its own area. When all 5 of an area's crews
+ * are busy, its homes wait in that area's queue (highest risk first). Homes already helped are skipped.
  */
 export function proposeCrews(
   homes: ConsoleHome[],
@@ -302,7 +299,7 @@ export function proposeCrews(
       continue;
     }
     const trip = crewTrip(crew, h);
-    proposals.push({ crew_id: crew.id, home_id: h.id, homeIdx: i, ...trip, fromOtherArea: crew.zone_id !== h.zone_id });
+    proposals.push({ crew_id: crew.id, home_id: h.id, homeIdx: i, ...trip });
     free.splice(free.indexOf(crew), 1);
   }
   return { proposals, queue };

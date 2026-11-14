@@ -266,10 +266,15 @@ export async function crewStatus(ctx: AgentCtx) {
         ...homeLabel(p.homeIdx),
         miles: Math.round(trip.miles * 10) / 10,
         minutes: trip.minutes,
-        from_other_area: p.fromOtherArea,
       };
     }),
     queue_length: queue.length,
+    /** Crews never leave their area: each area has its own queue, highest risk first. */
+    queue_by_area: queue.reduce<Record<string, number>>((m, i) => {
+      const z = ctx.city.homes[i].zone_id;
+      m[z] = (m[z] ?? 0) + 1;
+      return m;
+    }, {}),
     queue_top: queue.slice(0, 5).map(homeLabel),
   };
 }

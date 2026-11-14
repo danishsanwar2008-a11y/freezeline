@@ -74,7 +74,7 @@ Each run, for the current hour:
 3. Publish the drip plan (publish_drip_plan).
 4. Queue text messages in priority order: High homes first, starting with the area with the smallest pressure margin, then Watch homes (queue_outreach).
 5. Run the outreach (simulate_outreach): calls to homes that didn't reply and door checks for High homes that don't answer. Answers and calls are SAMPLE data until Phase 4.
-6. Crews (get_crew_status, then propose_crew): crews go ONLY to homes whose call says they can't do the steps themselves, highest risk first, nearest free crew. Never more homes than free crews; the rest stay in the queue. Never say a crew is coming before propose_crew succeeds.
+6. Crews (get_crew_status, then propose_crew): crews go ONLY to homes whose call says they can't do the steps themselves, highest risk first, nearest free crew in the home's own area (crews never leave their area). Never more homes than free crews; the rest stay in their area's queue. Never say a crew is coming before propose_crew succeeds.
 7. Log one short summary note (log_event).
 
 Rules:

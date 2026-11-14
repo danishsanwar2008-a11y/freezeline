@@ -52,7 +52,22 @@ export function buildGraph(nodes: ArrayLike<number>, edges: ArrayLike<number>): 
 }
 
 /** Nearest street point to a location (searches outward ring by ring), or -1 when none within ~1.5 km. */
-export function nearestNode(g: StreetGraph, lat: number, lng: number): number {
+/** [south, west, north, east] in degrees. */
+export type Box = [number, number, number, number];
+
+/** An area's box grown by a small buffer (meters), so a street that briefly leaves the area still counts. */
+export function bufferBox([s, w, n, e]: Box, meters: number): Box {
+  const dLat = meters / 111_320;
+  const dLng = meters / (111_320 * Math.cos((((s + n) / 2) * Math.PI) / 180));
+  return [s - dLat, w - dLng, n + dLat, e + dLng];
+}
+
+const inBox = (g: StreetGraph, i: number, [s, w, n, e]: Box) => {
+  const lat = g.coords[2 * i], lng = g.coords[2 * i + 1];
+  return lat >= s && lat <= n && lng >= w && lng <= e;
+};
+
+export function nearestNode(g: StreetGraph, lat: number, lng: number, box?: Box): number {
   const cy = Math.floor(lat / CELL), cx = Math.floor(lng / CELL);
   let best = -1, bestD = Infinity;
   for (let r = 0; r <= 7; r++) {
@@ -60,6 +75,7 @@ export function nearestNode(g: StreetGraph, lat: number, lng: number): number {
       for (let dx = -r; dx <= r; dx++) {
         if (Math.max(Math.abs(dy), Math.abs(dx)) !== r) continue; // only the ring's edge
         for (const i of g.grid.get((cy + dy) * 100_000 + (cx + dx)) ?? []) {
+          if (box && !inBox(g, i, box)) continue;
           const d = (g.coords[2 * i] - lat) ** 2 + ((g.coords[2 * i + 1] - lng) * Math.cos((lat * Math.PI) / 180)) ** 2;
           if (d < bestD) [best, bestD] = [i, d];
         }
@@ -110,7 +126,7 @@ class Heap {
 }
 
 /** Shortest path between two nodes (A*, straight-line heuristic). Node ids in order, or null if unreachable. */
-export function shortestPath(g: StreetGraph, from: number, to: number): { nodes: number[]; meters: number } | null {
+export function shortestPath(g: StreetGraph, from: number, to: number, box?: Box): { nodes: number[]; meters: number } | null {
   const n = g.offsets.length - 1;
   const dist = new Float64Array(n).fill(Infinity);
   const score = new Float64Array(n).fill(Infinity);
@@ -129,6 +145,7 @@ export function shortestPath(g: StreetGraph, from: number, to: number): { nodes:
     done[u] = 1;
     for (let k = g.offsets[u]; k < g.offsets[u + 1]; k++) {
       const v = g.adj[k];
+      if (box && !inBox(g, v, box)) continue; // stay on the area streets
       const d = dist[u] + g.meters[k];
       if (d < dist[v]) {
         dist[v] = d;
@@ -157,7 +174,13 @@ export interface Route {
 const r6 = (v: number) => Math.round(v * 1e6) / 1e6;
 
 /** The crew's drive from its depot to a home: street route when one exists, else the straight-line estimate. */
-export function routeBetween(g: StreetGraph | null, from: { lat: number; lng: number }, to: { lat: number; lng: number }): Route {
+export function routeBetween(
+  g: StreetGraph | null,
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number },
+  /** Keep the route inside this box (the crew's area plus a small buffer). */
+  box?: Box,
+): Route {
   const straight = milesBetween(from.lat, from.lng, to.lat, to.lng);
   const minutesFor = (miles: number) => Math.max(1, Math.round((miles / CREW_TRIP.mph) * 60));
   const fallback: Route = {
@@ -170,10 +193,10 @@ export function routeBetween(g: StreetGraph | null, from: { lat: number; lng: nu
     routed: false,
   };
   if (!g) return fallback;
-  const a = nearestNode(g, from.lat, from.lng);
-  const b = nearestNode(g, to.lat, to.lng);
+  const a = nearestNode(g, from.lat, from.lng, box);
+  const b = nearestNode(g, to.lat, to.lng, box);
   if (a < 0 || b < 0) return fallback;
-  const sp = a === b ? { nodes: [a], meters: 0 } : shortestPath(g, a, b);
+  const sp = a === b ? { nodes: [a], meters: 0 } : shortestPath(g, a, b, box);
   if (!sp) return fallback;
   // Depot -> first street point -> … -> last street point -> the home (short walk-ins at each end).
   const path: [number, number][] = [[r6(from.lng), r6(from.lat)]];
