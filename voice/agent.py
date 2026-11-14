@@ -442,9 +442,15 @@ def make_app():
             "To": to,
             "From": os.environ["TWILIO_PHONE_NUMBER"],
             # The home's facts ride in the query string; Twilio echoes the URL back to us.
-            "Url": f"https://{host}/twiml?home={base64.b64encode(json.dumps(body.get('home') or {}).encode()).decode()}",
-            "Timeout": "25",
+            # The payload is URL-encoded: base64 contains +, / and =, and a bare + in a query
+            # string decodes to a space, which corrupts the JSON before we ever read it.
+            "Url": f"https://{host}/twiml?home={urllib.parse.quote(base64.b64encode(json.dumps(body.get('home') or {}).encode()).decode(), safe='')}",
         }
+        # Twilio trial accounts only accept To and the TwiML Url: any other parameter is refused
+        # with "trial accounts have limited parameter access", which reads like our bug but is
+        # their gate. A full account can raise this, and the default is 60s anyway.
+        if os.environ.get("VOICE_CALL_TIMEOUT"):
+            form["Timeout"] = os.environ["VOICE_CALL_TIMEOUT"]
         # Answering-machine detection is off by default: it misfires on a real person saying
         # "hello" and hangs up, which is the worst possible first test. Turn it on with
         # VOICE_AMD=1 once you trust the audio path and are calling homes at scale.
@@ -469,7 +475,9 @@ def make_app():
                     detail = reader().decode("utf-8", "replace")
                 except Exception:  # noqa: BLE001
                     detail = ""
-            payload: dict[str, Any] = {"error": str(e)}
+            # Name the parameters we sent, so a rejection points at the culprit instead of
+            # needing another round trip. Values stay out: one of them is a phone number.
+            payload: dict[str, Any] = {"error": str(e), "sent_parameters": sorted(form)}
             if detail:
                 try:
                     twilio_body = json.loads(detail)
