@@ -334,6 +334,10 @@
       "en": "Hi, this is FreezeLine calling for your water utility about tonight's freeze.",
       "es": "Hola, le habla FreezeLine de parte de su compañía de agua por la helada de esta noche."
     },
+    "agent_didnt_catch": {
+      "en": "Sorry, I didn't quite catch that.",
+      "es": "Disculpe, no le entendí bien."
+    },
     "q_is_you": {
       "en": "Am I speaking with {first_name}?",
       "es": "¿Hablo con {first_name}?"

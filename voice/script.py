@@ -67,6 +67,13 @@ NO_PHRASES = (
     "didnt", "did not", "wont", "will not", "nobody", "none", "never", "not yet", "no idea",
     "no se", "no tengo", "no puedo", "no podemos", "no hay", "sin luz", "todavia no",
     "no estoy seguro", "no esta", "nadie", "tampoco", "negativo",
+    # How people actually say no on the phone.
+    "not really", "not at all", "no way", "havent", "hasnt", "isnt", "wasnt", "arent",
+    "wrong number", "no one", "not interested", "who is this", "quien habla",
+    # "the power's out" loses its apostrophe long before we see it, and "not tonight" is
+    # a no with no "no" in it.
+    "powers out", "power went out", "lost power", "lost the power", "no electricity",
+    "not tonight", "not today", "sin electricidad", "se fue la electricidad",
     # q_heat is "do you have heat, or is the power out?" - the caller often answers the
     # second half, so the outage itself has to count as the answer.
     "power is out", "power out", "no power", "no heat", "out of power",
@@ -77,6 +84,9 @@ YES_PHRASES = (
     "i can", "we can", "i do", "we do", "i will", "we will", "already", "done", "i did",
     "we did", "covered", "i know", "we know", "se donde", "si puedo", "claro", "por supuesto",
     "afirmativo", "tenemos", "tenemos calefaccion", "puedo", "podemos", "positivo",
+    # Filler that means yes out loud, and the hedged agreements.
+    "mmhmm", "mhm", "uh huh", "definitely", "absolutely", "of course", "thats right",
+    "that is right", "i think so", "i have", "we have", "go ahead", "both", "si senor",
 )
 REPEAT_PHRASES = (
     "repeat", "again", "say that again", "pardon", "what did you say", "come again",
@@ -89,6 +99,11 @@ def classify(text: str) -> bool | None:
     t = normalise(text)
     if not t:
         return None
+    # "I'm not sure" contains "sure"; a hedge is not a yes, it is a reason to ask again.
+    if any(k in t for k in HEDGE):
+        return None
+    if t.startswith("not "):
+        return False
     words = set(t.split())
     for p in NO_PHRASES:
         if " " in p:
@@ -124,7 +139,14 @@ WRONG_PERSON = (
 )
 SELF_YES = (
     "speaking", "this is he", "this is she", "this is him", "this is her", "yes this is",
-    "soy yo", "si soy yo", "habla con", "si habla", "al habla",
+    "this is", "thats me", "that is me", "it is me", "yeah thats me", "myself", "im him",
+    "im her", "soy yo", "si soy yo", "habla con", "si habla", "al habla", "el habla",
+)
+HEDGE = ("not sure", "not certain", "dont know", "do not know", "maybe", "no estoy seguro", "quiza")
+WHERE_HINTS = (
+    "garage", "basement", "crawlspace", "crawl space", "front yard", "back yard", "backyard",
+    "alley", "street", "curb", "side of the house", "front of the house", "meter", "driveway",
+    "under the house", "utility room", "sotano", "garaje", "patio", "calle", "jardin",
 )
 AGE = re.compile(r"\b(\d{2})\b")
 
@@ -134,8 +156,13 @@ def age_elderly(text: str) -> bool:
     return any(60 <= int(m.group(1)) <= 110 for m in AGE.finditer(normalise(text)))
 
 
-def classify_for(name: str, text: str) -> bool | None:
-    """The answer to one question, allowing for a statement instead of a yes/no."""
+def classify_for(name: str, text: str, first_name: str = "") -> bool | None:
+    """The answer to one question, allowing for a statement instead of a yes/no.
+
+    Nobody answers a phone survey in keywords. "Yeah that's me", "this is Danish", "no you
+    got the wrong number" and "he's not here" all have to land, so beyond the yes/no lists
+    each question gets its own reading of what people really say.
+    """
     answer = classify(text)
     if answer is not None:
         return answer
@@ -144,11 +171,29 @@ def classify_for(name: str, text: str) -> bool | None:
         return True
     if name == "neighbor_check" and any(k in t for k in NEIGHBOR_HINTS):
         return True
+    if name == "knows_shutoff":
+        # Naming a place is knowing, even with no yes in the sentence: "it's in the garage".
+        if any(k in t for k in WHERE_HINTS):
+            return True
+        # "I don't know" is a no to this question, not a reason to ask it again.
+        if any(k in t for k in ("dont know", "do not know", "not sure", "no idea", "no se")):
+            return False
     if name == "is_household":
-        # "Speaking" / "this is he" / "soy yo" are how people confirm, not "yes".
+        # An honest "I'm not sure" is not a no: re-ask instead of hanging up on them.
+        if any(k in t for k in HEDGE):
+            return None
         if any(k in t for k in WRONG_PERSON):
             return False
+        # "I'm not Danish", "this isn't her", "he doesn't live here" - any negation of who
+        # they are, in any word order.
+        if re.search(r"\b(not|isnt|arent|aint|doesnt|dont)\b", t) or "no one" in t or "nobody" in t:
+            return False
         if any(k in t for k in SELF_YES):
+            return True
+        # "This is Danish", "Danish speaking", "Danish here" - hearing the name back is the
+        # strongest confirmation there is, so it counts even with no yes in the sentence.
+        first = normalise(first_name)
+        if first and first in t:
             return True
     return None
 
@@ -367,9 +412,12 @@ class Call:
         if turn.kind == "say":
             self.i += 1
             return "ok"
-        answer = classify_for(turn.field or "", transcript)
+        answer = classify_for(turn.field or "", transcript, self.first_name)
         if answer is None and self.attempts < 1:
             self.attempts += 1
+            # Apologise first, then ask again. Repeating the identical sentence in the same
+            # flat tone is the clearest sign that nobody is on the line.
+            self.turns.insert(self.i, self._say("agent_didnt_catch"))
             return "unclear"        # the agent re-asks the same question once
         self._record(turn.field or "", transcript, answer)
         self.attempts = 0
@@ -450,7 +498,7 @@ class Call:
 REQUIRED_KEYS = (
     "agent_hello", "agent_hello_text", "agent_storm", "agent_storm_mild", "agent_steps",
     *QUESTION_ORDER, "agent_neighbor", "agent_crew_requested", "agent_crew_assigned",
-    "agent_reminder", "agent_ready", "q_is_you", "agent_wrong_number",
+    "agent_reminder", "agent_ready", "q_is_you", "agent_wrong_number", "agent_didnt_catch",
 )
 
 
@@ -556,7 +604,7 @@ def demo(lang: str, level: str, temp: int, hours: int, crew: str | None, hearing
         if outcome == "repeat":
             print(f"agent: {call.repeat_last()}")
         elif outcome == "unclear":
-            print(f"agent: (didn't catch that) {call.repeat_last()}")
+            pass    # the script queues its own apology and re-asks; the loop speaks it next
     print(f"\nassessment: {call.result()['assessment']}  closing: {call.result()['closing']}")
     return 0
 
