@@ -585,6 +585,24 @@ def make_app():
         if not to:
             return JSONResponse({"error": "to is required (E.164)"}, status_code=400)
         host = os.environ.get("PUBLIC_HOSTNAME", "")
+        # Say which credential is missing instead of dying on a KeyError and returning a 500
+        # with a stack trace: the caller sees "Internal Server Error" and learns nothing.
+        required = ("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER")
+        missing = [k for k in required if not os.environ.get(k)]
+        if missing:
+            return JSONResponse(
+                {
+                    "error": f"Missing {', '.join(missing)}.",
+                    "fix": "Put them in .env (the repo root) or export them before starting the agent.",
+                },
+                status_code=503,
+            )
+        if not host:
+            return JSONResponse(
+                {"error": "PUBLIC_HOSTNAME is not set, so Twilio has no URL to call back to.",
+                 "fix": "Run ./voice/serve.sh, which sets it from the tunnel it starts."},
+                status_code=503,
+            )
         sid = os.environ["TWILIO_ACCOUNT_SID"]
         form = {
             "To": to,

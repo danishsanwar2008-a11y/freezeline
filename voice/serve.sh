@@ -15,6 +15,39 @@ PORT="${PORT:-8080}"
 TUNNEL_LOG="${TMPDIR:-/tmp}/freezeline-tunnel.log"
 AGENT_LOG="${VOICE_LOG:-/tmp/freezeline-agent.log}"
 
+# Credentials: use the shell's if they are exported, otherwise read them from .env. A new tab has
+# neither, and the first sign of that was a KeyError 500 halfway through placing a call.
+if [ -f .env ] && command -v python3 >/dev/null 2>&1; then
+  eval "$(python3 - <<'PY'
+import shlex, sys
+from pathlib import Path
+want = {
+    "TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER",
+    "VOICE_CALL_TIMEOUT", "VOICE_SHARED_SECRET", "VOICE_RESULT_URL",
+    "WHISPER_MODEL", "OPENAI_API_KEY",
+}
+try:
+    lines = Path(".env").read_text().splitlines()
+except OSError:
+    sys.exit(0)
+for line in lines:
+    line = line.strip()
+    if not line or line.startswith("#") or "=" not in line:
+        continue
+    key, value = line.split("=", 1)
+    key = key.strip()
+    if key.startswith("export "):
+        key = key[len("export "):].strip()
+    if key in want:
+        print(f"export {key}={shlex.quote(value.strip().strip(chr(34)).strip(chr(39)))}")
+PY
+)"
+fi
+
+for k in TWILIO_ACCOUNT_SID TWILIO_AUTH_TOKEN TWILIO_PHONE_NUMBER; do
+  [ -n "${!k:-}" ] || echo "Warning: $k is not set (no .env value either) - calls will fail." >&2
+done
+
 command -v cloudflared >/dev/null 2>&1 || {
   echo "cloudflared is not installed. Install it with:  brew install cloudflared" >&2
   exit 1
