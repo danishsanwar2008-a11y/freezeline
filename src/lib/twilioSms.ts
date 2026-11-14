@@ -55,17 +55,17 @@ export async function sendSms(to: string, body: string): Promise<SmsResult> {
     | null;
 
   if (!res.ok) {
-    return {
-      to,
-      ok: false,
-      code: data?.code,
-      // 21608 is Twilio's trial gate: unverified destination. Saying so saves an hour of
-      // hunting for a bug on our side.
-      error:
-        data?.code === 21608
-          ? "A trial account can only text numbers verified in the Twilio console. Verify this number, or upgrade the account."
-          : data?.message ?? `Twilio refused the message (HTTP ${res.status}).`,
-    };
+    const said = data?.message ?? `Twilio refused the message (HTTP ${res.status}).`;
+    // The two trial gates, both of which look like our bug and are not:
+    //   21608            the destination is not a verified number
+    //   "template name"  trial accounts reject any custom body outright, so no wording of
+    //                    ours can get through until the account is upgraded
+    const error = data?.code === 21608
+      ? "A trial account can only text numbers verified in the Twilio console. Verify this number, or upgrade the account."
+      : /template/i.test(said)
+        ? "A trial account can only send Twilio's predefined SMS templates, so a custom message body is refused. Upgrade the account to text your own words."
+        : said;
+    return { to, ok: false, code: data?.code, error };
   }
   return { to, ok: true, sid: data?.sid };
 }
