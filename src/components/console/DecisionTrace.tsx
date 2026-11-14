@@ -6,7 +6,7 @@
 // Below: who else was notified, display only (simulated · nothing is sent).
 
 import { useEffect, useRef, useState } from "react";
-import type { AgentEntry, AgentMode, AgentRun } from "./useAgent";
+import type { AgentEntry, AgentRun } from "./useAgent";
 import { NOTIFY_TAG } from "@/lib/agentNotify";
 import { plural } from "@/lib/plural";
 import Panel from "./Panel";
@@ -88,7 +88,6 @@ export default function DecisionTrace({
   time,
   enabled,
   run,
-  mode,
   onApprove,
   onSkip,
   approving,
@@ -97,7 +96,6 @@ export default function DecisionTrace({
   /** The agent runs on the Uri replay only. */
   enabled: boolean;
   run?: AgentRun;
-  mode: AgentMode;
   onApprove: (e: AgentEntry) => void;
   onSkip: (e: AgentEntry) => void;
   approving: string | null;
@@ -127,8 +125,7 @@ export default function DecisionTrace({
       {!enabled && <p className="text-[13px] text-muted">The agent runs on the Uri replay in this phase. Switch to Replay to try it.</p>}
       {enabled && !run && (
         <p className="text-[13px] text-text">
-          Run the agent from the top bar. Each step it takes for this hour shows here as it happens
-          {mode === "approve" ? ", and every action waits for your Approve." : "."}
+          Run the agent from the top bar. Each step it takes for this hour shows here as it happens.
         </p>
       )}
       {run?.status === "error" && <p className="mb-2 text-[13px] text-danger">The agent couldn’t finish: {run.error}</p>}

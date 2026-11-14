@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import type { AgentMode } from "./useAgent";
 import { Chevron } from "./Panel";
 
 export type Mode = "live" | "replay";
@@ -9,11 +8,6 @@ export type Mode = "live" | "replay";
 const MODES: { id: Mode; label: string; short: string }[] = [
   { id: "live", label: "Live forecast", short: "Live" },
   { id: "replay", label: "Replay: Winter Storm Uri (Feb 2021)", short: "Replay: Uri 2021" },
-];
-
-const AGENT_MODES: { id: AgentMode; label: string }[] = [
-  { id: "auto", label: "Auto" },
-  { id: "approve", label: "Approve first" },
 ];
 
 function InfoTip() {
@@ -44,8 +38,6 @@ export interface AgentControls {
   /** The agent runs on the Uri replay only. */
   enabled: boolean;
   running: boolean;
-  mode: AgentMode;
-  onMode: (m: AgentMode) => void;
   onRun: () => void;
 }
 
@@ -64,7 +56,7 @@ export default function TopBar({ mode, onMode, agent, panelsHidden, onTogglePane
       <p className="hidden font-mono text-xs tracking-[0.2em] text-accent sm:block">FREEZELINE</p>
       <h1 className="text-sm font-medium">City Operations</h1>
 
-      <div className="flex items-center gap-2 lg:ml-3">
+      <div className="lg:ml-3">
         <button
           type="button"
           onClick={agent.onRun}
@@ -74,21 +66,6 @@ export default function TopBar({ mode, onMode, agent, panelsHidden, onTogglePane
         >
           {agent.running ? "Agent running…" : "Run agent"}
         </button>
-        <div role="radiogroup" aria-label="Agent mode" className="flex rounded-full border border-border bg-bg p-0.5 text-xs">
-          {AGENT_MODES.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              role="radio"
-              aria-checked={agent.mode === m.id}
-              onClick={() => agent.onMode(m.id)}
-              disabled={!agent.enabled}
-              className={`rounded-full px-2.5 py-1 font-medium transition ${agent.mode === m.id ? "bg-btn text-on-btn" : "text-muted hover:text-text"}`}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
       </div>
 
       <span className="flex-1" />

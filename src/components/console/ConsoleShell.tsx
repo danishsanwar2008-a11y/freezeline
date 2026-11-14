@@ -212,7 +212,7 @@ function ConsoleBody({
     [crewsData, now],
   );
 
-  // Pending crew proposals (Approve-first mode) are approved in the decision trace.
+  // Anything that waits for approval (always a Stage 2 alert) is approved in the decision trace.
   const run = agent?.runs[time];
   const entries = run?.entries ?? [];
 
@@ -254,8 +254,6 @@ function ConsoleBody({
   const agentControls: AgentControls = {
     enabled: !!agent,
     running: run?.status === "running",
-    mode: agent?.mode ?? "auto",
-    onMode: (m) => agent?.setMode(m),
     onRun: () => agent?.run(time),
   };
 
@@ -343,7 +341,6 @@ function ConsoleBody({
             time={time}
             enabled={!!agent}
             run={run}
-            mode={agent?.mode ?? "auto"}
             onApprove={(e) => agent?.approve(time, e)}
             onSkip={(e) => agent?.skip(time, e)}
             approving={agent?.approving ?? null}
@@ -362,7 +359,7 @@ function ConsoleBody({
 /** Top bar while the live forecast loads (no map yet, so the agent is off). */
 function IdleTopBar({ mode, onMode }: { mode: Mode; onMode: (m: Mode) => void }) {
   const [panelsHidden, setPanelsHidden] = useSessionFlag("panels-hidden", false);
-  const idle: AgentControls = { enabled: false, running: false, mode: "auto", onMode: () => {}, onRun: () => {} };
+  const idle: AgentControls = { enabled: false, running: false, onRun: () => {} };
   return <TopBar mode={mode} onMode={onMode} agent={idle} panelsHidden={panelsHidden} onTogglePanels={() => setPanelsHidden(!panelsHidden)} />;
 }
 

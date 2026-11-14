@@ -38,7 +38,8 @@ export interface AgentRun {
 /** Agent runs per replay time. Runs only when the official clicks; approvals execute one at a time. */
 export function useAgent() {
   const [runs, setRuns] = useState<Record<string, AgentRun>>({});
-  const [mode, setMode] = useState<AgentMode>("auto");
+  // The agent always runs in Auto. Stage 2 alerts still wait for a supervisor's Approve in the trace.
+  const mode: AgentMode = "auto";
   const [approving, setApproving] = useState<string | null>(null);
   /** Bumps after every agent run or approval, so City Operations data refetches. */
   const [version, setVersion] = useState(0);
@@ -123,5 +124,5 @@ export function useAgent() {
     update(time, (r) => ({ ...r, entries: r.entries.map((e) => (e.id === entry.id ? { ...e, status: "failed", summary: `Skipped: ${e.summary}`, zoneId: zoneIdOf(e), input: undefined } : e)) }));
   }, []);
 
-  return { runs, mode, setMode, run, approve, skip, approving, version };
+  return { runs, run, approve, skip, approving, version };
 }

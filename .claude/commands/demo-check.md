@@ -30,7 +30,7 @@ Screenshots: take them with the Chrome tool's `screenshot` action and `save_to_d
 ## 1. City Operations (desktop, 1440 × 900)
 
 - Open `http://localhost:3000/console` and wait about 8 s for hydration. The layout (Phase 3.7, DESIGN.md §5): a Midnight Navy top bar; the light map fills the window; separate navy boxes float over it.
-- **Top bar:** FreezeLine · **City Operations**, **Run agent** with the **Auto | Approve first** switch next to it, Live forecast | Replay (Replay selected), Sign-ups, ⓘ (mentions real OpenStreetMap footprints and streets, simulated household details and crews), Sign out, **Hide panels**.
+- **Top bar:** FreezeLine · **City Operations**, **Run agent** (always Auto; no mode switch), Live forecast | Replay (Replay selected), Sign-ups, ⓘ (mentions real OpenStreetMap footprints and streets, simulated household details and crews), Sign out, **Hide panels**.
 - **Left (slightly see-through):** **Map key**: 4 blue steps, darker = more homes need action (Under 25% / 25–49% / 50–74% / 75–100%), plus "Help crew" (dot) and "Route to a home" (line); no house dot colors. **Homes contacted (sample)**: headline "N homes contacted", a stacked status bar, the key with counts (Ready, Waiting on reply, Needs help, No answer, Not contacted yet) adding up to the homes, and Texted → Called → Door check tiles.
 - **Right (solid):** **Water pressure by area**, **Crews (sample)** with an area picker, **Decision trace**. **Bottom:** the storm replay timeline with this hour's readings (now, feels like, wind, hours below 20°F).
 - **Collapse:** each box's chevron folds it to its title and opens it again; **Hide panels** leaves only the map and the timeline; both are remembered on reload in the same tab. Screenshot `01b-panels-hidden`, then show them again.
@@ -42,13 +42,12 @@ Screenshots: take them with the Chrome tool's `screenshot` action and `save_to_d
 - Hover a map cell between dots: the **Why this shade?** tooltip shows "% need action · n of N homes", a bar, and 2 reasons tagged "real weather" and "simulated". Screenshot `02b-hex-tooltip`.
 - Screenshot `02-feb16-peak`.
 
-## 3. Run agent (Auto, then Approve first)
+## 3. Run agent
 
-- With **Auto** selected, click **Run agent** in the top bar. Time it. The **Decision trace** scrolls into view and fills **live**: a progress strip ("Step 4 of 13"), the running step pulsing ("Publishing the drip plan…"), then a dot per step: Read the storm and risk (°F · High / Watch homes), Read pressure in 4 areas (lowest psi · area), Checked crews, the drip plan, **Queued texts by area** (folded; click "5 steps" to open), Ran outreach, Read replies from households, **Assigned crews** (folded), the log.
+- Click **Run agent** in the top bar. Time it. The **Decision trace** scrolls into view and fills **live**: a progress strip ("Step 4 of 13"), the running step pulsing ("Publishing the drip plan…"), then a dot per step: Read the storm and risk (°F · High / Watch homes), Read pressure in 4 areas (lowest psi · area), Checked crews, the drip plan, **Queued texts by area** (folded; click "5 steps" to open), Ran outreach, Read replies from households, **Assigned crews** (folded), the log.
 - **Stage 2:** the trace ends at **Waiting for supervisor approval** for Third Ward ("kitchen tap only at 281 homes → stays at 27 psi") with **Approve / Not yet**, in Auto too. The Third Ward pressure row shows a **Stage 2 pending** tag. Click **Not yet** in the walkthrough (the tag becomes "Stage 2 not sent"; approving queues simulated texts and is safe and idempotent if you want to test it). Screenshot `03b-stage2`.
 - **Also notified:** under the trace, maintenance contractors, the water utility control room, city officials and the mayor's office, each with this run's numbers, the block tagged **simulated · nothing is sent**.
 - Check that the dots turn green/red/yellow/black and Homes contacted updates. Screenshot `03-agent-auto`.
-- Switch to **Approve first** at another hour (e.g. Feb 16 · 4 AM, slider 76) and run again: each action waits in the trace for **Approve** in order ("Waiting for the step above" on the rest). Approve two steps. Screenshot `03c-agent-approve`.
 - Run `npm run db:status -- 2021-02-16T06:00` and compare.
 
 ## 4. Crews on real streets
