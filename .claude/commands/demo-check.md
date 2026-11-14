@@ -27,33 +27,47 @@ Record timings for every step. Flag anything slower than: page load 5 s, agent r
 
 Screenshots: take them with the Chrome tool's `screenshot` action and `save_to_disk: true`, then copy each saved file into `demo-screens/` with its step name. Use a new tab (`tabs_create_mcp`), never the user's existing tabs. Batch browser actions with `browser_batch`.
 
-## 1. City Operations tab (desktop)
+## 1. City Operations (desktop, 1440 × 900)
 
-- Open `http://localhost:3000/console` and wait about 8 s for hydration. Check that the top bar shows **City Operations** (no other tabs), the Live/Replay toggle (Replay selected), and an ⓘ tooltip mentioning real OpenStreetMap footprints and simulated household details.
-- Check the top-left **Map key**: 4 violet shading steps (Under 25% / 25–49% / 50–74% / 75% or more), the 5 home dot colors with live counts that add up to the number of homes, and the crew marker + line. It is open at desktop width and folded below 1024 px. No other key repeats it.
-- Check that every home is a dot (gray before outreach), and the cards read: Ready check, Outreach, Help crews, Water pressure by area, Freeze readings, Agent. Top bar has **Sign out**.
-- Screenshot `01-city-start`.
+- Open `http://localhost:3000/console` and wait about 8 s for hydration. The layout (Phase 3.7, DESIGN.md §5): a Midnight Navy top bar; the light map fills the window; separate navy boxes float over it.
+- **Top bar:** FreezeLine · **City Operations**, **Run agent** with the **Auto | Approve first** switch next to it, Live forecast | Replay (Replay selected), Sign-ups, ⓘ (mentions real OpenStreetMap footprints and streets, simulated household details and crews), Sign out, **Hide panels**.
+- **Left (slightly see-through):** **Map key**: 4 blue steps, darker = more homes need action (Under 25% / 25–49% / 50–74% / 75–100%), plus "Help crew" (dot) and "Route to a home" (line); no house dot colors. **Homes contacted (sample)**: headline "N homes contacted", a stacked status bar, the key with counts (Ready, Waiting on reply, Needs help, No answer, Not contacted yet) adding up to the homes, and Texted → Called → Door check tiles.
+- **Right (solid):** **Water pressure by area**, **Crews (sample)** with an area picker, **Decision trace**. **Bottom:** the storm replay timeline with this hour's readings (now, feels like, wind, hours below 20°F).
+- **Collapse:** each box's chevron folds it to its title and opens it again; **Hide panels** leaves only the map and the timeline; both are remembered on reload in the same tab. Screenshot `01b-panels-hidden`, then show them again.
+- Every home is a dot (gray before outreach). Screenshot `01-city-start`.
 
 ## 2. Feb 16 peak
 
-- Move the timeline to **Tue, Feb 16 · 6 AM** (click the track just left of "Feb 16", or call the slider's React `onChange` with 78). In **Water pressure by area** check: each area's psi headline is colored (green above 25, amber 20–25, red below 20) with a text band label; each chart shows the past and next 12 hours, a dashed 25 psi "Stop new drips" line and a red 20 psi "Boil-water notice" line; Third Ward is at about 24.6 psi; the "Simplified model" tooltip mentions the utility's own pressure sensors; the assumption line about homes dripping more than told is shown; "Compare: if everyone drips" is collapsed and shows areas below 20 psi when opened.
+- Move the timeline to **Tue, Feb 16 · 6 AM** (click the track just left of "Feb 16", or set the range input to 78 and fire `input`). In **Water pressure by area** check: one compact row per area; the psi number is neutral above 25 and amber 20–25 / red below 20, with a band label; each small chart shows the past 12 hours solid, the next 12 dashed, and the 25 and 20 psi lines (named once in the legend under the list); Third Ward is at about 24.6 psi with the "Run the agent to prepare a Stage 2 alert" note; the "Simplified model ⓘ" tooltip mentions the utility's own sensors; **Model notes · compare if everyone drips** is collapsed and, opened, shows the dripping assumption and areas below 20 psi.
 - Hover a map cell between dots: the **Why this shade?** tooltip shows "% need action · n of N homes", a bar, and 2 reasons tagged "real weather" and "simulated". Screenshot `02b-hex-tooltip`.
 - Screenshot `02-feb16-peak`.
 
-## 3. Run agent (Approve first)
+## 3. Run agent (Auto, then Approve first)
 
-- In the Agent card, pick **Approve first** and click **Run agent**. Approve steps in order (Agent card or Crews panel) until the crew proposals are reached; approve **one** crew from the Crews panel. Time each approval.
-- Check that the dots turn green/red/yellow/black, the Ready check headline and stacked bar update, and the funnel shows Texted > Called > Door check. The approved crew appears on the map (marker with a line while heading, no text label) and in the Crews panel ("Crew N · Heading to <street> · 1.2 mi · ~6 min", then "Helping a home on …"; "from <area>" when it came from another area). Standby crews read "Crew N · On standby · <area>"; 20 crews in all.
-- **Stage 2:** after the run, a "Stage 2 alert ready · needs supervisor approval" card appears in Water pressure for Third Ward ("kitchen tap only at 281 homes → stays at 27 psi"). Run once in **Auto** too and confirm it still waits for Approve. Click **Not yet** in the walkthrough (approving queues simulated texts; that is safe and idempotent if you want to test it). Screenshot `03b-stage2`.
-- Screenshots `03-agent-approve`, `04-city-after-outreach`. Run `npm run db:status -- 2021-02-16T06:00` and compare.
+- With **Auto** selected, click **Run agent** in the top bar. Time it. The **Decision trace** scrolls into view and fills **live**: a progress strip ("Step 4 of 13"), the running step pulsing ("Publishing the drip plan…"), then a dot per step: Read the storm and risk (°F · High / Watch homes), Read pressure in 4 areas (lowest psi · area), Checked crews, the drip plan, **Queued texts by area** (folded; click "5 steps" to open), Ran outreach, Read replies from households, **Assigned crews** (folded), the log.
+- **Stage 2:** the trace ends at **Waiting for supervisor approval** for Third Ward ("kitchen tap only at 281 homes → stays at 27 psi") with **Approve / Not yet**, in Auto too. The Third Ward pressure row shows a **Stage 2 pending** tag. Click **Not yet** in the walkthrough (the tag becomes "Stage 2 not sent"; approving queues simulated texts and is safe and idempotent if you want to test it). Screenshot `03b-stage2`.
+- **Also notified:** under the trace, maintenance contractors, the water utility control room, city officials and the mayor's office, each with this run's numbers, the block tagged **simulated · nothing is sent**.
+- Check that the dots turn green/red/yellow/black and Homes contacted updates. Screenshot `03-agent-auto`.
+- Switch to **Approve first** at another hour (e.g. Feb 16 · 4 AM, slider 76) and run again: each action waits in the trace for **Approve** in order ("Waiting for the step above" on the rest). Approve two steps. Screenshot `03c-agent-approve`.
+- Run `npm run db:status -- 2021-02-16T06:00` and compare.
 
-## 4. Red dot → summary card
+## 4. Crews on real streets
 
-- Zoom into an area (click a hex) and click a **red** dot. Check that the summary card shows the status tile, level, crew (if any), a third-person assessment ("Needs a crew: …", solid when confirmed), and no link to any homeowner page. Screenshot `05-dot-card`.
+- In **Crews (sample)**, hover (or click) the area button: a menu of the 4 areas, each "n/5 busy". Pick each area in turn; the list shows that area's 5 crews ("Crew N · ~X min to <street>", "Helping a home on …" or "On standby"). Screenshot `04-crews-menu`.
+- On the map, a crew heading to a home drives along **real streets** (a blue route line, not a straight line through houses), moving on the simulated clock (1 min = 2 s). Hover the crew dot: "Crew N · ~X min to <street> (simulated)". If every crew is already on site at 6 AM, use Feb 16 · 4 AM after a run. Screenshot `04b-crew-route`.
+- Click a crew dot (or its row): a **quick view** grows out of the crew and stays on it while the map pans: distance, arrives in / on site, from, the household's needs, "route on real streets (simulated timing)". Screenshot `04c-crew-quickview`.
 
-## 5. Text quality scan (every page visited)
+## 5. Cell → house quick view
 
-On City Operations (with the dot card open), collect `document.body.innerText` (for the iframe, use its document) and flag:
+- Click a cell: the map flies into it and the cells fade so streets and houses show through. Click a **red** dot: a small zoom-in, and a **quick view grows out of the dot** with a tail pointing at it: street and area ("household details simulated"), one line on what's happening (solid when confirmed, dashed when estimated), Status and Level tiles, the assessment ("Needs a crew: …"), and no link to any homeowner page. Escape or × closes it. Screenshot `05-house-quickview`.
+
+## 6. Narrow width (768 × 1024)
+
+- Resize to 768 wide: the map is on top with the timeline along its bottom edge; every box stacks underneath at full width (map key first); nothing is cut off and there is no sideways scroll. Screenshot `06-tablet`.
+
+## 7. Text quality scan (every page visited)
+
+On City Operations (with the house quick view open and after a run), collect `document.body.innerText` and flag:
 
 - **Raw numbers that shouldn't be shown**: risk scores (a number next to "score", or `\b\d{1,3}\b` right after a home label in lists), percentages, or more than 2 decimals (`\d+\.\d{3,}`). Allowed numbers: temperatures (°F), psi, home counts, home IDs, years built, times and dates.
 - **Broken text**: `undefined`, `null`, `NaN`, `[object`, leftover `{slot}` braces, doubled punctuation (`..`, `. .`), "Medium" anywhere (it should say "Watch"), and empty headings or steps.
@@ -61,14 +75,14 @@ On City Operations (with the dot card open), collect `document.body.innerText` (
 - **Honesty**: sample data is labeled "sample" or "simulated"; no "on the way" without an assigned crew.
 - **Audience**: no "you"/"your" on City Operations.
 
-Also note anything **confusing** from a first-time viewer's point of view: unclear labels, a primary action that's hard to find, text cut off at the top of the side panel, overlapping elements, or the Next.js dev badge covering content.
+Also note anything **confusing** from a first-time viewer's point of view: unclear labels, a primary action that's hard to find, text cut off in a box, a box covering the timeline or another box, overlapping elements, or the Next.js dev badge covering content.
 
-## 6. Report
+## 8. Report
 
 Reply with:
 
 1. A one-line verdict: **Demo ready** / **Demo ready with issues** / **Not ready**.
-2. A table of steps 1–4: ✅/⚠️/❌, time taken, screenshot file.
+2. A table of steps 1–6: ✅/⚠️/❌, time taken, screenshot file.
 3. **Broken**, **Slow**, **Confusing**, **Raw numbers / broken text**: each a short list with the page, what was seen, and the screenshot name. Write "None" if empty.
 4. DB before → after counts from `db:status`.
 5. Leave the dev server running and give the URL. Don't commit `demo-screens/`.

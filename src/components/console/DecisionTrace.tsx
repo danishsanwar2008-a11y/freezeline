@@ -193,7 +193,7 @@ export default function DecisionTrace({
                     </div>
                   ) : e.status === "pending" ? (
                     <>
-                      <p className="text-[13px] text-psi-warn">Waiting for supervisor approval</p>
+                      <p className="text-[13px] text-psi-warn">{e.tool === "send_stage2_alert" ? "Waiting for supervisor approval" : "Waiting for approval"}</p>
                       <Approval
                         e={e}
                         canApprove={e.id === firstPending}

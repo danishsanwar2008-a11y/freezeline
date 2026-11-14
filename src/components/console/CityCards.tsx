@@ -3,7 +3,7 @@
 // City Operations cards. Officials' third-person wording only. One big headline per card,
 // every number has a visual, details collapsed underneath.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import type { HomeStatus } from "@/lib/household";
 import { CREW_TRIP } from "@/lib/crewTrip";
 import { minutesLeft } from "@/lib/route";
@@ -172,12 +172,17 @@ function AreaPicker({
   onChange: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  // A mouse opens the menu on hover; the click that follows must not close it again.
+  const hoverOpenedAt = useRef(0);
   const current = areas.find((x) => x.id === value);
   return (
     <div
       className="relative"
       onMouseEnter={() => {
-        if (window.matchMedia(FINE_POINTER).matches) setOpen(true);
+        if (window.matchMedia(FINE_POINTER).matches && !open) {
+          hoverOpenedAt.current = Date.now();
+          setOpen(true);
+        }
       }}
       onMouseLeave={() => setOpen(false)}
       onKeyDown={(e) => {
@@ -186,7 +191,7 @@ function AreaPicker({
     >
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen((o) => (o && Date.now() - hoverOpenedAt.current < 800 ? true : !o))}
         aria-haspopup="true"
         aria-expanded={open}
         className="flex min-h-8 items-center gap-1.5 rounded-full border border-border bg-bg px-3 text-[13px] font-medium text-text transition-colors hover:border-accent"
