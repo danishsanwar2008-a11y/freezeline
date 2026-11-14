@@ -329,6 +329,32 @@ def make_app():
     app = FastAPI(title="FreezeLine voice agent")
     store: dict[str, Any] = {}
 
+    @app.on_event("startup")
+    async def check_tunnel() -> None:
+        """Say whether Twilio can reach this process, before a call is wasted proving it.
+
+        A cloudflared quick tunnel gets a new hostname every time it restarts, so the commonest
+        broken state is an agent still advertising the last one: the phone rings, then Twilio
+        hangs up because the URL it was handed answers nothing.
+        """
+        host = os.environ.get("PUBLIC_HOSTNAME", "")
+        if not host:
+            print("[agent] PUBLIC_HOSTNAME is not set - Twilio has no URL to call back to.", file=sys.stderr, flush=True)
+            return
+        url = f"https://{host}/health"
+        try:
+            with urllib.request.urlopen(url, timeout=8) as r:
+                status = r.status
+            print(f"[agent] tunnel reachable: {url} -> {status}", flush=True)
+        except Exception as e:  # noqa: BLE001 - a warning, not a reason to refuse to start
+            print(
+                f"[agent] TUNNEL NOT REACHABLE: {url} -> {e}\n"
+                f"[agent] Calls will ring and then hang up. Restart cloudflared, copy the new\n"
+                f"[agent] hostname into PUBLIC_HOSTNAME, and start the agent again.",
+                file=sys.stderr,
+                flush=True,
+            )
+
     @app.get("/health")
     async def health() -> Any:
         return JSONResponse({
@@ -339,6 +365,9 @@ def make_app():
 
     @app.post("/twiml")
     async def twiml_route(request: Request) -> Any:
+        # The first evidence that Twilio reached us at all. If a call never prints this line,
+        # the call died before our code - the tunnel, or the trial keypress.
+        print(f"[agent] POST /twiml (home={'yes' if request.query_params.get('home') else 'no'})", flush=True)
         """Twilio asks what to do with an answered call. The home's facts arrive in the query
         string because Twilio does not forward arbitrary form fields to this URL."""
         raw = await request.body()
