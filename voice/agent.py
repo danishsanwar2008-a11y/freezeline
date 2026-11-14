@@ -394,6 +394,21 @@ def make_app():
         finally:
             store.pop(stream_sid, None)
 
+    @app.api_route("/test-twiml", methods=["GET", "POST"])
+    async def test_twiml() -> Any:
+        """Plain TwiML, no media stream.
+
+        Answers one question: does an API-placed call reach the phone at all? If this speaks
+        and the /twiml stream route stays silent, the carrier is fine and only the WebSocket
+        leg needs work.
+        """
+        return Response(
+            '<?xml version="1.0" encoding="UTF-8"?><Response>'
+            '<Say voice="alice">FreezeLine test. If you can hear this, the call reaches your '
+            'phone and only the audio stream needs work.</Say></Response>',
+            media_type="application/xml",
+        )
+
     @app.post("/make-call")
     async def make_call(request: Request) -> Any:
         """Place the call with Twilio's REST API - no twilio package, no extra dependency."""
