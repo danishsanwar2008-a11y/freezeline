@@ -25,7 +25,7 @@ import { useAgent } from "./useAgent";
 import { statusAt, useOps } from "./useOps";
 import { useLiveForecast } from "./useLiveForecast";
 import { houstonNowHour } from "./format";
-import { CrewQuickView, CrewsPanel, HomeSummaryCard, HomesContacted, isHeading } from "./CityCards";
+import { CrewQuickView, CrewsPanel, HomeQuickView, HomesContacted, isHeading } from "./CityCards";
 import { alongPath, driveFraction, minutesLeft } from "@/lib/route";
 import type { CrewMarker, PinnedCallout } from "./RiskMap";
 
@@ -223,6 +223,20 @@ function ConsoleBody({
     setSelectedCrew(null);
   }, []);
 
+  // The selected house's quick view, pinned to the house on the map.
+  const homeCallout = useMemo<PinnedCallout | null>(() => {
+    if (selectedHome === null) return null;
+    const h = homes[selectedHome];
+    return {
+      key: `home-${h.id}`,
+      lngLat: [h.lng, h.lat],
+      title: h.label,
+      subtitle: `${h.neighborhood} · household details simulated`,
+      body: <HomeQuickView homeId={h.id} time={agent ? time : null} level={displayLevel(plan.homes[selectedHome].level)} crews={crewsData} now={now} />,
+      onClose: () => setSelectedHome(null),
+    };
+  }, [selectedHome, homes, agent, time, plan, crewsData, now]);
+
   // The selected crew's quick view, pinned to the crew on the map.
   const crewCallout = useMemo<PinnedCallout | null>(() => {
     const c = crewsData.find((x) => x.id === selectedCrew);
@@ -265,7 +279,7 @@ function ConsoleBody({
             onSelectHome={selectHome}
             selectedCrew={selectedCrew}
             onSelectCrew={selectCrew}
-            callout={crewCallout}
+            callout={crewCallout ?? homeCallout}
           />
           {focusHex && (
             <button
@@ -275,16 +289,6 @@ function ConsoleBody({
             >
               ← All areas
             </button>
-          )}
-          {selectedHome !== null && (
-            <div className="absolute left-1/2 top-14 -translate-x-1/2">
-              <HomeSummaryCard
-                homeId={homes[selectedHome].id}
-                time={agent ? time : null}
-                level={displayLevel(plan.homes[selectedHome].level)}
-                onClose={() => selectHome(null)}
-              />
-            </div>
           )}
           <div
             className={`absolute inset-x-3 bottom-3 ${panelsHidden ? "lg:inset-x-3" : "lg:left-[304px] lg:right-[364px] xl:left-[324px] xl:right-[404px]"}`}

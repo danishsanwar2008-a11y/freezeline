@@ -342,10 +342,11 @@ export function CrewQuickView({ crew, now }: { crew: OpsCrew; now: number }) {
   );
 }
 
-// ---------- Home summary (map overlay) ----------
+// ---------- House quick view (pinned to the house on the map) ----------
 
 interface HomeSummary {
   label: string;
+  street: string;
   neighborhood: string;
   status: HomeStatus;
   statusLabel: string;
@@ -353,60 +354,99 @@ interface HomeSummary {
   confidence: "confirmed" | "estimated" | null;
   flaggedByNeighbor: boolean;
   crew: string | null;
+  crewId: number | null;
+  assessmentKey: string | null;
+  contact: string | null;
+  replied: boolean;
+  repliedBy: "text" | "call" | null;
+  doorCheck: boolean;
 }
 
-export function HomeSummaryCard({ homeId, time, level, onClose }: { homeId: string; time: string | null; level: string; onClose: () => void }) {
-  const [data, setData] = useState<{ id: string; s: HomeSummary } | null>(null);
+/** One line on what is happening at this house right now (officials' wording). */
+export function happeningLine(s: HomeSummary, crew: OpsCrew | undefined, now: number): string {
+  if (crew?.assignment) {
+    const left = minutesLeft(crew.assignment, now);
+    return left > 0 ? `${crew.name} on the way · ~${left} min` : `${crew.name} is helping on site`;
+  }
+  switch (s.assessmentKey) {
+    case "ready":
+      return `Replied by ${s.repliedBy ?? "text"} · steps done`;
+    case "needs_reminder":
+      return `Replied by ${s.repliedBy ?? "text"} · still doing the steps`;
+    case "needs_crew":
+      return "Needs a crew · waiting for a free crew";
+    case "waiting":
+      return "Texted · no reply yet; a call is queued";
+    case "no_answer":
+      return s.doorCheck ? "No answer to text or call · door check planned" : "No answer to text or call";
+    default:
+      return s.contact ? "Not contacted yet" : "No outreach for this hour yet";
+  }
+}
+
+/** The house quick view's body; the Callout around it points at the house. */
+export function HomeQuickView({
+  homeId,
+  time,
+  level,
+  crews,
+  now,
+}: {
+  homeId: string;
+  /** Replay time (null in Live mode, where outreach doesn't run). */
+  time: string | null;
+  level: string;
+  crews: OpsCrew[];
+  now: number;
+}) {
+  const [data, setData] = useState<{ key: string; s: HomeSummary | null; error?: string } | null>(null);
+  const key = `${homeId}|${time}`;
   useEffect(() => {
     if (!time) return;
     const ctrl = new AbortController();
     fetch(`/api/ops/home?id=${encodeURIComponent(homeId)}&time=${encodeURIComponent(time)}`, { signal: ctrl.signal })
-      .then((r) => r.json())
-      .then((s) => setData({ id: homeId, s }))
-      .catch(() => {});
+      .then(async (r) => {
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error ?? `HTTP ${r.status}`);
+        setData({ key, s: d as HomeSummary });
+      })
+      .catch((e: Error) => {
+        if (e.name !== "AbortError") setData({ key, s: null, error: e.message });
+      });
     return () => ctrl.abort();
-  }, [homeId, time]);
-  const s = data?.id === homeId ? data.s : null;
+  }, [homeId, time, key]);
+  const s = data?.key === key ? data.s : null;
+  const crew = crews.find((c) => c.assignment?.home_id === homeId);
 
+  if (!time) return <p className="mt-2 text-[13px] text-muted">Outreach runs on the Uri replay in this phase.</p>;
+  if (data?.key === key && data.error) return <p className="mt-2 text-[13px] text-danger">Couldn’t load this house: {data.error}</p>;
+  if (!s) return <p className="mt-2 text-[13px] text-muted">Loading…</p>;
+
+  const confirmed = s.confidence === "confirmed";
   return (
-    <div className="panel-enter w-72 rounded-panel border border-border bg-surface/95 p-4 shadow-xl backdrop-blur">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-sm font-semibold">{s?.label ?? "…"}</p>
-          <p className="text-xs text-muted">{s?.neighborhood}</p>
+    <div className="mt-2.5 space-y-2 text-[13px]">
+      <p className={`rounded-md border px-2.5 py-2 leading-snug ${confirmed || crew ? "border-white/15 text-text" : "border-dashed border-white/25 text-muted"}`}>
+        {happeningLine(s, crew, now)}
+      </p>
+      <div className="grid grid-cols-2 gap-1.5">
+        <div className="rounded-md bg-bg px-2 py-1.5">
+          <p className="text-[11px] text-muted">Status</p>
+          <p className="mt-0.5 flex items-center gap-1.5 text-sm">
+            <span className={`size-2.5 shrink-0 rounded-full ${STATUS_BG[s.status]}`} aria-hidden />
+            {s.statusLabel}
+          </p>
         </div>
-        <button type="button" onClick={onClose} className="rounded-md px-1.5 text-muted hover:text-text" aria-label="Close">
-          ×
-        </button>
+        <div className="rounded-md bg-bg px-2 py-1.5">
+          <p className="text-[11px] text-muted">Level</p>
+          <p className="mt-0.5 text-sm">{level}</p>
+        </div>
       </div>
-      {s && (
-        <>
-          <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-            <div className="rounded-md bg-bg px-2.5 py-2">
-              <p className="text-muted">Status</p>
-              <p className="mt-0.5 flex items-center gap-1.5 font-medium">
-                <span className={`size-2.5 rounded-full ${STATUS_BG[s.status]}`} aria-hidden />
-                {s.statusLabel}
-              </p>
-            </div>
-            <div className="rounded-md bg-bg px-2.5 py-2">
-              <p className="text-muted">Level</p>
-              <p className="mt-0.5 font-medium">{level}</p>
-            </div>
-            <div className="col-span-2 rounded-md bg-bg px-2.5 py-2">
-              <p className="text-muted">Crew</p>
-              <p className="mt-0.5 font-medium">{s.crew ? `${s.crew} assigned` : "None assigned"}</p>
-            </div>
-          </div>
-          {s.assessment && (
-            <p className={`mt-2 rounded-md border px-2.5 py-2 text-xs leading-snug ${s.confidence === "confirmed" ? "border-border" : "border-dashed border-border text-muted"}`}>
-              {s.assessment}
-              <span className="block text-[11px] text-muted">{s.confidence === "confirmed" ? "Confirmed on a call (sample)" : "Estimated, no answer yet"}</span>
-            </p>
-          )}
-          {s.flaggedByNeighbor && <p className="mt-2 text-xs text-muted">A neighbor asked for a check on this home.</p>}
-        </>
+      {s.assessment && (
+        <p className="text-xs leading-snug text-muted">
+          {s.assessment} · {confirmed ? "confirmed on a call (sample)" : "estimated, no answer yet"}
+        </p>
       )}
+      {s.flaggedByNeighbor && <p className="text-xs text-muted">A neighbor asked for a check on this home.</p>}
     </div>
   );
 }

@@ -134,9 +134,27 @@ export default function RiskMap({
   // deck fly there itself; feeding interim frames back as a controlled viewState cancels the flight.
   const [initialViewState, setInitialViewState] = useState<MapViewState>(() => (focusHex ? areaView(focusHex) : cityView(hexes, look.floating)));
   const [prevFocus, setPrevFocus] = useState(focusHex);
+  const [prevHome, setPrevHome] = useState(selectedHome);
+  // Current zoom in half steps (fades the cells when looking at houses up close).
+  const [zoom, setZoom] = useState(() => Math.round(initialViewState.zoom * 2) / 2);
   if (focusHex !== prevFocus) {
     setPrevFocus(focusHex);
     setInitialViewState(fly(focusHex ? areaView(focusHex) : cityView(hexes, look.floating)));
+  } else if (selectedHome !== prevHome) {
+    setPrevHome(selectedHome);
+    // A small zoom-in onto the house the official clicked (the quick view grows out of it).
+    if (selectedHome !== null) {
+      const h = homes[selectedHome];
+      setInitialViewState({
+        longitude: h.lng,
+        latitude: h.lat + 0.0004,
+        zoom: Math.min(18, Math.max(zoom + 0.6, 16.4)),
+        pitch: 0,
+        bearing: 0,
+        transitionDuration: 650,
+        transitionInterpolator: new FlyToInterpolator({ speed: 2.2 }),
+      });
+    }
   }
 
   const dots = useMemo<Dot[]>(() => homes.map((h, i) => ({ i, position: [h.lng, h.lat] })), [homes]);
@@ -149,7 +167,9 @@ export default function RiskMap({
     getHexagon: (d) => d.h3,
     getFillColor: (d) => {
       const c = look.steps[needStep(need[hexIndex.get(d.h3)!] ?? 0)].fill;
-      return d.h3 === focusHex ? [c[0], c[1], c[2], 30] : focused ? [c[0], c[1], c[2], Math.round(c[3] * 0.25)] : c;
+      // Up close the cells fade so streets and houses show through (the shade still reads).
+      const near = zoom >= 15.5 ? 0.3 : zoom >= 14.5 ? 0.6 : 1;
+      return d.h3 === focusHex ? [c[0], c[1], c[2], 30] : focused ? [c[0], c[1], c[2], Math.round(c[3] * 0.25)] : [c[0], c[1], c[2], Math.round(c[3] * near)];
     },
     getLineColor: (d) => {
       if (d.h3 === focusHex) return look.hexLineFocus;
@@ -166,7 +186,7 @@ export default function RiskMap({
     pickable: true,
     autoHighlight: !focused,
     highlightColor: look.highlight,
-    updateTriggers: { getFillColor: [need, focusHex, look], getLineColor: [need, focusHex, look], getLineWidth: focusHex },
+    updateTriggers: { getFillColor: [need, focusHex, look, zoom], getLineColor: [need, focusHex, look], getLineWidth: focusHex },
     onClick: (info) => {
       if (info.object) onSelectHex(info.object.h3);
       return true;
@@ -274,6 +294,10 @@ export default function RiskMap({
       controller={{ dragRotate: false }}
       layers={[tintLayer, hexLayer, haloLayer, dotLayer, crewLines, crewDots]}
       onError={(err) => console.error("[FreezeLine map]", err)}
+      onViewStateChange={({ viewState }) => {
+        const z = Math.round((viewState as MapViewState).zoom * 2) / 2;
+        if (z !== zoom) setZoom(z);
+      }}
       getCursor={({ isHovering }) => (isHovering ? "pointer" : "grab")}
       getTooltip={({ object, layer }: PickingInfo<HexBin | Dot | CrewMarker>) => {
         if (!object) return null;

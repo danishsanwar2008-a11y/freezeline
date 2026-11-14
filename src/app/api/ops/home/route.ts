@@ -29,5 +29,12 @@ export async function GET(req: Request) {
     confidence: call?.confidence ?? null,
     flaggedByNeighbor: !!call?.flagged_by,
     crew: assignment?.status === "assigned" ? crewName : null,
+    crewId: assignment?.status === "assigned" ? assignment.crew_id : null,
+    /** For the quick view's "what's happening" line. */
+    assessmentKey: call?.assessment ?? null,
+    contact: call?.contact ?? null,
+    replied: !!(call?.answers.replied_text || call?.answers.answered_call),
+    repliedBy: call?.answers.replied_text ? "text" : call?.answers.answered_call ? "call" : null,
+    doorCheck: !!call?.answers.door_check,
   });
 }
