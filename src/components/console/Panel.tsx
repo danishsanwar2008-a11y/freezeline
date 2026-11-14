@@ -53,7 +53,7 @@ export default function Panel({
   return (
     <section
       aria-labelledby={titleId}
-      className={`${tone === "glass" ? "glass" : "box"} flex flex-col ${grow && open ? "lg:min-h-0 lg:flex-1" : ""} ${className}`}
+      className={`${tone === "glass" ? "glass" : "box"} flex flex-col ${grow && open ? "lg:min-h-[60vh] lg:flex-1" : ""} ${className}`}
     >
       <div className="flex items-center gap-2 py-2.5 pl-4 pr-2">
         <h2 id={titleId} className="panel-title min-w-0 flex-1 truncate">

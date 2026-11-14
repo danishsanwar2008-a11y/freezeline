@@ -4,7 +4,7 @@
 // and the Stage 2 alert card when an area's forecast falls below 25 psi. Officials' wording.
 
 import { useState } from "react";
-import { stage2Sentence, type AreaPressure, type PsiBand } from "@/lib/pressure";
+import type { AreaPressure, PsiBand } from "@/lib/pressure";
 import { BOIL_WATER_PSI, EXTRA_TAP_LABEL, MODEL_NOTE, STOP_NEW_DRIPS_PSI } from "@/lib/pressureConfig";
 import type { AgentEntry } from "./useAgent";
 import { formatHour } from "./format";
@@ -101,61 +101,11 @@ function PressureChart({ a, hour, times }: { a: AreaPressure; hour: number; time
   );
 }
 
-function Stage2Card({
-  a,
-  entry,
-  canApprove,
-  busy,
-  onApprove,
-  onSkip,
-}: {
-  a: AreaPressure;
-  entry: AgentEntry;
-  canApprove: boolean;
-  busy: boolean;
-  onApprove: () => void;
-  onSkip: () => void;
-}) {
-  const p = a.stage2!;
-  return (
-    <div className="rounded-md border border-psi-warn/60 bg-psi-warn/10 p-3" role="group" aria-label={`Stage 2 alert for ${a.area}`}>
-      <p className="text-xs font-semibold text-psi-warn">Stage 2 alert ready · needs supervisor approval</p>
-      <p className="mt-1 text-sm font-medium leading-snug">{stage2Sentence(p)}</p>
-      {entry.reason && <p className="mt-1 text-xs leading-relaxed text-muted">{entry.reason}</p>}
-      <p className="mt-1 text-[11px] text-muted">Uses the existing pre-written texts (simulated). Approval is always required, even in Auto mode.</p>
-      <p className="mt-1 text-[11px] text-muted">{EXTRA_TAP_LABEL}</p>
-      <div className="mt-2 flex items-center gap-2">
-        {canApprove ? (
-          <>
-            <button
-              type="button"
-              onClick={onApprove}
-              disabled={busy}
-              className="btn btn-primary btn-sm"
-            >
-              {busy ? "Sending…" : "Approve"}
-            </button>
-            <button type="button" onClick={onSkip} disabled={busy} className="btn btn-quiet btn-sm">
-              Not yet
-            </button>
-          </>
-        ) : (
-          <span className="text-xs text-muted">Approve the agent’s earlier steps first</span>
-        )}
-      </div>
-    </div>
-  );
-}
-
 export default function PressureMonitor({
   areas,
   hour,
   times,
   stage2Entries,
-  canApprove,
-  approving,
-  onApprove,
-  onSkip,
   agentReady,
 }: {
   areas: AreaPressure[];
@@ -163,39 +113,18 @@ export default function PressureMonitor({
   times: string[];
   /** Agent log entries for Stage 2 at this hour (pending, done or skipped). */
   stage2Entries: AgentEntry[];
-  canApprove: (e: AgentEntry) => boolean;
-  approving: string | null;
-  onApprove: (e: AgentEntry) => void;
-  onSkip: (e: AgentEntry) => void;
   /** Replay mode (the agent runs on the replay only). */
   agentReady: boolean;
 }) {
-  const zoneOf = (e: AgentEntry) => ((e.input as { args?: { zone_id?: string } } | undefined)?.args?.zone_id ?? null);
+  const zoneOf = (e: AgentEntry) => e.zoneId ?? (e.input as { args?: { zone_id?: string } } | undefined)?.args?.zone_id ?? null;
   const needsRun = agentReady && areas.some((a) => a.stage2) && stage2Entries.length === 0;
+  /** This hour's Stage 2 state for an area (from the agent's run): pending, done or skipped. */
+  const stage2Tag = (zoneId: string): "pending" | "done" | "failed" | null =>
+    stage2Entries.find((e) => zoneOf(e) === zoneId)?.status ?? null;
 
   return (
     <Panel id="pressure" title="Water pressure by area" action={<InfoTip label="Simplified model" text={MODEL_NOTE} />}>
       <div className="space-y-2" aria-live="polite">
-        {stage2Entries.map((e) => {
-          const a = areas.find((x) => x.zoneId === zoneOf(e));
-          if (e.status === "pending" && a?.stage2)
-            return (
-              <Stage2Card
-                key={e.id}
-                a={a}
-                entry={e}
-                canApprove={canApprove(e)}
-                busy={approving === e.id}
-                onApprove={() => onApprove(e)}
-                onSkip={() => onSkip(e)}
-              />
-            );
-          return (
-            <p key={e.id} className={`rounded-md border px-3 py-2 text-xs ${e.status === "done" ? "border-border" : "border-dashed border-border text-muted"}`}>
-              {e.status === "done" ? e.summary : `Not sent yet. ${e.summary.replace(/^Skipped: /, "")}`}
-            </p>
-          );
-        })}
         {needsRun && (
           <p className="rounded-md border border-dashed border-psi-warn/60 px-3 py-2 text-[13px] text-text">
             The forecast falls below {STOP_NEW_DRIPS_PSI} psi in {areas.filter((a) => a.stage2).map((a) => a.area).join(", ")}. Run the agent to prepare a Stage 2
@@ -214,6 +143,11 @@ export default function PressureMonitor({
                 <span className="ml-1 text-xs font-normal text-muted">psi</span>
               </p>
               <p className={`text-[11px] leading-tight ${BAND_TEXT[a.band]}`}>{BAND_LABEL[a.band]}</p>
+              {stage2Tag(a.zoneId) && (
+                <p className={`mt-0.5 inline-block rounded-full border px-1.5 text-[11px] leading-4 ${stage2Tag(a.zoneId) === "pending" ? "border-psi-warn/70 text-psi-warn" : "border-border text-muted"}`}>
+                  {stage2Tag(a.zoneId) === "pending" ? "Stage 2 · awaiting approval" : stage2Tag(a.zoneId) === "done" ? "Stage 2 sent" : "Stage 2 not sent"}
+                </p>
+              )}
             </div>
             <PressureChart a={a} hour={hour} times={times} />
           </li>

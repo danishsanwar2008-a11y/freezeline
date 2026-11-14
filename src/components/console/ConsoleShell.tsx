@@ -20,7 +20,7 @@ import MapLegend from "./MapLegend";
 import Timeline from "./Timeline";
 import TopBar, { type AgentControls, type Mode } from "./TopBar";
 import { useSessionFlag } from "./useSessionFlag";
-import AgentPanel from "./AgentPanel";
+import DecisionTrace from "./DecisionTrace";
 import { useAgent } from "./useAgent";
 import { statusAt, useOps } from "./useOps";
 import { useLiveForecast } from "./useLiveForecast";
@@ -215,7 +215,6 @@ function ConsoleBody({
   // Pending crew proposals (Approve-first mode) are approved in the decision trace.
   const run = agent?.runs[time];
   const entries = run?.entries ?? [];
-  const firstPending = entries.find((e) => e.status === "pending")?.id;
 
   const selectHex = useCallback((h3: string | null) => {
     setFocusHex(h3);
@@ -329,10 +328,6 @@ function ConsoleBody({
             hour={hour}
             times={times}
             stage2Entries={entries.filter((e) => e.tool === "send_stage2_alert")}
-            canApprove={(e) => e.id === firstPending}
-            approving={agent?.approving ?? null}
-            onApprove={(e) => agent?.approve(time, e)}
-            onSkip={(e) => agent?.skip(time, e)}
             agentReady={!!agent}
           />
           <CrewsPanel
@@ -342,7 +337,7 @@ function ConsoleBody({
             selectedCrew={selectedCrew}
             onSelectCrew={selectCrew}
           />
-          <AgentPanel
+          <DecisionTrace
             time={time}
             enabled={!!agent}
             run={run}

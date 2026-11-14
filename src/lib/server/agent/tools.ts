@@ -20,7 +20,8 @@ export const ACTION_TOOLS: ActionTool[] = ["publish_drip_plan", "queue_outreach"
 
 export interface LogEntry {
   id: string;
-  kind: "action" | "note" | "error";
+  /** step = something the agent read or checked (with its result); notify = a simulated notification. */
+  kind: "action" | "note" | "error" | "step" | "notify";
   tool?: ActionTool;
   /** Deterministic, from tool results: what happened. */
   summary: string;
@@ -29,7 +30,17 @@ export interface LogEntry {
   status: "done" | "pending" | "failed";
   /** For pending actions: the validated input to execute on approval. */
   input?: unknown;
+  /** Step entries: the short result shown on the right ("lowest 24.6 psi · Third Ward"). */
+  result?: string;
+  /** Notify entries: who was notified (always simulated; nothing is sent). */
+  party?: string;
 }
+
+/** What the run reports as it goes (streamed to the decision trace). */
+export type TraceEvent =
+  | { type: "plan"; total: number }
+  | { type: "start"; label: string }
+  | { type: "entry"; entry: LogEntry };
 
 export interface AgentCtx {
   city: City;
@@ -40,6 +51,8 @@ export interface AgentCtx {
   /** Stricter reserves chosen this run (zone id -> psi). */
   reserves: Record<string, number>;
   entries: LogEntry[];
+  /** Called for every step as it happens (the live decision trace). */
+  onEvent?: (e: TraceEvent) => void;
 }
 
 let seq = 0;

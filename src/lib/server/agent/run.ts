@@ -9,7 +9,42 @@ import { stage2Reason, stage2Sentence } from "@/lib/pressure";
 import { formatHour } from "@/components/console/format";
 import { ZodError } from "zod";
 import { monitorAt, planAt, toTimestamp } from "../cityState";
-import { ACTION_TOOLS, TOOL_DEFS, cityStatus, entryId, runTool, type ActionTool, type AgentCtx, type AgentMode, type LogEntry } from "./tools";
+import { ACTION_TOOLS, TOOL_DEFS, cityStatus, entryId, runTool, type ActionTool, type AgentCtx, type AgentMode, type LogEntry, type TraceEvent } from "./tools";
+import { alsoNotified } from "@/lib/agentNotify";
+import { plural } from "@/lib/plural";
+
+/** Add an entry to the run's log and stream it to the decision trace. */
+function emit(ctx: AgentCtx, e: LogEntry) {
+  ctx.entries.push(e);
+  ctx.onEvent?.({ type: "entry", entry: e });
+}
+
+/** What the trace shows while a tool is running (replaced by its entry when it finishes). */
+const RUNNING: Record<string, string> = {
+  publish_drip_plan: "Publishing the drip plan",
+  queue_outreach: "Queuing texts",
+  simulate_outreach: "Calling homes that didn’t reply",
+  propose_crew: "Assigning a crew",
+  log_event: "Writing the operations log",
+  get_city_status: "Reading the storm and risk",
+  get_zone_pressure: "Reading an area’s pressure",
+  get_homes_needing_action: "Listing homes that need action",
+  get_crew_status: "Checking crews",
+  draft_homeowner_message: "Drafting a text",
+};
+const starting = (ctx: AgentCtx, tool: string) => ctx.onEvent?.({ type: "start", label: RUNNING[tool] ?? tool.replace(/_/g, " ") });
+
+/** A read step with its result (what the agent looked at and what it found). */
+const readStep = (ctx: AgentCtx, summary: string, result: string) => emit(ctx, { id: entryId(), kind: "step", summary, result, status: "done" });
+
+function readStorm(ctx: AgentCtx) {
+  const st = cityStatus(ctx);
+  readStep(ctx, "Read the storm and risk", `${Math.round(st.temperature_f)}°F · ${plural(st.homes.High, "High home")}, ${plural(st.homes.Watch, "Watch home")}`);
+  const areas = monitorAt(ctx.city, ctx.hour);
+  const low = areas.reduce((a, b) => (b.lowest.psi < a.lowest.psi ? b : a), areas[0]);
+  if (low) readStep(ctx, `Read pressure in ${plural(areas.length, "area")}`, `lowest ${low.lowest.psi.toFixed(1)} psi · ${low.area}`);
+  return st;
+}
 
 /** Max model turns per run (each turn can call several tools). */
 export const MAX_STEPS = 10;
@@ -82,47 +117,69 @@ async function actualQueuedSummary(ctx: AgentCtx): Promise<string> {
   return agentText("log_summary", { high: high.toLocaleString(), watch: watch.toLocaleString() });
 }
 
-async function runRules(ctx: AgentCtx): Promise<void> {
-  const status = cityStatus(ctx);
+async function runRules(ctx: AgentCtx): Promise<{ texted: number }> {
+  const status = readStorm(ctx);
   const actions = rulePlan(
     status.areas.map((a) => ({ zone_id: a.zone_id, area: a.area, margin_above_20_psi: a.margin_above_20_psi, high_homes: a.high_homes })),
     { High: status.homes.High, Watch: status.homes.Watch },
   );
   if (actions.length === 0) {
-    ctx.entries.push({ id: entryId(), kind: "note", summary: agentText("nothing_to_do"), status: "done" });
-    return;
+    emit(ctx, { id: entryId(), kind: "note", summary: agentText("nothing_to_do"), status: "done" });
+    return { texted: 0 };
   }
   // Outreach + crews go before the closing log entry.
   const log = actions.pop()!;
   actions.push({ tool: "simulate_outreach", args: {}, reason: agentText("simulate_outreach") });
+  ctx.onEvent?.({ type: "start", label: "Checking crews" });
   const crews = await crewStatus(ctx);
+  const free = crews.crews.filter((c) => !c.busy).length;
+  readStep(ctx, "Checked crews", `${free} of ${plural(crews.crews.length, "crew")} free · ${plural(crews.suggested.length + crews.queue_length, "home")} need a crew`);
   for (const p of crews.suggested) {
     const crew = crews.crews.find((c) => c.crew_id === p.crew_id)!;
     actions.push({ tool: "propose_crew", args: { home_id: p.home_id, crew_id: p.crew_id }, reason: agentText("propose_crew", { needs: p.why, crew: crew.name }) });
   }
   actions.push(log);
+  const stage2 = monitorAt(ctx.city, ctx.hour).filter((a) => a.stage2).length;
+  // Steps: 2 reads + the crews check + every action + the replies read (Auto) + any Stage 2 alert.
+  ctx.onEvent?.({ type: "plan", total: 3 + actions.length + (ctx.mode === "auto" ? 1 : 0) + stage2 });
+  let texted = 0;
   for (const a of actions) {
+    starting(ctx, a.tool);
     // The log reports what was actually queued (in Auto mode, earlier steps have already run).
     if (a.tool === "log_event" && ctx.mode === "auto") a.args = { ...a.args, message: await actualQueuedSummary(ctx) };
     const args = { ...a.args, ...(a.tool === "log_event" ? {} : { reason: a.reason }) };
     try {
-      const out = (await runTool(ctx, a.tool, args)) as { status?: string; summary?: string };
+      const out = (await runTool(ctx, a.tool, args)) as {
+        status?: string;
+        summary?: string;
+        funnel?: { texted: number; status: Record<string, number> };
+      };
       const e = actionEntry(a.tool, out, args, ctx);
       e.reason = a.reason;
-      ctx.entries.push(e);
+      emit(ctx, e);
+      if (a.tool === "simulate_outreach" && out.status === "done" && out.funnel) {
+        texted = out.funnel.texted;
+        const st = out.funnel.status;
+        readStep(
+          ctx,
+          "Read replies from households",
+          `${(st.ready ?? 0).toLocaleString("en-US")} ready · ${(st.needs_help ?? 0).toLocaleString("en-US")} need help · ${(st.no_answer ?? 0).toLocaleString("en-US")} no answer`,
+        );
+      }
     } catch (err) {
-      ctx.entries.push({ id: entryId(), kind: "error", tool: a.tool, summary: readableError(a.tool, err), status: "failed" });
-      if (a.tool === "publish_drip_plan") return; // nothing else can run without a plan
+      emit(ctx, { id: entryId(), kind: "error", tool: a.tool, summary: readableError(a.tool, err), status: "failed" });
+      if (a.tool === "publish_drip_plan") return { texted }; // nothing else can run without a plan
     }
   }
   if (crews.queue_length > 0)
-    ctx.entries.push({ id: entryId(), kind: "note", summary: agentText("crew_queue", { queue: crews.queue_length.toLocaleString() }), status: "done" });
-  ctx.entries.push({
+    emit(ctx, { id: entryId(), kind: "note", summary: agentText("crew_queue", { queue: crews.queue_length.toLocaleString() }), status: "done" });
+  emit(ctx, {
     id: entryId(),
     kind: "note",
     summary: agentText("footer"),
     status: "done",
   });
+  return { texted };
 }
 
 async function runClaude(ctx: AgentCtx, claude: Anthropic, usage: RunResult["usage"]): Promise<void> {
@@ -154,7 +211,7 @@ async function runClaude(ctx: AgentCtx, claude: Anthropic, usage: RunResult["usa
     messages.push({ role: "assistant", content: res.content }); // full content: thinking blocks must round-trip
 
     if (res.stop_reason === "refusal") {
-      ctx.entries.push({ id: entryId(), kind: "error", summary: "The agent declined this request; nothing further was done.", status: "failed" });
+      emit(ctx, { id: entryId(), kind: "error", summary: "The agent declined this request; nothing further was done.", status: "failed" });
       return;
     }
     const toolUses = res.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
@@ -164,35 +221,48 @@ async function runClaude(ctx: AgentCtx, claude: Anthropic, usage: RunResult["usa
         .map((b) => b.text)
         .join(" ")
         .trim();
-      if (text) ctx.entries.push({ id: entryId(), kind: "note", summary: text, status: "done" });
+      if (text) emit(ctx, { id: entryId(), kind: "note", summary: text, status: "done" });
       return;
     }
 
     const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
     for (const tu of toolUses) {
       const isAction = (ACTION_TOOLS as string[]).includes(tu.name);
+      starting(ctx, tu.name);
       try {
         const out = await runTool(ctx, tu.name, tu.input);
+        if (tu.name === "get_city_status") readStorm(ctx);
+        if (tu.name === "get_crew_status") {
+          const c = out as { crews: { busy: boolean }[]; suggested: unknown[]; queue_length: number };
+          readStep(ctx, "Checked crews", `${c.crews.filter((x) => !x.busy).length} of ${plural(c.crews.length, "crew")} free · ${plural(c.suggested.length + c.queue_length, "home")} need a crew`);
+        }
         if (isAction) {
           const args = tu.input as Record<string, unknown>;
           const e = actionEntry(tu.name as ActionTool, out as { status?: string; summary?: string }, args, ctx);
           if (tu.name === "log_event") e.reason = undefined;
-          ctx.entries.push(e);
+          emit(ctx, e);
         }
         results.push({ type: "tool_result", tool_use_id: tu.id, content: JSON.stringify(out) });
       } catch (err) {
         const msg = readableError(tu.name, err);
-        if (isAction) ctx.entries.push({ id: entryId(), kind: "error", tool: tu.name as ActionTool, summary: msg, status: "failed" });
+        if (isAction) emit(ctx, { id: entryId(), kind: "error", tool: tu.name as ActionTool, summary: msg, status: "failed" });
         results.push({ type: "tool_result", tool_use_id: tu.id, content: msg, is_error: true });
       }
     }
     messages.push({ role: "user", content: results });
   }
-  ctx.entries.push({ id: entryId(), kind: "note", summary: `Stopped after ${MAX_STEPS} steps (the per-run cap).`, status: "done" });
+  emit(ctx, { id: entryId(), kind: "note", summary: `Stopped after ${MAX_STEPS} steps (the per-run cap).`, status: "done" });
 }
 
-export async function runAgent(city: City, hour: number, mode: AgentMode, origin: string): Promise<RunResult> {
-  const ctx: AgentCtx = { city, hour, time: URI_HOURS[hour].time, mode, origin, reserves: {}, entries: [] };
+export async function runAgent(
+  city: City,
+  hour: number,
+  mode: AgentMode,
+  origin: string,
+  onEvent?: (e: TraceEvent) => void,
+): Promise<RunResult> {
+  const ctx: AgentCtx = { city, hour, time: URI_HOURS[hour].time, mode, origin, reserves: {}, entries: [], onEvent };
+  let texted = 0;
   const usage: RunResult["usage"] = { calls: 0, input_tokens: 0, output_tokens: 0, model: null };
   const claude = getClaude();
   if (claude) {
@@ -200,7 +270,7 @@ export async function runAgent(city: City, hour: number, mode: AgentMode, origin
     try {
       await runClaude(ctx, claude, usage);
     } catch (err) {
-      ctx.entries.push({
+      emit(ctx, {
         id: entryId(),
         kind: "error",
         summary: `Claude call failed (${err instanceof Error ? err.message : String(err)}). Nothing else was done.`,
@@ -208,9 +278,10 @@ export async function runAgent(city: City, hour: number, mode: AgentMode, origin
       });
     }
   } else {
-    await runRules(ctx);
+    texted = (await runRules(ctx)).texted;
   }
   proposeStage2(ctx);
+  await notifyOthers(ctx, texted);
   return { time: ctx.time, mode, source: claude ? "claude" : "rules", entries: ctx.entries, usage };
 }
 
@@ -229,7 +300,7 @@ export function proposeStage2(ctx: AgentCtx): void {
   for (const a of monitorAt(ctx.city, ctx.hour)) {
     if (!a.stage2) continue;
     const args = { zone_id: a.zoneId, reason: stage2Reason(a.stage2, formatHour(URI_HOURS[a.stage2.worstHour].time)) };
-    ctx.entries.push({
+    emit(ctx, {
       id: entryId(),
       kind: "action",
       tool: "send_stage2_alert",
@@ -239,4 +310,30 @@ export function proposeStage2(ctx: AgentCtx): void {
       input: { tool: "send_stage2_alert", args, reserves: {} } satisfies PendingInput,
     });
   }
+}
+
+/**
+ * "Also notified" (simulated, display only): who else the agent would reach, from this run's numbers.
+ * Nothing is sent; the trace tags every line "simulated · nothing is sent".
+ */
+async function notifyOthers(ctx: AgentCtx, textedThisRun: number): Promise<void> {
+  const st = cityStatus(ctx);
+  const areas = monitorAt(ctx.city, ctx.hour);
+  const low = areas.reduce((a, b) => (b.lowest.psi < a.lowest.psi ? b : a), areas[0]);
+  const crewsSent = ctx.entries.filter((e) => e.tool === "propose_crew" && e.status !== "failed").length;
+  const queue = await crewStatus(ctx)
+    .then((c) => c.queue_length)
+    .catch(() => 0);
+  const queued = ctx.mode === "auto" && !textedThisRun ? (await queuedTextIds(toTimestamp(ctx.time)).catch(() => new Set<string>())).size : 0;
+  const notices = alsoNotified({
+    needAction: st.homes.High + st.homes.Watch,
+    high: st.homes.High,
+    texted: ctx.mode === "auto" ? textedThisRun || queued : 0,
+    crewsSent,
+    crewQueue: queue,
+    lowestArea: low?.area ?? null,
+    lowestPsi: low ? low.lowest.psi : null,
+    stage2Pending: ctx.entries.some((e) => e.tool === "send_stage2_alert" && e.status === "pending"),
+  });
+  for (const n of notices) emit(ctx, { id: entryId(), kind: "notify", party: n.party, summary: n.message, status: "done" });
 }
