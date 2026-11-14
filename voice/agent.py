@@ -308,7 +308,8 @@ def twiml(host: str, params: dict[str, Any]) -> str:
     return (
         '<?xml version="1.0" encoding="UTF-8"?>'
         "<Response><Connect>"
-        f'<Stream url="wss://{host}/ws"><Parameter name="home" value="{payload}"/></Stream>'
+        f'<Stream name="freezeline" url="wss://{host}/ws">'
+        f'<Parameter name="home" value="{payload}"/></Stream>'
         "</Connect></Response>"
     )
 
@@ -395,7 +396,13 @@ def make_app():
 
     @app.websocket("/ws")
     async def ws(websocket: WebSocket) -> None:
-        await websocket.accept()
+        # Cloudflared stalls the upgrade for clients that do not send Accept-Encoding (Twilio's
+        # media-stream client does not), and the call dies with no traffic on our side at all.
+        # Cloudflare's issue #1465 documents the fix: turn compression off for this response.
+        try:
+            await websocket.accept(headers=[(b"content-encoding", b"identity")])
+        except TypeError:  # older starlette without accept(headers=...)
+            await websocket.accept()
         print("[agent] audio stream connected", flush=True)
         stream_sid = call_sid = None
         home: dict[str, Any] = {}
