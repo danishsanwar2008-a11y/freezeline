@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { getSupabaseAdmin } from "@/lib/server/supabaseAdmin";
 import { AgentReport, reportColumns } from "@/lib/voiceCalls";
+import { textChecklistAfterCall } from "@/lib/server/callTexts";
 
 // The voice agent (voice/agent.py) posts here after every answer and when the script ends, so a
 // call's answers are saved even if the household hangs up halfway. Not behind the console password
@@ -26,7 +27,11 @@ export async function POST(req: Request) {
   const db = getSupabaseAdmin();
   if (!db) return Response.json({ error: "Supabase is not configured." }, { status: 503 });
 
-  const { data: row, error: readError } = await db.from("voice_calls").select("id,status").eq("id", report.call_id).maybeSingle();
+  const { data: row, error: readError } = await db
+    .from("voice_calls")
+    .select("id,status,source,to_phone,lang,mode,finished")
+    .eq("id", report.call_id)
+    .maybeSingle();
   if (readError) return Response.json({ error: readError.message }, { status: 500 });
   if (!row) return Response.json({ error: "Unknown call_id." }, { status: 404 });
 
@@ -44,5 +49,8 @@ export async function POST(req: Request) {
   if (!report.final) update = update.eq("finished", false);
   const { data: changed, error } = await update.select("id");
   if (error) return Response.json({ error: error.message }, { status: 500 });
-  return Response.json(changed?.length ? { ok: true } : { ok: true, ignored: "older report" });
+  if (!changed?.length) return Response.json({ ok: true, ignored: "older report" });
+  // The call just reached its end: text the household the checklist the call promised.
+  const text = await textChecklistAfterCall(db, row, report);
+  return Response.json({ ok: true, text });
 }

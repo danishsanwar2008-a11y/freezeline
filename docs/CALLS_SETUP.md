@@ -27,6 +27,12 @@ Run agent (on /console)
   once the call reaches its end.
 - **Honesty rule holds:** a household that can't do the steps hears "I'm requesting a crew", never
   "a crew is on the way".
+- **Checklist text after the call:** when a call reaches its end, the app texts the called phone the
+  3 steps plus one line for how it ended ("before 8 PM", "you're all set", or "we're requesting a
+  crew"; never "a crew is on the way"). It goes through `SMS_PROVIDER` (`textbee` = an Android phone's
+  SIM, so it comes from that phone's number; `twilio` needs an upgraded account with a registered
+  number). Run `supabase/007_call_texts.sql` once so each text is recorded and never sent twice.
+  Test without a phone call: `npm run calls:rehearse -- --text` (texts `DEMO_CALL_TO`).
 - **Calls page** (`/console/calls`, top bar → **Calls**, password-protected): outcome bar, filter
   (All / Demo calls / Sample), one card per call with the answers as tiles and the full transcript.
 - **Sample data:** 36 simulated calls over 3 storm hours (fictional 555-01XX numbers, tagged "sample").

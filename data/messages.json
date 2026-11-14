@@ -563,6 +563,77 @@
       "es": "Hola, le escribe FreezeLine de parte de su compañía de agua por la helada de esta noche."
     }
   },
+  "checklist": {
+    "intro": {
+      "en": "FreezeLine (simulated): your checklist from today's call. 1) {step1} 2) {step2} 3) {step3}",
+      "es": "FreezeLine (simulated): su lista de la llamada de hoy. 1) {step1} 2) {step2} 3) {step3}"
+    },
+    "agent_reminder": {
+      "en": "Please do these steps before 8 PM.",
+      "es": "Por favor haga estos pasos antes de las 8 p. m."
+    },
+    "agent_ready": {
+      "en": "You're all set. Thank you for helping keep your neighbors' water on.",
+      "es": "Ya está listo. Gracias por ayudar a que sus vecinos sigan teniendo agua."
+    },
+    "agent_crew_requested": {
+      "en": "We're requesting a crew to help you with these steps. We'll text you as soon as a crew is assigned.",
+      "es": "Estamos pidiendo un equipo para ayudarle con estos pasos. Le enviaremos un mensaje en cuanto se asigne un equipo."
+    }
+  },
+  "surveyTexts": {
+    "about": "The text each home gets before the storm, picked by the forecast temperature (mild / cold / very_cold) and the pre-survey result (pass / fail). Keys are temp|survey. {drip} and {outdoor_valve} are filled from the lines below. Texts only, not call lines. Not wired to sending yet: replies (YES, BURST) are not handled by anything yet.",
+    "messages": {
+      "mild|pass": {
+        "level": "Low",
+        "call_first": false,
+        "en": "FreezeLine (simulated): Hi {name}, a winter storm is in the forecast for {county}, but your home is at low risk. Follow these steps to stay safe:\n- Keep your heat at 55°F or above.\n- Open the cabinet doors under your sinks.\n- Wrap exposed pipes with insulation.\n- No need to drip your faucets.\n- Know where your main water shutoff is.\nReply YES when you've done these steps. We'll message you if any further actions are needed.",
+        "es": "FreezeLine (simulated): Hola {name}, se pronostica una tormenta invernal en {county}, pero su casa tiene un riesgo bajo. Siga estos pasos para estar seguro:\n- Mantenga la calefacción a 55°F o más.\n- Abra las puertas de los gabinetes debajo de sus fregaderos.\n- Envuelva las tuberías expuestas con aislante.\n- No necesita dejar gotear sus llaves.\n- Sepa dónde está la llave de paso principal del agua.\nResponda SÍ cuando haya hecho estos pasos. Le escribiremos si hace falta hacer algo más."
+      },
+      "mild|fail": {
+        "level": "Medium",
+        "call_first": false,
+        "en": "FreezeLine (simulated): Hi {name}, a winter storm is in the forecast for {county}. Your pipes are vulnerable. Follow these steps to stay safe:\n- Wrap exposed pipes with insulation.\n- Keep your heat at 55°F or above.\n- Open the cabinet doors under your sinks.\n- Know where your main water shutoff is.\n- Make sure your water supply is on.\n- {drip}\nReply YES when done. We'll message you if any further actions are needed.",
+        "es": "FreezeLine (simulated): Hola {name}, se pronostica una tormenta invernal en {county}. Sus tuberías son vulnerables. Siga estos pasos para estar seguro:\n- Envuelva las tuberías expuestas con aislante.\n- Mantenga la calefacción a 55°F o más.\n- Abra las puertas de los gabinetes debajo de sus fregaderos.\n- Sepa dónde está la llave de paso principal del agua.\n- Asegúrese de que el agua esté abierta.\n- {drip}\nResponda SÍ cuando termine. Le escribiremos si hace falta hacer algo más."
+      },
+      "very_cold|pass": {
+        "level": "Medium",
+        "call_first": false,
+        "en": "FreezeLine (simulated): Hi {name}, a winter storm is in the forecast for {county}. Your pipes are well protected, but follow these steps to stay safe:\n- Keep your heat at 55°F or above, day and night, even when you're out.\n- Make sure your water supply is on.\n- Know where your main water shutoff is.\n- {drip}\nReply YES when done. We'll message you if any further actions are needed.",
+        "es": "FreezeLine (simulated): Hola {name}, se pronostica una tormenta invernal en {county}. Sus tuberías están bien protegidas, pero siga estos pasos para estar seguro:\n- Mantenga la calefacción a 55°F o más, de día y de noche, aunque no esté en casa.\n- Asegúrese de que el agua esté abierta.\n- Sepa dónde está la llave de paso principal del agua.\n- {drip}\nResponda SÍ cuando termine. Le escribiremos si hace falta hacer algo más."
+      },
+      "very_cold|fail": {
+        "level": "High",
+        "call_first": false,
+        "en": "FreezeLine (simulated): Hi {name}, a hard freeze is coming and your pipes are at high risk. Follow these steps to stay safe:\n- Wrap exposed pipes with insulation.\n- Open the cabinet doors under your sinks.\n- Keep your heat at 55°F or above.\n- Don't shut off your main water valve.\n- {outdoor_valve}\n- {drip}\nReply YES when you've done these steps.\nIf a pipe bursts, shut off your water supply right away and text BURST. We'll flag your home for crew assistance.",
+        "es": "FreezeLine (simulated): Hola {name}, se acerca una helada fuerte y sus tuberías tienen un riesgo alto. Siga estos pasos para estar seguro:\n- Envuelva las tuberías expuestas con aislante.\n- Abra las puertas de los gabinetes debajo de sus fregaderos.\n- Mantenga la calefacción a 55°F o más.\n- No cierre la llave de paso principal del agua.\n- {outdoor_valve}\n- {drip}\nResponda SÍ cuando haya hecho estos pasos.\nSi se revienta una tubería, cierre el agua de inmediato y escriba BURST. Marcaremos su casa para que reciba ayuda de un equipo."
+      },
+      "cold|pass": {
+        "level": "Medium",
+        "call_first": false,
+        "en": "FreezeLine (simulated): Hi {name}, a hard freeze is coming. Your pipes are at risk, even though they're well protected. Follow these steps to stay safe:\n- Open the cabinet doors under your sinks.\n- Keep your heat at 55°F or above if you can.\n- Don't shut off your main water valve.\n- {drip}\nReply YES when you've done these steps.\nIf a pipe bursts, shut off your water supply right away and text BURST. We'll flag your home for crew assistance.",
+        "es": "FreezeLine (simulated): Hola {name}, se acerca una helada fuerte. Sus tuberías están en riesgo, aunque estén bien protegidas. Siga estos pasos para estar seguro:\n- Abra las puertas de los gabinetes debajo de sus fregaderos.\n- Mantenga la calefacción a 55°F o más si puede.\n- No cierre la llave de paso principal del agua.\n- {drip}\nResponda SÍ cuando haya hecho estos pasos.\nSi se revienta una tubería, cierre el agua de inmediato y escriba BURST. Marcaremos su casa para que reciba ayuda de un equipo."
+      },
+      "cold|fail": {
+        "level": "High",
+        "call_first": true,
+        "en": "FreezeLine (simulated): Hi {name}, a hard freeze is coming. Your water pipes are vulnerable, which puts your home at very high risk of a burst pipe. Follow these steps to stay safe:\n- Don't shut off your main water valve.\n- {outdoor_valve}\n- {drip}\n- Wrap exposed pipes with insulation.\n- Keep your heat at 55°F or above if you can.\nIf a pipe bursts, shut off your water supply right away and text BURST. We'll flag your home for crew assistance.",
+        "es": "FreezeLine (simulated): Hola {name}, se acerca una helada fuerte. Sus tuberías son vulnerables, y eso pone su casa en un riesgo muy alto de que se reviente una tubería. Siga estos pasos para estar seguro:\n- No cierre la llave de paso principal del agua.\n- {outdoor_valve}\n- {drip}\n- Envuelva las tuberías expuestas con aislante.\n- Mantenga la calefacción a 55°F o más si puede.\nSi se revienta una tubería, cierre el agua de inmediato y escriba BURST. Marcaremos su casa para que reciba ayuda de un equipo."
+      }
+    },
+    "drip_medium": {
+      "en": "Drip one faucet slowly: the one farthest from your main water shutoff (where water enters your home). That keeps water moving through the longest stretch of your pipes.",
+      "es": "Deje gotear lentamente una llave: la más lejana de su llave de paso principal (por donde entra el agua a su casa). Así el agua sigue moviéndose por el tramo más largo de sus tuberías."
+    },
+    "drip_high": {
+      "en": "Drip 2 or 3 faucets slowly: the one farthest from your main water shutoff (where water enters your home), plus any faucet on pipes in an outside wall or an unheated area.",
+      "es": "Deje gotear lentamente 2 o 3 llaves: la más lejana de su llave de paso principal (por donde entra el agua a su casa), y cualquier llave con tuberías en una pared exterior o en un área sin calefacción."
+    },
+    "outdoor_valve": {
+      "en": "Go outside and close the valve on your outdoor water pipe, so the water in it can't freeze.",
+      "es": "Salga y cierre la válvula de la tubería de agua exterior, para que el agua dentro no se congele."
+    }
+  },
   "storm": {
     "day_coldest": {
       "en": "{day} night: {temp}°F, the coldest night. {n} homes in your area need to act.",

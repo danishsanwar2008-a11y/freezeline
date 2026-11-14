@@ -9,6 +9,9 @@
 //   npm run calls:rehearse -- --crew               says it can't do the steps (Needs a crew)
 //   npm run calls:rehearse -- --hangup 3           hangs up after 3 answers
 //   npm run calls:rehearse -- --keep               keep the row (shows on /console/calls as a demo call)
+//   npm run calls:rehearse -- --text               use DEMO_CALL_TO as the phone, so the checklist text
+//                                                  really goes out (SMS_PROVIDER) when the call finishes.
+//                                                  Without it the fictional 555-0100 number gets no text.
 import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import { encodeHousehold } from "../src/lib/voiceCalls";
@@ -28,6 +31,12 @@ const args = process.argv.slice(2);
 const crew = args.includes("--crew");
 const keep = args.includes("--keep");
 const hangAt = args.includes("--hangup") ? Number(args[args.indexOf("--hangup") + 1]) : null;
+const textMe = args.includes("--text");
+const phone = textMe ? (process.env.DEMO_CALL_TO ?? "").trim() : "+17135550100";
+if (textMe && !/^\+1[2-9]\d{9}$/.test(phone)) {
+  console.error("--text needs DEMO_CALL_TO=+1XXXXXXXXXX (your phone) in .env.local");
+  process.exit(1);
+}
 
 // Identity, then the 7 questions (outdoor faucet included).
 const ANSWERS = crew
@@ -42,7 +51,7 @@ async function main() {
   }
   const { data: row, error } = await db
     .from("voice_calls")
-    .insert({ source: "demo", to_phone: "+17135550100", status: "in_progress", home_id: "heights-w589054579", mode: "storm", level: "High" })
+    .insert({ source: "demo", to_phone: phone, status: "in_progress", home_id: "heights-w589054579", mode: "storm", level: "High" })
     .select("id")
     .single();
   if (error || !row) throw new Error(`voice_calls: ${error?.message}${/voice_calls/.test(error?.message ?? "") ? " (run supabase/006_voice_calls.sql)" : ""}`);
@@ -76,6 +85,10 @@ async function main() {
   await new Promise((r) => setTimeout(r, 2500)); // the agent posts its reports in the background
   const { data } = await db.from("voice_calls").select("status,finished,assessment,closing,questions_answered,answers").eq("id", row.id).single();
   console.log("\nSaved in Supabase:", JSON.stringify(data, null, 2));
+  // The checklist text, when supabase/007_call_texts.sql has added its columns.
+  const sms = await db.from("voice_calls").select("sms_status,sms_body,sms_error").eq("id", row.id).single();
+  if (!sms.error) console.log("\nChecklist text:", JSON.stringify(sms.data, null, 2));
+  else if (textMe) console.log("\nChecklist text: not recorded (run supabase/007_call_texts.sql); check your phone.");
   if (!data?.questions_answered)
     console.log("\nNothing was saved: check VOICE_RESULT_URL and VOICE_SHARED_SECRET in the agent's settings, and that npm run dev is running.");
   if (keep) console.log(`\nKept: it shows on /console/calls as a demo call (id ${row.id}).`);

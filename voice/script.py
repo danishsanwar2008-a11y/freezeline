@@ -503,6 +503,8 @@ class Call:
             "confidence": "confirmed",
             "answers": self.answers.as_dict(),
             "closing": closing_key(a, self.assigned_crew),
+            # The 3 steps exactly as read out: the app texts them back once the call finishes.
+            "steps": list(self.steps),
             "sees_list": self.sees_list,
             "text_sent": self.text_sent,
             "lang": self.lang,

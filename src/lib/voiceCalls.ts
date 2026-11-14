@@ -55,6 +55,8 @@ export const AgentReport = z.object({
   /** Which answer fields were actually asked and answered (the rest are defaults, not answers). */
   answered: z.array(z.string().max(64)).max(32).default([]),
   transcript: z.array(Line).max(200).default([]),
+  /** The 3 steps the call read out (storm calls only); texted back as the checklist when it finishes. */
+  steps: z.array(z.string().max(300)).max(3).optional(),
 });
 export type AgentReport = z.output<typeof AgentReport>;
 
