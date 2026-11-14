@@ -334,6 +334,14 @@
       "en": "Hi, this is FreezeLine calling for your water utility about tonight's freeze.",
       "es": "Hola, le habla FreezeLine de parte de su compañía de agua por la helada de esta noche."
     },
+    "agent_hello_named": {
+      "en": "Hi {first_name}, this is FreezeLine calling for your water utility about {street}.",
+      "es": "Hola {first_name}, le habla FreezeLine de parte de su compañía de agua por {street}."
+    },
+    "agent_hello_name": {
+      "en": "Hi {first_name}, this is FreezeLine calling for your water utility about tonight's freeze.",
+      "es": "Hola {first_name}, le habla FreezeLine de parte de su compañía de agua por la helada de esta noche."
+    },
     "agent_storm": {
       "en": "It's {temp}°F right now, after {hours} hours below 20°F. Your home's risk is {level}.",
       "es": "Ahora hace {temp} °F, después de {hours} horas por debajo de 20 °F. El riesgo de su casa es {level}."

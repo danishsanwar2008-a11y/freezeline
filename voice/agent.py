@@ -255,6 +255,10 @@ def call_from_params(params: dict[str, Any]) -> Call:
         replied_text=bool(params.get("replied_text", False)),
         assigned_crew=params.get("crew") or None,
         hard_of_hearing=bool(params.get("hard_of_hearing", False)),
+        # From the sign-up row: "Hi Maria, ... about Harvard St". Empty when unknown, and the
+        # script falls back to the unnamed greeting rather than speaking a blank.
+        first_name=str(params.get("first_name") or ""),
+        street=str(params.get("street") or ""),
     )
 
 

@@ -235,6 +235,8 @@ class Call:
         replied_text: bool = False,
         assigned_crew: str | None = None,
         hard_of_hearing: bool = False,
+        first_name: str = "",
+        street: str = "",
     ) -> None:
         if lang not in LANGS:
             raise ValueError(f"lang must be one of {LANGS}")
@@ -245,6 +247,10 @@ class Call:
         self.steps = steps
         self.has_outdoor_faucet = has_outdoor_faucet
         self.assigned_crew = assigned_crew
+        # Filled from the sign-up row when we have one: the greeting addresses the household by
+        # name, and the street name proves we are talking about the right house.
+        self.first_name = first_name.strip()
+        self.street = street.strip()
         self.hard_of_hearing = hard_of_hearing
         self.answers = Answers()
         self.turns: list[Turn] = []
@@ -260,9 +266,23 @@ class Call:
     def _ask(self, key: str) -> Turn:
         return Turn("ask", key, line(key, self.lang), FIELD_OF[key])
 
+    def _greeting(self, replied_text: bool) -> Turn:
+        """Name and street when the sign-up gave us them; the plain line when it did not.
+
+        Never improvise the name: a call that greets "Maria" at the wrong address is worse
+        than one that greets nobody.
+        """
+        if replied_text:
+            return self._say("agent_hello_text")
+        if self.first_name and self.street:
+            return self._say("agent_hello_named", {"first_name": self.first_name, "street": self.street})
+        if self.first_name:
+            return self._say("agent_hello_name", {"first_name": self.first_name})
+        return self._say("agent_hello")
+
     def _build(self, replied_text: bool) -> None:
         level_word = messages()["levelWord"][self.level][self.lang]
-        self.turns.append(self._say("agent_hello_text" if replied_text else "agent_hello"))
+        self.turns.append(self._greeting(replied_text))
         if self.hours_below_20 > 0:
             self.turns.append(self._say("agent_storm", {"temp": self.temp, "hours": self.hours_below_20, "level": level_word}))
         else:
