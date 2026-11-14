@@ -141,7 +141,7 @@ export function HomesContacted({
 
 // ---------- Crews ----------
 
-/** Still driving: the simulated drive hasn't reached the home yet (src/lib/route.ts). */
+/** Still driving: the real-time drive hasn't reached the home yet (src/lib/route.ts). */
 export function isHeading(c: OpsCrew, now: number): boolean {
   return !!c.assignment && minutesLeft(c.assignment, now) > 0;
 }
@@ -181,7 +181,7 @@ function AreaPicker({
   value,
   onChange,
 }: {
-  areas: { id: string; name: string; busy: number }[];
+  areas: { id: string; name: string; busy: number; total: number }[];
   value: string;
   onChange: (id: string) => void;
 }) {
@@ -234,7 +234,7 @@ function AreaPicker({
                   className={`flex w-full items-center justify-between px-3 py-2 text-left text-[13px] transition-colors hover:bg-surface ${x.id === value ? "text-text" : "text-muted"}`}
                 >
                   {x.name}
-                  <span className="font-mono text-xs tabular-nums text-muted">{x.busy}/5 busy</span>
+                  <span className="font-mono text-xs tabular-nums text-muted">{x.busy}/{x.total} busy</span>
                 </button>
               </li>
             ))}
@@ -264,10 +264,11 @@ export function CrewsPanel({
 }) {
   const working = crews.filter((c) => c.assignment);
   const areas = useMemo(() => {
-    const by = new Map<string, { id: string; name: string; busy: number }>();
+    const by = new Map<string, { id: string; name: string; busy: number; total: number }>();
     for (const c of crews) {
       const id = c.zone_id ?? c.area;
-      const x = by.get(id) ?? { id, name: c.area, busy: 0 };
+      const x = by.get(id) ?? { id, name: c.area, busy: 0, total: 0 };
+      x.total++;
       if (c.assignment) x.busy++;
       by.set(id, x);
     }

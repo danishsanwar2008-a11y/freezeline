@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import streets from "../../data/osm-streets.json";
 import { buildGraph, nearestNode, routeBetween, shortestPath } from "./streetGraph";
-import { alongPath, driveFraction, minutesLeft, MS_PER_DRIVE_MINUTE } from "./route";
+import { alongPath, CREW_TIME_SCALE, driveFraction, minutesLeft, onJob } from "./route";
 import { CREW_TRIP, milesBetween } from "./crewTrip";
 import { areaOf, generateCrews, generateHomes } from "./seed/generate";
 
@@ -78,22 +78,36 @@ describe("the cached Houston street network", () => {
   });
 });
 
-describe("crew drive on the simulated clock", () => {
+describe("crew drive in real time", () => {
   const t0 = Date.parse("2026-11-14T12:00:00Z");
   const job = { hoursAgo: 0, assigned_at: new Date(t0).toISOString(), minutes: 6 };
+  const MIN = 60_000;
 
-  it("moves at one simulated minute per 2 s and arrives after the drive time", () => {
-    expect(driveFraction(job, t0)).toBe(0);
-    expect(minutesLeft(job, t0)).toBe(6);
-    expect(driveFraction(job, t0 + 3 * MS_PER_DRIVE_MINUTE)).toBeCloseTo(0.5);
-    expect(minutesLeft(job, t0 + 3 * MS_PER_DRIVE_MINUTE)).toBe(3);
-    expect(driveFraction(job, t0 + 10 * MS_PER_DRIVE_MINUTE)).toBe(1);
-    expect(minutesLeft(job, t0 + 10 * MS_PER_DRIVE_MINUTE)).toBe(0);
+  it("the default time scale is real time", () => {
+    expect(CREW_TIME_SCALE).toBe(1);
   });
 
-  it("a job from an earlier replay hour has been driving that long", () => {
-    expect(driveFraction({ ...job, hoursAgo: 1 }, t0)).toBe(1);
-    expect(minutesLeft({ hoursAgo: 1, assigned_at: job.assigned_at, minutes: 75 }, t0)).toBe(15);
+  it("a 6-minute drive takes 6 real minutes, and the arrival countdown runs in the same time", () => {
+    expect(driveFraction(job, t0)).toBe(0);
+    expect(minutesLeft(job, t0)).toBe(6);
+    expect(driveFraction(job, t0 + 3 * MIN)).toBeCloseTo(0.5);
+    expect(minutesLeft(job, t0 + 3 * MIN)).toBe(3);
+    expect(minutesLeft(job, t0 + 5.5 * MIN)).toBe(1);
+    expect(driveFraction(job, t0 + 6 * MIN)).toBe(1);
+    expect(minutesLeft(job, t0 + 6 * MIN)).toBe(0);
+  });
+
+  it("the position depends only on real time since dispatch, not on the replay hour", () => {
+    const at = t0 + 2 * MIN;
+    const later = { ...job, hoursAgo: 3 }; // the replay moved on 3 hours
+    expect(driveFraction(later, at)).toBe(driveFraction(job, at));
+    expect(minutesLeft(later, at)).toBe(4);
+  });
+
+  it("stays on the job while the replay says so, or while the real drive + 30 min on site are not over", () => {
+    expect(onJob({ ...job, hoursAgo: 1 }, t0 + 10 * MIN)).toBe(true); // replay moved on, still on site in real time
+    expect(onJob({ ...job, hoursAgo: 1 }, t0 + 37 * MIN)).toBe(false); // 6 min drive + 30 min on site are over
+    expect(onJob(job, t0 + 600 * MIN)).toBe(true); // the replay hour of the job: parked at the house
   });
 
   it("positions the marker along the path by distance and returns the rest of the route", () => {
@@ -112,5 +126,20 @@ describe("crew drive on the simulated clock", () => {
     expect(mid.rest).toHaveLength(2);
     expect(mid.rest[0]).toEqual(mid.position);
     expect(mid.rest[mid.rest.length - 1]).toEqual(path[2]);
+  });
+
+  it("gives the street segment it is on, so the vehicle faces the way it drives", () => {
+    const path: [number, number][] = [
+      [-95.4, 29.7],
+      [-95.4, 29.7], // a repeated point has no direction
+      [-95.39, 29.7],
+      [-95.39, 29.71],
+      [-95.39, 29.71],
+    ];
+    expect(alongPath(path, 0).segment).toEqual([path[1], path[2]]); // east, skipping the repeated point
+    expect(alongPath(path, 0.2).segment).toEqual([path[1], path[2]]);
+    expect(alongPath(path, 0.8).segment).toEqual([path[2], path[3]]); // north
+    expect(alongPath(path, 1).segment).toEqual([path[2], path[3]]); // parked: still facing north
+    expect(alongPath([path[0]], 0.5).segment).toBeNull();
   });
 });

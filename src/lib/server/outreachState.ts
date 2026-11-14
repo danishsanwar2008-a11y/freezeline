@@ -4,15 +4,16 @@ import {
   assess,
   nearestNeighbors,
   outreachSummary,
-  jobActive,
+  crewJobsAt,
   proposeCrews,
   simulateOutreach,
   type Assessment,
   type CallAnswers,
   type Confidence,
   type Contact,
+  type ActiveJob,
+  type AssignmentRow,
   type Crew,
-  type CrewJob,
   type HomeAssessment,
   type HomeOutreach,
   type ReasonFactor,
@@ -32,39 +33,43 @@ function withArea(rows: Omit<Crew, "zone_id">[]): Crew[] {
 /** Sample crews if the crews table is empty or missing: 20 crews, 5 per area (same rows `npm run seed` writes). */
 export const DEFAULT_CREWS: Crew[] = withArea(generateCrews());
 
-/** Assignments look back this many replay hours for jobs still running (a long cross-area drive). */
+/** Assignments look back this many replay hours for jobs still running. */
 const JOB_LOOKBACK_HOURS = 3;
 
 /**
- * Crew jobs as of a replay hour: jobs still running (busy crews) and every home already helped
- * (this hour or earlier), which leaves the queue.
+ * Crew jobs as of a replay hour: jobs still running (busy crews), every home already helped (this hour or
+ * earlier, which leaves the queue) and crews held this hour by an old cross-area row (`crewJobsAt`).
+ * `realNow` (the map only) keeps jobs that are still driving or on site in real time; the agent's checks
+ * leave it out, so which crews are free stays a replay-hour decision.
  */
 export async function loadCrewJobs(
   city: City,
   time: string,
   crews: Crew[],
-): Promise<{ active: (CrewJob & { assigned_at: string })[]; helpedHomes: Set<string> }> {
+  realNow?: number,
+): Promise<{ active: ActiveJob[]; helpedHomes: Set<string>; heldThisHour: Set<number> }> {
+  const none = { active: [], helpedHomes: new Set<string>(), heldThisHour: new Set<number>() };
   const d = getSupabaseAdmin();
-  if (!d) return { active: [], helpedHomes: new Set() };
-  const now = Date.parse(toTimestamp(time));
+  if (!d) return none;
   const { data, error } = await d
     .from("crew_assignments")
     .select("crew_id,home_id,plan_for,created_at")
     .eq("status", "assigned")
     .lte("plan_for", toTimestamp(time))
     .order("created_at");
-  if (error || !data) return { active: [], helpedHomes: new Set() };
-  const helpedHomes = new Set(data.map((r) => r.home_id as string));
-  const active: (CrewJob & { assigned_at: string })[] = [];
-  for (const r of data) {
-    const hoursAgo = Math.round((now - Date.parse(r.plan_for as string)) / 3_600_000);
-    const crew = crews.find((c) => c.id === r.crew_id);
-    const i = city.byId.get(r.home_id as string);
-    if (!crew || i === undefined || hoursAgo > JOB_LOOKBACK_HOURS) continue;
-    const job = { crew_id: crew.id, home_id: r.home_id as string, hoursAgo, minutes: routedTrip(crew, city.homes[i]).minutes, assigned_at: r.created_at as string };
-    if (jobActive(job)) active.push(job);
-  }
-  return { active, helpedHomes };
+  if (error || !data) return none;
+  const homeOf = (id: string) => {
+    const i = city.byId.get(id);
+    return i === undefined ? undefined : city.homes[i];
+  };
+  return crewJobsAt(
+    data as AssignmentRow[],
+    crews,
+    (id) => homeOf(id)?.zone_id,
+    (crew, id) => routedTrip(crew, homeOf(id)!).minutes,
+    Date.parse(toTimestamp(time)),
+    { lookbackHours: JOB_LOOKBACK_HOURS, realNow },
+  );
 }
 
 const neighborCache = new WeakMap<City, (string | null)[]>();
@@ -251,7 +256,7 @@ export async function crewStatus(ctx: AgentCtx) {
     plan,
     assessments,
     crews,
-    new Set(jobs.active.map((j) => j.crew_id)),
+    new Set([...jobs.active.map((j) => j.crew_id), ...jobs.heldThisHour]),
     jobs.helpedHomes,
   );
   const homeLabel = (i: number) => ({
@@ -262,7 +267,7 @@ export async function crewStatus(ctx: AgentCtx) {
   return {
     crews: crews.map((c) => {
       const a = jobs.active.find((x) => x.crew_id === c.id);
-      return { crew_id: c.id, name: c.name, area: c.zone_id, busy: !!a, helping: a ? a.home_id : null };
+      return { crew_id: c.id, name: c.name, area: c.zone_id, busy: !!a || jobs.heldThisHour.has(c.id), helping: a ? a.home_id : null };
     }),
     suggested: proposals.map((p) => {
       // The pick is the nearest free crew (straight line); distance and time come from its street route.
@@ -322,7 +327,7 @@ export async function proposeCrew(ctx: AgentCtx, input: z.output<typeof Outreach
   const d = db();
   const planFor = toTimestamp(ctx.time);
   const jobs = await jobsP!;
-  if (jobs.active.some((j) => j.crew_id === crew.id)) throw new Error(`${crew.name} is still on another job.`);
+  if (jobs.active.some((j) => j.crew_id === crew.id) || jobs.heldThisHour.has(crew.id)) throw new Error(`${crew.name} is still on another job.`);
   if (jobs.helpedHomes.has(home.id)) throw new Error("A crew has already been assigned to this home.");
   const { error } = await d
     .from("crew_assignments")

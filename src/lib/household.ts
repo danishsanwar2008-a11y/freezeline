@@ -247,7 +247,67 @@ export interface Crew {
 }
 
 export { CREW_TRIP, crewTrip, jobActive, milesBetween, type CrewJob } from "./crewTrip";
-import { crewTrip, milesBetween } from "./crewTrip";
+import { busyInRealTime, crewTrip, jobActive, milesBetween, type CrewJob } from "./crewTrip";
+
+/** A saved crew assignment (status "assigned"). */
+export interface AssignmentRow {
+  crew_id: number;
+  home_id: string;
+  plan_for: string;
+  created_at: string;
+}
+
+export type ActiveJob = CrewJob & { assigned_at: string };
+
+/** No drive inside one area takes this long; real-time jobs older than this are skipped before routing. */
+const MAX_REAL_JOB_MINUTES = 240;
+
+/**
+ * Crew jobs as of a replay hour (`at`, ms). Pure, so the crew rule is testable without the database.
+ * - active: jobs still running (the replay says so; with `realNow`, also jobs still driving or on site in real time,
+ *   so the map never jumps when the replay hour changes). Only the agent's own checks leave `realNow` out.
+ * - helpedHomes: every home already given a crew (this hour or earlier); it leaves the queue.
+ * - heldThisHour: crews holding an old row at exactly this hour (see below); never offered a second job that hour.
+ * Crews never leave their area: a job whose home is outside the crew's own area (saved before that rule) is
+ * ignored, so a crew is never shown or counted outside its area. Its row is kept (no data is deleted).
+ */
+export function crewJobsAt(
+  rows: AssignmentRow[],
+  crews: Crew[],
+  zoneOf: (homeId: string) => string | undefined,
+  minutesOf: (crew: Crew, homeId: string) => number,
+  at: number,
+  opts: { lookbackHours: number; realNow?: number },
+): { active: ActiveJob[]; helpedHomes: Set<string>; heldThisHour: Set<number> } {
+  const helpedHomes = new Set(rows.map((r) => r.home_id));
+  const active: ActiveJob[] = [];
+  const heldThisHour = new Set<number>();
+  for (const r of rows) {
+    const crew = crews.find((c) => c.id === r.crew_id);
+    const zone = zoneOf(r.home_id);
+    if (!crew || zone === undefined) continue;
+    const hoursAgo = Math.round((at - Date.parse(r.plan_for)) / 3_600_000);
+    if (crew.zone_id && zone !== crew.zone_id) {
+      if (hoursAgo === 0) heldThisHour.add(crew.id); // the database allows one job per crew per hour
+      continue;
+    }
+    const recentInRealTime = opts.realNow !== undefined && opts.realNow - Date.parse(r.created_at) < MAX_REAL_JOB_MINUTES * 60_000;
+    if (hoursAgo > opts.lookbackHours && !recentInRealTime) continue;
+    const job: ActiveJob = { crew_id: crew.id, home_id: r.home_id, hoursAgo, minutes: minutesOf(crew, r.home_id), assigned_at: r.created_at };
+    if (jobActive(job) || (opts.realNow !== undefined && busyInRealTime(job, opts.realNow))) active.push(job);
+  }
+  return { active, helpedHomes, heldThisHour };
+}
+
+/** The one job a crew shows: its newest (latest replay hour, then latest saved). */
+export function currentJob(active: ActiveJob[], crewId: number): ActiveJob | undefined {
+  let best: ActiveJob | undefined;
+  for (const j of active) {
+    if (j.crew_id !== crewId) continue;
+    if (!best || j.hoursAgo < best.hoursAgo || (j.hoursAgo === best.hoursAgo && j.assigned_at > best.assigned_at)) best = j;
+  }
+  return best;
+}
 
 export interface CrewProposal {
   crew_id: number;

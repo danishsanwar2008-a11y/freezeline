@@ -26,7 +26,7 @@ Professional emergency-management software for a water utility during a hard fre
 | Action Blue | `--accent` | #4a83cc | Marks, chart lines, bars, selected pills, crew routes |
 | Button fill | `--btn` | #3c75be | Filled primary buttons (white label 4.7:1) |
 | Link ink | `--accent-ink` | Ice Blue #a9d9f5 | Small blue text and links on the navy boxes (9.6:1) |
-| Deep Blue | — | #1d3557 | Top-bar insets, crew dots |
+| Deep Blue | — | #1d3557 | Top-bar insets, crew van outline and number badge |
 | Map | `MAP_LOOK` | CARTO Positron + gray wash → #eaecec | The basemap |
 | Danger / warn / ok | `--danger` `--warn` `--ok` | #f87171 / #fbbf24 / #4ade80 | Errors, the amber pressure band, the green band (light shades read on navy) |
 
@@ -68,7 +68,7 @@ Sentence case everywhere. No all-caps titles, no text under 11px.
 - **Decision trace**: the agent's steps for this hour, in the order they ran, from the real run (never a canned animation): a dot per step (done filled, running pulsing, waiting outlined in amber), the step name on the left and its result on the right, a progress strip ("Step 5 of 9"). The final action sits in a box. A Stage 2 alert always shows "Waiting for supervisor approval" with Approve / Not yet.
 - **Also notified (simulated)**: a short list under the trace when the agent runs: maintenance contractors, the utility control room, city officials, the mayor's office, each tagged "simulated · nothing is sent".
 - **Buttons**: one filled Action Blue primary per context (Run agent, Approve); secondary actions are quiet text buttons ("Not yet", "Sign out"). Working states change the label ("Running…") and disable the button.
-- **Map key**: top-left, collapsible: the 4 cell steps ("Cells · darker = more homes need action") and the crew dot + route line. Home dot colors live only in the Homes contacted box.
+- **Map key**: top-left, collapsible: the 4 cell steps ("Cells · darker = more homes need action") and the crew van ("blinks on the way") + route line. Home dot colors live only in the Homes contacted box.
 - **Tooltips**: navy box, hairline, 8px radius, max ~270px. "Why this shade?" lists real vs simulated reasons with a tag on each.
 - **Confirmed vs estimated**: solid border for confirmed facts, dashed border + muted ink for estimated ones. Forecast lines are dashed; past lines are solid.
 - **Empty / loading states**: one muted sentence that says what will appear and what makes it appear ("Outreach hasn't run for this hour yet. Run the agent to text these homes."), never a blank box or a spinner alone.

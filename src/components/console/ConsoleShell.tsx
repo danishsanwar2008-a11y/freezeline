@@ -23,8 +23,8 @@ import { useSessionFlag } from "./useSessionFlag";
 import DecisionTrace from "./DecisionTrace";
 import { useAgent } from "./useAgent";
 import { statusAt, useOps } from "./useOps";
-import { CrewQuickView, CrewsPanel, HomeQuickView, HomesContacted, isHeading } from "./CityCards";
-import { alongPath, driveFraction, minutesLeft } from "@/lib/route";
+import { CrewQuickView, CrewsPanel, HomeQuickView, HomesContacted } from "./CityCards";
+import { alongPath, driveFraction, minutesLeft, onJob } from "@/lib/route";
 import type { CrewMarker, PinnedCallout } from "./RiskMap";
 
 // WebGL map is browser-only.
@@ -169,27 +169,39 @@ function ConsoleBody({
   }, [plan, data]);
 
 
-  // Crew positions: driving along its street route on the simulated clock (1 min = 2 s on screen), then at
-  // the home. A job from an earlier replay hour has been driving for those hours.
+  // Crews drive in real time from the moment they were dispatched (CREW_TIME_SCALE in src/lib/crewTrip.ts), so they
+  // keep moving whether the replay plays or pauses and never jump when the hour changes. The vehicles themselves
+  // move frame by frame (CrewVehicles.tsx); this one-second clock counts the minutes down, trims the route line and
+  // puts a crew back on standby once its real-time drive and visit are over.
   const [tick, setNow] = useState(() => Date.now());
   const now = Math.max(tick, ops.at); // advance to the moment fresh data arrived
-  const crewsData = useMemo(() => data?.crews ?? [], [data]);
-  const anyHeading = crewsData.some((c) => isHeading(c, now));
+  const crewsData = useMemo(
+    () => (data?.crews ?? []).map((c) => (c.assignment && !onJob(c.assignment, now) ? { ...c, assignment: null } : c)),
+    [data, now],
+  );
+  const anyOnJob = crewsData.some((c) => c.assignment);
   useEffect(() => {
-    if (!anyHeading) return;
-    const id = setInterval(() => setNow(Date.now()), 250);
+    if (!anyOnJob) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [anyHeading]);
+  }, [anyOnJob]);
   const crewMarkers = useMemo<CrewMarker[]>(
     () =>
       crewsData.map((c) => {
         const depot: [number, number] = [c.depot_lng, c.depot_lat];
-        if (!c.assignment) return { id: c.id, name: c.name, position: depot, rest: null, minutesLeft: 0, street: null };
+        const base = { id: c.id, name: c.name, depot };
+        if (!c.assignment) return { ...base, position: depot, rest: null, minutesLeft: 0, job: null };
         const a = c.assignment;
         const t = driveFraction(a, now);
         const route = a.route?.length ? a.route : [depot, [a.lng, a.lat] as [number, number]];
         const { position, rest } = alongPath(route, t);
-        return { id: c.id, name: c.name, position, rest: t < 1 ? rest : null, minutesLeft: minutesLeft(a, now), street: a.street };
+        return {
+          ...base,
+          position,
+          rest: t < 1 ? rest : null,
+          minutesLeft: minutesLeft(a, now),
+          job: { route, assigned_at: a.assigned_at, minutes: a.minutes, street: a.street },
+        };
       }),
     [crewsData, now],
   );
@@ -226,6 +238,7 @@ function ConsoleBody({
     return {
       key: `crew-${c.id}`,
       lngLat: m.position,
+      crewId: c.id,
       title: c.name,
       subtitle: `${c.area} crew (sample)`,
       body: <CrewQuickView crew={c} now={now} />,

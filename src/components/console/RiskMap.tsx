@@ -13,7 +13,7 @@ import type { ConsoleHome, HexBin } from "@/lib/replay";
 import type { HomeStatus } from "@/lib/household";
 import { MAP_LOOK, NEED_STEPS, STATUS_RGB, needStep } from "@/lib/riskScale";
 import type { HexWhy } from "@/lib/hexWhy";
-import Callout from "./Callout";
+import { CrewOverlay } from "./CrewVehicles";
 
 /** A quick view pinned to a point on the map. */
 export interface PinnedCallout {
@@ -23,6 +23,8 @@ export interface PinnedCallout {
   subtitle?: string;
   body: React.ReactNode;
   onClose: () => void;
+  /** Set for a crew's quick view: it follows the moving vehicle frame by frame. */
+  crewId?: number;
 }
 
 // Worker is copied into /public by `npm install` (scripts/copy-maplibre-worker.mjs).
@@ -39,23 +41,24 @@ const look = {
   statusLine: MAP_LOOK.dotRing,
   halo: MAP_LOOK.halo,
   selectedLine: MAP_LOOK.selectedLine,
-  crew: MAP_LOOK.crew,
-  crewRing: MAP_LOOK.crewRing,
   floating: true,
 };
 const TOP_BAR = 52;
 const PANEL = 440;
 const AREA_ZOOM = 16;
 
-/** Crew marker + the rest of its street route (no text labels on the map; names and trips are in the boxes). */
+/** A crew on the map: its vehicle (CrewVehicles.tsx) and the rest of its street route. */
 export interface CrewMarker {
   id: number;
   name: string;
+  depot: [number, number];
+  /** Where it is at the last clock tick (the vehicle itself moves frame by frame from `job`). */
   position: [number, number];
-  /** The route still to drive, [lng, lat] from the marker to the home; null when not driving. */
+  /** The route still to drive, [lng, lat] from the vehicle to the home; null when not driving. */
   rest: [number, number][] | null;
   minutesLeft: number;
-  street: string | null;
+  /** The job it is on (dispatch time + street route); null = on standby at the depot. */
+  job: { route: [number, number][]; assigned_at: string; minutes: number; street: string } | null;
 }
 
 interface Dot {
@@ -235,7 +238,7 @@ export default function RiskMap({
         updateTriggers: { getRadius: selectedHome, getFillColor: statusKey },
       });
 
-  // The route still to drive, along the streets (Action Blue), under the crew dot.
+  // The route still to drive, along the streets (Action Blue), under the crew vehicle.
   const crewLines = new PathLayer<CrewMarker>({
     id: "crew-routes",
     data: crews.filter((c) => c.rest && c.rest.length > 1),
@@ -247,37 +250,11 @@ export default function RiskMap({
     jointRounded: true,
     parameters: { depthCompare: "always" },
   });
-  const crewDots = new ScatterplotLayer<CrewMarker>({
-    id: "crews",
-    data: crews,
-    getPosition: (d) => d.position,
-    getFillColor: [...look.crew, 255],
-    getLineColor: [...look.crewRing, 255],
-    getRadius: (d) => (d.id === selectedCrew ? 10 : 7),
-    radiusUnits: "pixels",
-    stroked: true,
-    getLineWidth: (d) => (d.id === selectedCrew ? 3 : 2),
-    lineWidthUnits: "pixels",
-    pickable: true,
-    updateTriggers: { getRadius: selectedCrew, getLineWidth: selectedCrew },
-    onClick: (info) => {
-      if (info.object) onSelectCrew(info.object.id);
-      return true;
-    },
-    parameters: { depthCompare: "always" },
-  });
-
-  // deck.gl calls function children with the live viewport each frame, so the quick view stays on its point
-  // while the map pans or zooms (its types only declare ReactNode children, hence the cast where it is used).
-  const calloutChild = ({ viewport, width }: { viewport: { project: (p: [number, number]) => number[] }; width: number }) => {
-    if (!callout) return null;
-    const [x, y] = viewport.project(callout.lngLat);
-    return (
-      <Callout key={callout.key} x={x} y={y} mapWidth={width} title={callout.title} subtitle={callout.subtitle} onClose={callout.onClose}>
-        {callout.body}
-      </Callout>
-    );
-  };
+  // deck.gl calls function children with the live viewport each frame, so the vehicles and the quick view stay on
+  // their points while the map pans or zooms (its types only declare ReactNode children, hence the cast where used).
+  const overlayChild = ({ viewport, width }: { viewport: { project: (p: [number, number]) => number[]; zoom: number }; width: number }) => (
+    <CrewOverlay viewport={viewport} width={width} crews={crews} selectedCrew={selectedCrew} onSelectCrew={onSelectCrew} callout={callout} />
+  );
 
   // Faint gray wash over the basemap: off-white, slightly gray.
   const tintLayer = new SolidPolygonLayer<{ polygon: [number, number][] }>({
@@ -292,25 +269,16 @@ export default function RiskMap({
     <DeckGL
       initialViewState={initialViewState}
       controller={{ dragRotate: false }}
-      layers={[tintLayer, hexLayer, haloLayer, dotLayer, crewLines, crewDots]}
+      layers={[tintLayer, hexLayer, haloLayer, dotLayer, crewLines]}
       onError={(err) => console.error("[FreezeLine map]", err)}
       onViewStateChange={({ viewState }) => {
         const z = Math.round((viewState as MapViewState).zoom * 2) / 2;
         if (z !== zoom) setZoom(z);
       }}
       getCursor={({ isHovering }) => (isHovering ? "pointer" : "grab")}
-      getTooltip={({ object, layer }: PickingInfo<HexBin | Dot | CrewMarker>) => {
+      getTooltip={({ object, layer }: PickingInfo<HexBin | Dot>) => {
         if (!object) return null;
         if (layer?.id === "homes") return { text: homes[(object as Dot).i].label, style: TIP_STYLE };
-        if (layer?.id === "crews") {
-          const c = object as CrewMarker;
-          const text = c.street
-            ? c.minutesLeft > 0
-              ? `${c.name} · ~${c.minutesLeft} min to ${c.street} (simulated)`
-              : `${c.name} · helping a home on ${c.street}`
-            : `${c.name} · on standby`;
-          return { text, style: TIP_STYLE };
-        }
         if (layer?.id === "need-hexes" && (object as HexBin).h3 !== focusHex) {
           const hex = object as HexBin;
           return { html: whyHtml(hex.neighborhood, explain(hexIndex.get(hex.h3)!)), style: TIP_STYLE };
@@ -319,7 +287,7 @@ export default function RiskMap({
       }}
     >
       <Map mapStyle={look.basemap} attributionControl={{ compact: true }} />
-      {calloutChild as unknown as React.ReactNode}
+      {overlayChild as unknown as React.ReactNode}
     </DeckGL>
   );
 }

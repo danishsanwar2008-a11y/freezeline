@@ -2,7 +2,7 @@ import { requireConsole } from "@/lib/server/consoleAuth";
 import { getCity, hourIndex } from "@/lib/server/cityState";
 import { getCrews, loadCrewJobs, loadHourRecords } from "@/lib/server/outreachState";
 import { routedTrip } from "@/lib/server/crewRoutes";
-import { STATUS_OF, type HomeStatus } from "@/lib/household";
+import { STATUS_OF, currentJob, type HomeStatus } from "@/lib/household";
 import { STATUS_CODE } from "@/lib/riskScale";
 import { needsList } from "@/lib/cityWording";
 import type { ReasonFactor } from "@/lib/household";
@@ -31,7 +31,8 @@ export async function GET(req: Request) {
       if (c.flagged_by) neighborFlags++;
       if (c.assessment === "needs_crew" && c.confidence === "confirmed") needsCrewIds.push(h.id);
     }
-    const jobs = await loadCrewJobs(city, time, crews);
+    // The map keeps jobs still driving or on site in real time, so a crew never jumps when the replay hour changes.
+    const jobs = await loadCrewJobs(city, time, crews, Date.now());
     const home = (id: string) => city.homes[city.byId.get(id)!];
     const area = (zoneId?: string) => city.zones.find((z) => z.id === zoneId)?.neighborhood ?? "";
     // Confirmed "needs a crew" homes this hour that no crew has been assigned to yet.
@@ -48,7 +49,7 @@ export async function GET(req: Request) {
       statuses,
       funnel: { texted, called, doorChecks, neighborFlags },
       crews: crews.map((c) => {
-        const j = jobs.active.find((x) => x.crew_id === c.id);
+        const j = currentJob(jobs.active, c.id);
         const h = j ? home(j.home_id) : null;
         const reasons = (j ? (records.calls.get(j.home_id)?.reason_key ?? "") : "").split(",").filter(Boolean) as ReasonFactor[];
         const trip = h ? routedTrip(c, h) : null;

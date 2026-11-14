@@ -5,7 +5,7 @@ import { areaOf, generateCrews, generateHomes, generateZones, NEIGHBORHOODS } fr
 import streets from "../../data/osm-streets.json";
 import { buildGraph, bufferBox, routeBetween } from "./streetGraph";
 import { planCity } from "./planner";
-import { assess, nearestCrew, nearestNeighbors, proposeCrews, simulateOutreach, type Crew } from "./household";
+import { assess, crewJobsAt, currentJob, nearestCrew, nearestNeighbors, proposeCrews, simulateOutreach, type AssignmentRow, type Crew } from "./household";
 import { CREW_TRIP, crewTrip, jobActive, milesBetween } from "./crewTrip";
 import type { WeatherSeries } from "./weather";
 
@@ -18,6 +18,73 @@ describe("20 sample crews", () => {
     for (const c of crews) per.set(c.zone_id!, (per.get(c.zone_id!) ?? 0) + 1);
     expect([...per.values()]).toEqual([5, 5, 5, 5]);
     expect(new Set(crews.map((c) => c.id)).size).toBe(20);
+  });
+
+  it("exactly 5 crews in every one of the 4 areas, each depot inside its own area's box and no other", () => {
+    expect(NEIGHBORHOODS).toHaveLength(4);
+    for (const n of NEIGHBORHOODS) {
+      const mine = crews.filter((c) => c.zone_id === n.id);
+      expect(mine, n.id).toHaveLength(5);
+      for (const c of mine) {
+        const inBox = (b: number[]) => c.depot_lat >= b[0] && c.depot_lat <= b[2] && c.depot_lng >= b[1] && c.depot_lng <= b[3];
+        expect(inBox(n.bbox), `${c.name} depot inside ${n.id}`).toBe(true);
+        for (const o of NEIGHBORHOODS) if (o.id !== n.id) expect(inBox(o.bbox), `${c.name} depot not inside ${o.id}`).toBe(false);
+      }
+    }
+  });
+});
+
+describe("crews shown per area (the map and the Crews box)", () => {
+  const homes = generateHomes();
+  const zoneOf = (id: string) => homes.find((h) => h.id === id)?.zone_id;
+  const homeIn = (zone: string, k = 0) => homes.filter((h) => h.zone_id === zone)[k].id;
+  const at = Date.parse("2021-02-16T06:00:00Z");
+  const hour = (h: number) => new Date(at - h * 3_600_000).toISOString();
+  const minutesOf = () => 8;
+  const realNow = Date.parse("2026-11-14T12:00:00Z");
+  const row = (crew_id: number, home_id: string, hoursAgo: number, created = realNow - 60_000): AssignmentRow => ({
+    crew_id,
+    home_id,
+    plan_for: hour(hoursAgo),
+    created_at: new Date(created).toISOString(),
+  });
+  /** Where each crew shows: the area of the home it is helping, else its own area. */
+  const shownPerArea = (rows: AssignmentRow[]) => {
+    const { active } = crewJobsAt(rows, crews, zoneOf, minutesOf, at, { lookbackHours: 3, realNow });
+    const per: Record<string, number> = {};
+    for (const c of crews) {
+      const j = currentJob(active, c.id);
+      const z = j ? zoneOf(j.home_id)! : c.zone_id!;
+      per[z] = (per[z] ?? 0) + 1;
+    }
+    return per;
+  };
+
+  it("an old cross-area job (saved before crews stayed in their area) never moves a crew out of its area", () => {
+    // Crews 6-10 (Montrose) and 16-20 (Meyerland) each hold an old job in Houston Heights at this hour.
+    const rows = [6, 7, 8, 9, 10, 16, 17, 18, 19, 20].map((id, k) => row(id, homeIn("heights", k), 0));
+    rows.push(row(1, homeIn("heights", 20), 0)); // a real Heights job
+    expect(shownPerArea(rows)).toEqual({ heights: 5, montrose: 5, "third-ward": 5, meyerland: 5 });
+    const jobs = crewJobsAt(rows, crews, zoneOf, minutesOf, at, { lookbackHours: 3 });
+    expect(jobs.active.map((j) => j.crew_id)).toEqual([1]);
+    // Their homes stay helped (no second crew) and those crews are not offered a second job this hour.
+    expect(jobs.helpedHomes.size).toBe(11);
+    expect([...jobs.heldThisHour].sort((a, b) => a - b)).toEqual([6, 7, 8, 9, 10, 16, 17, 18, 19, 20]);
+    // An old cross-area row from an earlier hour holds nobody now.
+    expect(crewJobsAt([row(6, homeIn("heights"), 1)], crews, zoneOf, minutesOf, at, { lookbackHours: 3 }).heldThisHour.size).toBe(0);
+  });
+
+  it("every area shows exactly 5 crews whatever jobs exist, and a crew shows only its newest job", () => {
+    const rows = crews.flatMap((c, k) => [row(c.id, homeIn(c.zone_id!, 2 * k), 1, realNow - 120_000), row(c.id, homeIn(c.zone_id!, 2 * k + 1), 0)]);
+    expect(shownPerArea(rows)).toEqual({ heights: 5, montrose: 5, "third-ward": 5, meyerland: 5 });
+    const { active } = crewJobsAt(rows, crews, zoneOf, minutesOf, at, { lookbackHours: 3, realNow });
+    expect(currentJob(active, 1)!.hoursAgo).toBe(0);
+  });
+
+  it("the map keeps a job that is still driving in real time after the replay moved on; the agent's view does not", () => {
+    const rows = [row(1, homeIn("heights"), 2)]; // dispatched 1 real minute ago, two replay hours back
+    expect(crewJobsAt(rows, crews, zoneOf, minutesOf, at, { lookbackHours: 3, realNow }).active).toHaveLength(1);
+    expect(crewJobsAt(rows, crews, zoneOf, minutesOf, at, { lookbackHours: 3 }).active).toHaveLength(0);
   });
 });
 

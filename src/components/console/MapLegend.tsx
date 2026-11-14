@@ -1,10 +1,11 @@
 "use client";
 
 // The map key (top left, see-through): the 4 cell steps (darker = more homes need action) and the crew
-// marker + route. Home dot colors live only in the Homes contacted box, so no key is shown twice.
+// vehicle + route. Home dot colors live only in the Homes contacted box, so no key is shown twice.
 
 import { NEED_STEPS } from "@/lib/riskScale";
 import Panel from "./Panel";
+import { CrewVan } from "./CrewVehicles";
 
 export default function MapLegend() {
   return (
@@ -20,8 +21,11 @@ export default function MapLegend() {
       </ul>
       <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-text">
         <li className="flex items-center gap-2">
-          <span className="size-3 rounded-full border-2 border-white bg-crew" aria-hidden />
-          Help crew
+          {/* The map's crew vehicle, turned to drive right; it blinks while on its way to a house. */}
+          <span className="flex h-3 w-5 items-center justify-center" aria-hidden>
+            <CrewVan style={{ width: 9, height: 20, transform: "rotate(90deg)" }} />
+          </span>
+          Help crew <span className="text-muted">(blinks on the way)</span>
         </li>
         <li className="flex items-center gap-2">
           <span className="h-0.5 w-5 rounded-full bg-accent" aria-hidden />

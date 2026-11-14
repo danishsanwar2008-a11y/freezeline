@@ -129,7 +129,7 @@ export const MAP_LOOK = {
     not_contacted: [...CLOUD, 215],
   } as Record<HomeStatus, RGBA>,
   selectedLine: [16, 28, 46, 255] as RGBA,
-  /** Crews: Deep Blue dots with a white ring; routes in Action Blue. */
+  /** Crews: white vans with a Deep Blue outline (CrewVehicles.tsx); routes in Action Blue. */
   crew: [29, 53, 87] as RGB,
   crewRing: [255, 255, 255] as RGB,
   route: [74, 131, 204] as RGB,

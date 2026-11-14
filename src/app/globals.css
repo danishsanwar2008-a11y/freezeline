@@ -170,7 +170,7 @@ body {
   --on-btn: var(--bg);
   /* Small blue text and links (inside the console: Ice Blue on navy). */
   --accent-ink: var(--accent);
-  /* Crew dots: Deep Blue (mirrors MAP_LOOK.crew). */
+  /* Crew vehicles: Deep Blue outline and number badge (mirrors MAP_LOOK.crew). */
   --crew: #1d3557;
 }
 @theme inline {
@@ -233,4 +233,26 @@ body {
 .callout-enter { animation: callout-enter 200ms var(--ease) both; }
 @media (prefers-reduced-motion: reduce) {
   .callout-enter { animation: none; }
+}
+
+/* Crew vehicle beacon (map): one soft light pulse per second while a crew drives to a house. A white glow with a
+   Midnight Navy ring, so it shows on the light basemap and on the dark blue cells alike (Action Blue vanished
+   into the blue cell scale). Transform and opacity only; under reduced motion it holds a steady glow instead. */
+@keyframes crew-beacon {
+  0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0.9; }
+  80% { opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+.crew-beacon {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: radial-gradient(circle, rgb(255 255 255 / 0.95) 0 30%, rgb(255 255 255 / 0.5) 52%, rgb(255 255 255 / 0) 70%);
+  box-shadow: inset 0 0 0 2.5px rgb(255 255 255 / 0.95), 0 0 0 2px rgb(29 53 87 / 0.9);
+  animation: crew-beacon 1s var(--ease) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .crew-beacon { animation: none; transform: translate(-50%, -50%) scale(0.75); opacity: 0.6; }
 }

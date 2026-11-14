@@ -4,7 +4,7 @@
 export const CREW_TRIP = {
   /** Streets aren't straight lines: straight-line distance x this. */
   roadFactor: 1.3,
-  /** Average speed on icy streets. */
+  /** Average speed on icy streets (a careful city speed on ice; kept at 15). */
   mph: 15,
   /** Time on site helping a household do the steps. */
   jobMinutes: 30,
@@ -36,5 +36,24 @@ export interface CrewJob {
   minutes: number;
 }
 
-/** A job lasts the drive plus time on site; after that the crew is back on standby. */
+/** A job lasts the drive plus time on site; after that the crew is back on standby (replay hours). */
 export const jobActive = (j: Pick<CrewJob, "hoursAgo" | "minutes">) => j.hoursAgo * 60 < j.minutes + CREW_TRIP.jobMinutes;
+
+/**
+ * How fast crews move on screen: 1 = real time (a 6-minute drive takes 6 real minutes).
+ * Change this one line to speed every crew up for a rehearsal (60 = one drive minute per second).
+ */
+export const CREW_TIME_SCALE = 1;
+
+/** Drive minutes since the crew was dispatched, from the real time since its assignment was saved. */
+export function drivenMinutes(job: { assigned_at: string }, now: number): number {
+  return Math.max(0, ((now - Date.parse(job.assigned_at)) / 60_000) * CREW_TIME_SCALE);
+}
+
+/** Still driving or on site in real time (the drive + the time on site have not both passed). */
+export const busyInRealTime = (job: { assigned_at: string; minutes: number }, now: number) =>
+  drivenMinutes(job, now) < job.minutes + CREW_TRIP.jobMinutes;
+
+/** On a job: the replay says so, or the real-time drive and visit are still going (no jump when the hour changes). */
+export const onJob = (job: { hoursAgo: number; assigned_at: string; minutes: number }, now: number) =>
+  jobActive(job) || busyInRealTime(job, now);
