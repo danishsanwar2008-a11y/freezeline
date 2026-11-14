@@ -75,7 +75,7 @@ Sentence case everywhere. No all-caps titles, no text under 11px.
 
 ## 5. Layout
 
-- **Desktop (≥1024px)**: a 52px Midnight Navy top bar with the name, **Run agent** and the Auto / Approve first switch on the left, Live / Replay, Sign-ups, ⓘ, Sign out and Hide panels on the right. Below it the map fills the whole window. Boxes float over it in two columns with 12px gaps:
+- **Desktop (≥1024px)**: a 52px Midnight Navy top bar with the name, **Run agent** on the left (always Auto; only a Stage 2 alert waits for approval, in the trace), a quiet **Winter Storm Uri** label (hairline chip, not a control; there is no Live mode), Sign-ups, ⓘ, Sign out and Hide panels on the right. Below it the map fills the whole window. Boxes float over it in two columns with 12px gaps:
   - Left (300px, see-through): Map key, Homes contacted.
   - Right (380px, solid): Water pressure by area, Crews, Decision trace (fills the remaining height and scrolls inside itself).
   - Bottom center, between the columns: the storm replay timeline with this hour's readings (now, feels like, wind, hours below 20°F).

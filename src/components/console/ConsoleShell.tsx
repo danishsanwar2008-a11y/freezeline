@@ -18,13 +18,11 @@ import { displayLevel } from "@/lib/steps";
 import type { HomeStatus } from "@/lib/household";
 import MapLegend from "./MapLegend";
 import Timeline from "./Timeline";
-import TopBar, { type AgentControls, type Mode } from "./TopBar";
+import TopBar, { type AgentControls } from "./TopBar";
 import { useSessionFlag } from "./useSessionFlag";
 import DecisionTrace from "./DecisionTrace";
 import { useAgent } from "./useAgent";
 import { statusAt, useOps } from "./useOps";
-import { useLiveForecast } from "./useLiveForecast";
-import { houstonNowHour } from "./format";
 import { CrewQuickView, CrewsPanel, HomeQuickView, HomesContacted, isHeading } from "./CityCards";
 import { alongPath, driveFraction, minutesLeft } from "@/lib/route";
 import type { CrewMarker, PinnedCallout } from "./RiskMap";
@@ -51,34 +49,18 @@ function cachedPlanner(zones: ConsoleZone[], homes: ConsoleHome[], model: Replay
   };
 }
 
-function ModeMessage({ title, children }: { title: string; children?: React.ReactNode }) {
-  return (
-    <div className="flex flex-1 items-center justify-center p-6">
-      <div className="max-w-sm text-center">
-        <p className="text-base font-medium">{title}</p>
-        {children && <div className="mt-2 text-sm text-muted">{children}</div>}
-      </div>
-    </div>
-  );
-}
-
 function ConsoleBody({
   homes,
   zones,
   model,
   startHour,
   agent,
-  mode,
-  onMode,
 }: {
   homes: ConsoleHome[];
   zones: ConsoleZone[];
   model: ReplayModel;
   startHour: number;
-  /** Present in Replay mode only (the agent runs on the Uri replay). */
-  agent?: ReturnType<typeof useAgent>;
-  mode: Mode;
-  onMode: (m: Mode) => void;
+  agent: ReturnType<typeof useAgent>;
 }) {
   const [panelsHidden, setPanelsHidden] = useSessionFlag("panels-hidden", false);
   const hours = model.hours;
@@ -231,10 +213,10 @@ function ConsoleBody({
       lngLat: [h.lng, h.lat],
       title: h.label,
       subtitle: `${h.neighborhood} · household details simulated`,
-      body: <HomeQuickView homeId={h.id} time={agent ? time : null} level={displayLevel(plan.homes[selectedHome].level)} crews={crewsData} now={now} />,
+      body: <HomeQuickView homeId={h.id} time={time} level={displayLevel(plan.homes[selectedHome].level)} crews={crewsData} now={now} />,
       onClose: () => setSelectedHome(null),
     };
-  }, [selectedHome, homes, agent, time, plan, crewsData, now]);
+  }, [selectedHome, homes, time, plan, crewsData, now]);
 
   // The selected crew's quick view, pinned to the crew on the map.
   const crewCallout = useMemo<PinnedCallout | null>(() => {
@@ -252,14 +234,13 @@ function ConsoleBody({
   }, [crewsData, crewMarkers, selectedCrew, now]);
 
   const agentControls: AgentControls = {
-    enabled: !!agent,
     running: run?.status === "running",
     onRun: () => agent?.run(time),
   };
 
   return (
     <>
-      <TopBar mode={mode} onMode={onMode} agent={agentControls} panelsHidden={panelsHidden} onTogglePanels={() => setPanelsHidden(!panelsHidden)} />
+      <TopBar agent={agentControls} panelsHidden={panelsHidden} onTogglePanels={() => setPanelsHidden(!panelsHidden)} />
       <div className="relative flex min-h-0 flex-1 flex-col lg:block">
         <main className="relative h-[58svh] min-h-[400px] lg:absolute lg:inset-0 lg:h-auto">
           <RiskMap
@@ -313,7 +294,6 @@ function ConsoleBody({
             ran={!!data?.ran}
             loading={!!agent && !data && !ops.error}
             refreshing={!!agent && !!data && !ops.fresh && !ops.error}
-            live={!agent}
             lowHomes={homes.length - counts.total}
           />
         </div>
@@ -339,7 +319,6 @@ function ConsoleBody({
           />
           <DecisionTrace
             time={time}
-            enabled={!!agent}
             run={run}
             onApprove={(e) => agent?.approve(time, e)}
             onSkip={(e) => agent?.skip(time, e)}
@@ -356,47 +335,14 @@ function ConsoleBody({
   );
 }
 
-/** Top bar while the live forecast loads (no map yet, so the agent is off). */
-function IdleTopBar({ mode, onMode }: { mode: Mode; onMode: (m: Mode) => void }) {
-  const [panelsHidden, setPanelsHidden] = useSessionFlag("panels-hidden", false);
-  const idle: AgentControls = { enabled: false, running: false, onRun: () => {} };
-  return <TopBar mode={mode} onMode={onMode} agent={idle} panelsHidden={panelsHidden} onTogglePanels={() => setPanelsHidden(!panelsHidden)} />;
-}
-
 export default function ConsoleShell({ homes, zones }: { homes: ConsoleHome[]; zones: ConsoleZone[] }) {
-  const [mode, setMode] = useState<Mode>("replay");
+  // The console replays Winter Storm Uri only (the Live forecast mode was removed).
   const agent = useAgent();
   const replayModel = useMemo(() => buildReplay(homes, URI_HOURS, ZONE_HOURS), [homes]);
-  const live = useLiveForecast(mode === "live");
-  const liveSeries = live.state.status === "ready" ? live.state.series : null;
-  const liveModel = useMemo(() => (liveSeries ? buildReplay(homes, liveSeries.hours) : null), [homes, liveSeries]);
-  const liveStart = useMemo(() => {
-    if (!liveSeries) return 0;
-    const now = houstonNowHour();
-    return Math.max(0, liveSeries.hours.findIndex((h) => h.time >= now));
-  }, [liveSeries]);
 
   return (
     <div className="console-theme flex min-h-dvh flex-col bg-bg text-text lg:h-dvh lg:overflow-hidden">
-      {mode === "replay" ? (
-        <ConsoleBody key="replay" homes={homes} zones={zones} model={replayModel} startHour={0} agent={agent} mode={mode} onMode={setMode} />
-      ) : liveModel ? (
-        <ConsoleBody key="live" homes={homes} zones={zones} model={liveModel} startHour={liveStart} mode={mode} onMode={setMode} />
-      ) : (
-        <>
-          <IdleTopBar mode={mode} onMode={setMode} />
-          {live.state.status === "error" ? (
-            <ModeMessage title="Couldn’t load the live forecast">
-              <p>{live.state.message}</p>
-              <button type="button" onClick={live.retry} className="btn btn-primary mt-4">
-                Try again
-              </button>
-            </ModeMessage>
-          ) : (
-            <ModeMessage title="Loading the live forecast…" />
-          )}
-        </>
-      )}
+      <ConsoleBody homes={homes} zones={zones} model={replayModel} startHour={0} agent={agent} />
     </div>
   );
 }

@@ -18,7 +18,7 @@ The demo replays **Winter Storm Uri (Feb 14–18, 2021)** over Houston.
 - Supabase (Postgres + RLS; Realtime later)
 - deck.gl + MapLibre with a free light basemap (CARTO Positron, no key); crew routes on a cached OpenStreetMap street graph (`data/osm-streets.json`)
 - h3-js for hex aggregation
-- Open-Meteo (archive API for Uri replay, forecast API for live)
+- Open-Meteo (archive API for the Uri replay; `fetchLiveForecast` is kept in `src/lib/weather.ts` for later, but the console has no Live mode)
 - Vitest for tests
 - Dev machine: Windows PowerShell
 
@@ -134,7 +134,7 @@ ui-studio and self-check are installed as `anthropic-skills:ui-studio` and `anth
 - `data/messages.json` + `src/lib/pregenerated.ts` — pre-written wording (English + Spanish) keyed by step / reason / SMS / agent keys; `npm run messages:check` proves every fact combination is covered
 - `src/lib/server/provider.ts` — `LLM_PROVIDER` switch; `src/lib/server/gemini.ts` + `photoCheck.ts` — free-tier photo check (no UI since Phase 3.6; kept for Phase 4)
 - `src/lib/steps.ts` — a household's plan (level, exactly 3 steps from the drip plan + home details, 3 sourced reasons) used by texts and calls; Medium is shown as "Watch"
-- `src/components/console` — top bar (City Operations, Live | Replay), map (status dots, need hexes, crews), City cards, agent panel
+- `src/components/console` — top bar (City Operations, Run agent, the "Winter Storm Uri" label; no Live or agent-mode switch), map (status dots, need hexes, crews), City cards, agent panel
 - `src/lib` — also supabase client, homes loader, weather fetchers
 - `public/maplibre-gl-worker.mjs` — copied from node_modules on `npm install` (git-ignored); MapLibre 6's worker can't be resolved through Turbopack
 - `supabase/001_schema.sql` — schema to paste into the Supabase SQL Editor

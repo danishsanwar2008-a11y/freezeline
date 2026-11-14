@@ -86,15 +86,12 @@ function Approval({
 
 export default function DecisionTrace({
   time,
-  enabled,
   run,
   onApprove,
   onSkip,
   approving,
 }: {
   time: string;
-  /** The agent runs on the Uri replay only. */
-  enabled: boolean;
   run?: AgentRun;
   onApprove: (e: AgentEntry) => void;
   onSkip: (e: AgentEntry) => void;
@@ -122,8 +119,7 @@ export default function DecisionTrace({
   return (
     <Panel id="trace" title="Decision trace" grow action={<span className="font-mono text-xs tabular-nums text-muted">{formatHour(time)}</span>}>
       <div ref={top} className="scroll-mt-16" aria-hidden />
-      {!enabled && <p className="text-[13px] text-muted">The agent runs on the Uri replay in this phase. Switch to Replay to try it.</p>}
-      {enabled && !run && (
+      {!run && (
         <p className="text-[13px] text-text">
           Run the agent from the top bar. Each step it takes for this hour shows here as it happens.
         </p>

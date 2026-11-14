@@ -66,7 +66,6 @@ export function HomesContacted({
   ran,
   loading = false,
   refreshing = false,
-  live = false,
   lowHomes,
 }: {
   /** Homes needing action this hour, by status. */
@@ -79,8 +78,6 @@ export function HomesContacted({
   loading?: boolean;
   /** Numbers are showing and a newer copy is on its way (after an approval): keep them, show a quiet note. */
   refreshing?: boolean;
-  /** Live forecast mode: outreach runs on the replay only. */
-  live?: boolean;
   lowHomes: number;
 }) {
   const steps = [
@@ -128,14 +125,12 @@ export function HomesContacted({
           </li>
         ))}
       </ol>
-      <p className={`mt-3 text-[13px] ${ran || loading || live ? "text-muted" : "text-text"}`}>
+      <p className={`mt-3 text-[13px] ${ran || loading ? "text-muted" : "text-text"}`}>
         {loading
           ? "Loading this hour’s outreach…"
-          : live
-            ? "Outreach runs on the Uri replay in this phase."
-            : ran
-              ? `${plural(lowHomes, "low-risk home")} ${verb(lowHomes, "needs", "need")} no action.`
-              : `Outreach hasn’t run for this hour yet. Run the agent to text the ${plural(total, "home")} that need action.`}
+          : ran
+            ? `${plural(lowHomes, "low-risk home")} ${verb(lowHomes, "needs", "need")} no action.`
+            : `Outreach hasn’t run for this hour yet. Run the agent to text the ${plural(total, "home")} that need action.`}
       </p>
       {funnel.neighborFlags > 0 && (
         <p className="mt-1 text-xs text-muted">{plural(funnel.neighborFlags, "home")} flagged by a neighbor moved up the call list.</p>
@@ -423,7 +418,7 @@ export function HomeQuickView({
   now,
 }: {
   homeId: string;
-  /** Replay time (null in Live mode, where outreach doesn't run). */
+  /** Replay time (null: no outreach to look up). */
   time: string | null;
   level: string;
   crews: OpsCrew[];
