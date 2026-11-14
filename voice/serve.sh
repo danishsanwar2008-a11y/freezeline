@@ -57,9 +57,27 @@ echo "Host:    $PUBLIC_HOSTNAME"
 echo "Log:     $AGENT_LOG"
 echo
 
+# Find an interpreter that has the agent's dependencies. The venv does not need activating in
+# this shell, and macOS ships python3 rather than python.
+PY=""
+for cand in ".venv/bin/python" "voice/.venv/bin/python" "$(command -v python3 || true)" "$(command -v python || true)"; do
+  if [ -n "$cand" ] && [ -x "$cand" ]; then
+    PY="$cand"
+    break
+  fi
+done
+
+if [ -z "$PY" ]; then
+  echo "No Python found. Create the environment first:" >&2
+  echo "  python3 -m venv .venv && .venv/bin/pip install -r voice/requirements.txt" >&2
+  exit 1
+fi
+
+echo "Python:  $PY"
+
 # Keep the console for reading and the file for grepping: we hold python's own PID, so Ctrl+C
 # stops the agent rather than leaving it running behind a dead pipe.
-python voice/agent.py > >(tee "$AGENT_LOG") 2>&1 &
+"$PY" voice/agent.py > >(tee "$AGENT_LOG") 2>&1 &
 AGENT_PID=$!
 
 # Wait until the app answers before telling anyone to call: a green light is not readiness.
@@ -75,6 +93,11 @@ done
 if [ -z "$READY" ]; then
   echo "The agent did not answer on port $PORT. Last lines of its log:" >&2
   tail -20 "$AGENT_LOG" >&2
+  if grep -qi "ModuleNotFoundError\|No module named" "$AGENT_LOG"; then
+    echo >&2
+    echo "Its dependencies are missing from $PY. Install them with:" >&2
+    echo "  $PY -m pip install -r voice/requirements.txt" >&2
+  fi
   exit 1
 fi
 
