@@ -1,130 +1,136 @@
 # FreezeLine design system: City Operations
 
-DESIGN.md is the source of truth for how FreezeLine looks. The rules in CLAUDE.md ("UX principles" and "Visual design rules") come first; this file turns them into tokens and components. All tokens live in `src/app/globals.css` (CSS variables + Tailwind `@theme`) and, for map and chart colors, in `src/lib/riskScale.ts`. Never hard-code a color anywhere else.
+DESIGN.md is the source of truth for how FreezeLine looks. The rules in CLAUDE.md ("UX principles" and "Visual design rules") come first; this file turns them into tokens and components. Tokens live in `src/app/globals.css` (CSS variables under `.console-theme` + Tailwind `@theme`); map and chart colors live in `src/lib/riskScale.ts` (`NEED_STEPS`, `STATUS_RGB`, `MAP_LOOK`). Never hard-code a color anywhere else.
 
 ## 1. Theme
 
-A calm, technical operations console for a water utility during a hard freeze. It should read like an ops room at 3 AM: a dark, quiet frame with a lot of data on it, where the only things that light up are the things that need someone's attention.
+Professional emergency-management software for a water utility during a hard freeze. The map is the protagonist: an off-white city with blue cells where homes need action and one dot per home. Around it float a few dark Midnight Navy boxes, each holding one idea, like instrument panels laid over a paper map.
 
-- **Dark, map-first.** The map is the protagonist; the sidebar is a column of dense, scannable panels.
-- **One accent (ice blue)** for actions, focus and the agent's lines. Everything else is neutral ink, or a color that *means* something (home status, need shading, pressure).
-- **Flat.** Hierarchy comes from a short surface ladder and 1px hairlines, not from shadows or gradients.
-- **Honest.** Simulated data is always labeled, and confirmed vs estimated always looks different (solid vs dashed).
-- **Lead with actions, not data.** Each panel has one headline number with a visual; details are collapsed underneath.
+- **Light map, dark boxes.** The basemap is off-white and quiet; the boxes are Midnight Navy with Cloud White text. The map shows *where*; the boxes say *how much* and *what next*.
+- **One accent: Action Blue** for buttons, active states, selections, routes and chart lines. Everything else is neutral, or a color that *means* something (home status, need shading, pressure).
+- **Separate boxes, not a sidebar.** Each metric is its own rounded box with space around it, so the map shows between them. Left boxes are slightly see-through; right boxes are solid.
+- **Honest.** Simulated data is always labeled, confirmed vs estimated always looks different (solid vs dashed), and the agent's trace shows only steps it actually ran.
+- **Lead with actions, not data.** One headline number per box with its visual; details collapse.
+- **Signature detail:** quick views grow out of the house or crew they describe, with a small tail pointing at it; crews drive real streets.
 
 ## 2. Color roles
 
-Dark theme only. Every color has exactly one job, and no job borrows another's color.
-
 | Role | Token | Value | Use |
 |---|---|---|---|
-| Canvas | `--bg` | #0b1016 | Page background, inset tiles inside panels |
-| Surface | `--surface` | #121a23 | Top bar, sidebar, map overlays, tooltips |
-| Panel | `bg-bg/40` on surface | — | Sidebar cards (one step down from the surface) |
-| Hairline | `--border` | #1f2b38 | Every 1px border and divider |
-| Ink | `--text` | #e6edf3 | Headlines, numbers, body |
-| Muted ink | `--muted` | #8a9bae | Labels, captions, secondary lines |
-| Accent (ice) | `--accent` | #7dd3fc | Primary buttons, focus rings, links, crew markers, chart lines. Actions only |
-| Danger | `--danger` | #f87171 | Errors and failed agent steps |
-| Sample tag | `--warn` | #fbbf24 | The "simulated" tag and the amber pressure band |
+| Top bar | `.console-topbar` `--surface` | Midnight Navy #101c2e | The bar across the top |
+| Box | `--surface` | #1a2a40 | Every metric box (a step lighter than the top bar) |
+| Inset | `--bg` | Midnight Navy #101c2e | Tiles, bar tracks and rows inside a box |
+| Hairline | `--border` | #2d3f5a | 1px borders and dividers inside boxes |
+| Ink | `--text` | Cloud White #f3f6fa | Headlines, numbers, body (13.4:1 on a box) |
+| Muted ink | `--muted` | #a9b8cc light gray-blue | Labels, captions (7.2:1 solid, 5.7:1 see-through) |
+| Action Blue | `--accent` | #4a83cc | Marks, chart lines, bars, selected pills, crew routes |
+| Button fill | `--btn` | #3c75be | Filled primary buttons (white label 4.7:1) |
+| Link ink | `--accent-ink` | Ice Blue #a9d9f5 | Small blue text and links on the navy boxes (9.6:1) |
+| Deep Blue | — | #1d3557 | Top-bar insets, crew dots |
+| Map | `MAP_LOOK` | CARTO Positron + gray wash → #eaecec | The basemap |
+| Danger / warn / ok | `--danger` `--warn` `--ok` | #f87171 / #fbbf24 / #4ade80 | Errors, the amber pressure band, the green band (light shades read on navy) |
 
 **Meaning colors (own scales, never mixed):**
 
-| Scale | Tokens / source | Values |
+| Scale | Source | Values |
 |---|---|---|
-| Home status (dots, Ready check) | `--status-*`, `STATUS_RGB` | ready #4caf7d green · needs help #e5484d red · waiting #f2c94c yellow · no answer #0c0e12 black with a light ring · not contacted #8a9bae gray |
-| Hex need (% of homes needing action) | `NEED_STEPS` | 4 steps, faint → deep violet: Under 25% #1f1932 · 25–49% #402d7c · 50–74% #6d47d4 · 75% or more #a985f1 (on-screen swatches over the dark map; validated ΔE ≥ 15) |
+| Home status (dots, Homes contacted box) | `STATUS_RGB`, `--status-*` | ready #38a779 green · needs help #e05252 red · waiting #e8bc4f yellow · no answer #111827 black · not contacted #94a3b8 gray. On the map every dot has a thin dark ring over a light halo, so it reads on the off-white map and on the darkest cells |
+| Cell need (% of homes needing action) | `NEED_STEPS` | 4 steps, **darker = more homes need action**: Under 25% #a3cff1 · 25–49% #5f9bd8 · 50–74% #2a64ad · 75% or more #0e3570. 94% opaque; pale cells have a mid-blue outline, dark cells a white hairline. dataviz: every adjacent pair ΔE ≥ 16.5 |
 | Water pressure | `--psi-ok` / `--psi-warn` / `--psi-bad` | green above 25 psi · amber 20–25 · red below 20 |
 
-Status colors are for home status only. Violet is for hex need only. Pressure uses its own tokens. Color is never the only signal: every colored mark has a label, a count or an icon beside it.
+Status colors are for home status only; blue cells are for need only; pressure uses its own tokens. Color is never the only signal: every colored mark has a label, a count or an icon beside it.
 
 ## 3. Typography
 
-- **Families:** Geist Sans for all UI text; Geist Mono for numbers that are compared or read in columns (counts, psi, temperatures, times) and the FREEZELINE wordmark. One family carries the hierarchy through size and weight.
-- **Numbers:** always `tabular-nums`, with thousands separators ("8,034"), and they agree with their noun ("1 home", "2 homes"; `plural()`).
+- **Families:** Geist Sans for all UI text; Geist Mono for numbers read in columns (counts, psi, minutes, times) and the FREEZELINE wordmark.
+- **Weights:** 400 and 500 only. Big numbers get size and tight tracking, never bold.
+- **Numbers:** `tabular-nums`, thousands separators, and they agree with their noun (`plural()`).
 
 | Role | Size / weight | Use |
 |---|---|---|
-| Headline number | 24–30px / 600, tight tracking | The one big number per panel ("3,046 of 8,022 homes ready", "24.6 psi") |
-| Panel title (eyebrow) | 11px / 500, uppercase, 0.12em tracking, muted | "READY CHECK", "WATER PRESSURE BY AREA" |
-| Body | 14px / 400, line-height 1.4–1.5 | Crew lines, agent log entries, card text |
-| Small | 12px / 400, muted | Explanations under a visual, legend rows |
-| Caption | 11px / 400, muted | Assumption labels, "simulated" notes, chart keys |
-| Micro | 10px | Chart threshold labels and tags only; never body copy |
+| Headline number | 26–28px / 500, tracking −0.02em | The one big number per box ("8,022 homes contacted", "24.6 psi") |
+| Box title | 13px / 500, sentence case, muted | "Water pressure by area", "Crews", "Decision trace" |
+| Body | 14px / 400 | Crew rows, trace steps, quick-view lines |
+| Small | 13px / 400 | Explanations under a visual, legend rows |
+| Caption | 12px / 400, muted | "Simulated" notes, assumption lines, chart keys |
+| Micro | 11px | Chart axis/threshold labels and tags only |
 
-Sentence case everywhere except panel eyebrows. No all-caps body, no bold display.
+Sentence case everywhere. No all-caps titles, no text under 11px.
 
 ## 4. Components
 
-- **Panel (`Card`)**: `rounded-panel` (12px), 1px hairline, `bg-bg/40`, 16px padding. An eyebrow title, then one headline number with its visual, then details. Long details go in `<details>` collapsed by default ("Compare: if everyone drips ▾").
-- **Headline number + visual**: the number sits directly above its visual: a stacked status bar (Ready check), one dot per crew (Crews), funnel bars (Outreach), a line chart (pressure). No bare numbers in a list.
-- **Fact tiles**: small `rounded-md` tiles on `--bg` with a muted label over a value ("Wind · 7 mph"). Facts as tiles, not sentences.
-- **Buttons**: one primary per context. It is filled ice (`bg-accent text-bg`), `rounded-full`, 12–14px semibold. Secondary actions are text-only muted ("Not yet", "Skip", "Sign out"). Pending/working states change the label ("Sending…") and disable the button.
-- **Approval card (Stage 2, crew proposals)**: amber hairline + 10% amber fill, a bold one-line title ("Stage 2 alert ready · needs supervisor approval"), the deterministic sentence, one muted reason line, then Approve / Not yet.
-- **Agent log**: a status dot per entry (done green, pending ice, failed red, note gray), one-line summary, muted reason under it. Collapsed by default.
-- **Map key (legend)**: top-left overlay, `<details>` open by default, three short sections (area shading, homes, crews), live counts right-aligned in mono.
-- **Tooltips**: surface background, hairline, 8px radius, max ~270px wide. "Why this shade?" lists real vs simulated reasons with a small tag on each.
+- **Box (`Panel`)**: 14px radius, 1px hairline at Cloud White 10%, restrained shadow (`0 2px 10px` navy 22%), 16px padding. Header row: the title, an optional control (area picker), and a chevron that collapses the box to its header and opens it again. Solid on the right (`tone="solid"`); 92% opaque with a light blur on the left (`tone="glass"`).
+- **Hide panels**: one chevron button in the top bar collapses every box so only the map, the home dots and the timeline remain; pressed again, the boxes come back as they were.
+- **Headline number + visual**: the number sits directly above its visual: a stacked status bar (Homes contacted), one dot per crew (Crews), a line per area (pressure). No bare numbers in a list.
+- **Homes contacted**: headline "8,022 homes contacted"; under it the stacked status bar and the one status key with counts (ready, waiting, needs help, no answer, not contacted); then Texted → Called → Door check as three small tiles. "(sample)" in the title.
+- **Crews**: headline "N of 20 crews helping" + dot strip; an area picker (hover or click opens Heights, Montrose, Third Ward, Meyerland); the 5 crews of the picked area as rows: crew number disc, where it's headed, arrival time. Clicking a row opens that crew's quick view on the map.
+- **Quick view (`Callout`)**: a navy box with a small tail that points at the house or crew it belongs to, grows out of it (scale + fade, 200ms) and follows the map as it pans. House: address, area, status with its dot, level, one line on what is happening (replied / doing the steps / Crew 7 on the way · 4 min / no answer, door check planned), solid when confirmed, dashed when estimated. Crew: where it's headed, miles, minutes left, the household's needs.
+- **Decision trace**: the agent's steps for this hour, in the order they ran, from the real run (never a canned animation): a dot per step (done filled, running pulsing, waiting outlined in amber), the step name on the left and its result on the right, a progress strip ("Step 5 of 9"). The final action sits in a box. A Stage 2 alert always shows "Waiting for supervisor approval" with Approve / Not yet.
+- **Also notified (simulated)**: a short list under the trace when the agent runs: maintenance contractors, the utility control room, city officials, the mayor's office, each tagged "simulated · nothing is sent".
+- **Buttons**: one filled Action Blue primary per context (Run agent, Approve); secondary actions are quiet text buttons ("Not yet", "Sign out"). Working states change the label ("Running…") and disable the button.
+- **Map key**: top-left, collapsible: the 4 cell steps ("Cells · darker = more homes need action") and the crew dot + route line. Home dot colors live only in the Homes contacted box.
+- **Tooltips**: navy box, hairline, 8px radius, max ~270px. "Why this shade?" lists real vs simulated reasons with a tag on each.
 - **Confirmed vs estimated**: solid border for confirmed facts, dashed border + muted ink for estimated ones. Forecast lines are dashed; past lines are solid.
-- **Empty / loading states**: a single muted sentence that says what will appear and what makes it appear ("Outreach hasn't run for this hour yet."), never a blank panel or a spinner alone. The map shows a soft pulse while loading.
-- **Simulated labels**: the word "(sample)" in panel titles that show sample data, and the "Assumption: …" caption wherever a simulated assumption changes a number.
+- **Empty / loading states**: one muted sentence that says what will appear and what makes it appear ("Outreach hasn't run for this hour yet. Run the agent to text these homes."), never a blank box or a spinner alone.
 
 ## 5. Layout
 
-- **Desktop (≥1024px)**: a top bar (52px), the map filling the left, a 440px sidebar on the right that scrolls on its own. The timeline floats over the bottom of the map; the map key floats top-left; the selected home card floats top-right.
-- **Below 1024px**: the map on top (58% of the viewport height, min 400px), the sidebar stacks underneath at full width.
-- **Spacing**: a 4px base unit. 4 / 8 / 12 / 16 / 24px are the steps in use: 12px between sidebar panels, 16px inside panels, 8px between a number and its visual.
-- **Sidebar order** (most urgent first): Ready check → Outreach → Help crews → Water pressure → Freeze readings → Agent.
-- **Density**: officials expect to see a lot at once. Prefer one more row of data to more air, but never two headline numbers in one panel.
+- **Desktop (≥1024px)**: a 52px Midnight Navy top bar with the name, **Run agent** and the Auto / Approve first switch on the left, Live / Replay, Sign-ups, ⓘ, Sign out and Hide panels on the right. Below it the map fills the whole window. Boxes float over it in two columns with 12px gaps:
+  - Left (300px, see-through): Map key, Homes contacted.
+  - Right (380px, solid): Water pressure by area, Crews, Decision trace (fills the remaining height and scrolls inside itself).
+  - Bottom center, between the columns: the storm replay timeline with this hour's readings (now, feels like, wind, hours below 20°F).
+- **Below 1024px**: the map on top (58% of the viewport, min 400px) with the map key over it; the other boxes stack underneath at full width in the same order.
+- **Spacing**: a 4px base unit; 12px between boxes and from the window edge, 16px inside boxes, 8px between a number and its visual.
+- **Fit**: at 1440×900 every box is visible without scrolling the page; only the decision trace scrolls inside itself.
 
 ## 6. Depth
 
 | Level | Treatment | Use |
 |---|---|---|
-| 0 | Canvas `--bg`, no border | Page, inset tiles |
-| 1 | Surface `--surface` + hairline | Top bar, sidebar, map overlays |
-| 2 | Panel (`bg-bg/40`) + hairline inside the surface | Sidebar cards |
-| Overlay | Surface at 90–95% + `backdrop-blur` + `shadow-lg` | Things floating over the map only (map key, home card, timeline, tooltips) |
-| Focus | 2px ice outline, offset 2–4px | Every focusable control |
+| Map | Off-white basemap, blue cells, dots | The ground |
+| Box | `--surface` + hairline + restrained shadow | Every floating box, the timeline, quick views |
+| Inset | `--bg` inside a box | Tiles, rows, bar tracks |
+| Focus | 2px Action Blue outline, 2px off | Every focusable control |
 
-No gradients on panels. The only shadows are on overlays that float above the map, so they separate from the basemap.
+No gradients on boxes. Shadows only on things floating over the map.
 
 ## 7. Do's and don'ts
 
 **Do**
-- Keep ice blue for actions, focus and the agent. One filled primary button per context.
+- Keep Action Blue for actions, selections, routes and chart lines; one filled primary per context.
 - Give every number a visual and a noun that agrees with it.
-- Use the 4 violet steps for hex need and the status colors for home status, exactly as the map key shows.
-- Label every simulated number and assumption where it's shown.
-- Use dashed for estimated/forecast, solid for confirmed/past.
-- Collapse secondary detail; keep the headline visible.
-- Keep pressure colors on their own tokens, with a text band label next to the psi.
+- Use the 4 blue steps for need and the status colors for home status, exactly as the boxes show.
+- Label every simulated number, route and notification where it's shown.
+- Let a quick view point at the thing it describes.
+- Let any box collapse to its title; keep the headline visible when open.
 
 **Don't**
-- Don't use a status color for anything that isn't a home's status, or violet for anything but hex need.
-- Don't show numeric risk scores, attribute tables or tabs (they stay in code and tests). Say "Watch", not "Medium".
-- Don't put a second accent color in the chrome, or gradients and glows on panels.
-- Don't round buttons to anything other than full pills (actions) or `rounded-md` (tiles), or panels to anything other than 12px.
+- Don't use a status color for anything that isn't a home's status, or the blue cell steps for anything but need.
+- Don't show numeric risk scores, attribute tables or tabs. Say "Watch", not "Medium".
+- Don't add a second accent, gradients or glows; don't use bold weights.
 - Don't show homeowner instructions, transcripts or "you" wording on City Operations.
-- Don't animate layout; motion is limited to opacity fades, the crew drive and the replay, and respects reduced motion.
+- Don't animate layout: motion is limited to fades, the quick view growing from its dot, the crew driving its route and the replay, and all of it respects reduced motion.
 
 ## 8. Responsive
 
-- **1440px**: full layout; the sidebar shows every panel without horizontal scroll.
-- **768px**: map on top, sidebar panels stacked full width; the map key stays top-left and can be collapsed; the mode toggle shows its short labels ("Live", "Replay: Uri 2021").
-- **390px**: same stack; touch targets at least 40px tall for buttons and toggles; long crew lines wrap rather than truncate.
-- Text never truncates a number. Area names may truncate with an ellipsis only in fixed-width tiles.
+- **1440×900**: full layout, every box visible, timeline between the columns.
+- **1024–1279px**: columns narrow to 280px / 340px; the timeline keeps at least 360px.
+- **768px**: map on top, boxes stacked full width; the map key starts collapsed; the top bar wraps Run agent onto its own row if needed.
+- **390px**: same stack; touch targets at least 44px; crew rows wrap rather than truncate.
+- Text never truncates a number.
 
 ## 9. Agent prompt guide
 
 When building or changing City Operations UI:
 1. Read CLAUDE.md (Visual design rules) and this file. CLAUDE.md wins any conflict.
-2. Use the tokens in `src/app/globals.css` and the scales in `src/lib/riskScale.ts` / `src/lib/pressure.ts`; never a raw hex in a component (SVG fills reference `var(--token)`).
-3. Every panel: eyebrow title → one headline number with its visual → details (collapsed if long) → a muted caption for assumptions or "simulated".
+2. Use the tokens in `src/app/globals.css` and the scales in `src/lib/riskScale.ts`; never a raw hex in a component (SVG strokes reference `var(--token)`).
+3. Every box: `Panel` with a sentence-case title and a collapse chevron → one headline number with its visual → details → a muted caption for assumptions or "simulated".
 4. Officials' third-person wording; plurals through `plural()`.
 5. Check at 1440px and 768px with playwright-cli, then run the web-design-guidelines audit on the changed files.
 
 ### Influences
-- **IBM (Carbon)**: the 4px spacing grid, one chromatic accent reserved for actions/links/focus, hierarchy by size and weight within one family, dense layouts where customers expect to see a lot, and hairlines + surface change instead of shadows.
-- **Sentry**: a dark ops-console frame with dense scannable panels, uppercase tracked eyebrows for a console cadence, a strict single-primary-action hierarchy, and status semantics kept separate from accent colors.
-- **Linear**: a short surface ladder with 1px hairlines carrying all depth, a 12px panel radius, a focus ring in the accent, tight tracking on large numbers, and mono reserved for data.
-No brand marks, fonts or palettes were copied: the palette, scales and wording are FreezeLine's own.
+- **IBM (Carbon)**: the 4px spacing grid, one chromatic accent reserved for actions and selection, hierarchy by size and weight within one family, dense boxes for people who need to see a lot.
+- **Sentry**: an ops-console frame with dense scannable boxes, a strict single-primary-action hierarchy, status semantics kept apart from the accent.
+- **Linear**: dark surfaces carried by 1px hairlines, a 12–14px radius, a focus ring in the accent, tight tracking on large numbers, mono reserved for data.
+- **The user's earthquake reference**: separate floating boxes over the map, see-through on the left and solid on the right, a step-by-step decision trace.
+No brand marks, fonts or palettes were copied: the palette (Midnight Navy, Action Blue, Ice Blue, Cloud White), scales and wording are FreezeLine's own.

@@ -16,7 +16,7 @@ The demo replays **Winter Storm Uri (Feb 14–18, 2021)** over Houston.
 
 - Next.js (App Router) + TypeScript + Tailwind, deployed on Vercel
 - Supabase (Postgres + RLS; Realtime later)
-- deck.gl + MapLibre with a free dark basemap (no Mapbox key)
+- deck.gl + MapLibre with a free light basemap (CARTO Positron, no key); crew routes on a cached OpenStreetMap street graph (`data/osm-streets.json`)
 - h3-js for hex aggregation
 - Open-Meteo (archive API for Uri replay, forecast API for live)
 - Vitest for tests
@@ -40,7 +40,7 @@ Replay Uri hour by hour. Temperatures fall into the teens; the risk engine light
 
 ## City Operations (the only screen)
 
-- **/console** (officials, third-person wording: "Blair St home needs help; Crew 2 assigned"): every home as a status dot, hexes by % of homes needing action, crews on the map, Ready check, outreach funnel (Texted → Called → Door check), Crews panel, pressure monitor, freeze readings, collapsed agent log. No transcripts or homeowner instructions.
+- **/console** (officials, third-person wording: "Blair St home needs help; Crew 2 assigned"): the map fills the screen (every home as a status dot, cells by % of homes needing action, crews driving real streets); separate floating boxes over it: Map key and Homes contacted (left), Water pressure, Crews (area picker) and the agent's Decision trace (right); the storm replay timeline with this hour's readings at the bottom; Run agent in the top bar. Every box collapses; one button hides them all. No transcripts or homeowner instructions.
 - The Homeowner tab, `/console/home/[homeId]` and the household page `/h/[homeId]` (house diagram, "Storm in your area", photo check) were removed in Phase 3.6. Restore them from commit `f8994d6` if ever needed. Queued sample texts still carry `/h` links until Phase 4 replaces them.
 - Household details (sample) are server-only: homes, household_calls, crews and crew_assignments are not readable with the anon key.
 
@@ -65,13 +65,14 @@ DESIGN.md is the source of truth for how FreezeLine looks.
 - One big headline number per panel, with details collapsed underneath.
 - Facts as short tiles, not sentences (e.g. "Can do steps: No", "Lives alone: Yes").
 - Status colors (home status only): green = ready, red = needs help, yellow = waiting, black = no answer, gray = not contacted (`STATUS_*` in `src/lib/riskScale.ts`).
-- The hex "need" scale uses its own faint → deep violet ramp in 4 labeled steps (`NEED_STEPS` / `needRgba`; the map and the legend share them), never a status color.
+- The look: an off-white light map with Midnight Navy boxes (#1a2a40, Cloud White text) floating over it, a Midnight Navy top bar (#101c2e), and Action Blue (#4a83cc) for buttons, selections, routes and chart lines (palette E2; tokens under `.console-theme` in `globals.css`).
+- The cell "need" scale uses its own 4 blue steps, **darker = more homes need action** (`NEED_STEPS` / `needRgba`: #a3cff1 · #5f9bd8 · #2a64ad · #0e3570; the map and the map key share them), never a status color.
 - Water pressure uses its own tokens (`--psi-ok` / `--psi-warn` / `--psi-bad`: green above 25 psi, amber 20–25, red below 20), never the home status colors.
 - Two-audience wording: officials' third-person wording only on City Operations; "you" wording only in texts and calls to households (tested in `src/lib/audience.test.ts`).
 - Anything a household reads (texts, calls, the `/register` sign-up page) is friendlier and less technical: plain sentences, nothing that needs explaining.
 - Counts always agree with their noun: use `plural()` from `src/lib/plural.ts` ("1 home", "2 homes"), never "1 homes".
 - Honesty in the UI: sample or simulated data is always marked, and confirmed vs estimated looks different (solid vs dashed).
-- The City Operations sidebar may be semi-transparent with a light backdrop blur over the map (coming in the color-scheme phase). This overrides Taste's "no glass or backdrop blur" default for the sidebar only. Text contrast rules still apply on top of the blur: check them against the brightest map area behind the panel.
+- The left boxes (Map key, Homes contacted) are slightly see-through (92%) with a light backdrop blur; the right boxes are solid. This overrides Taste's "no glass or backdrop blur" default for those boxes only. Text contrast rules still apply on top of the blur: check them against the brightest map area behind the box.
 
 ## AI providers (`LLM_PROVIDER` in .env.local, default `pregenerated`)
 
