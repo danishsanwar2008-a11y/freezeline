@@ -222,13 +222,19 @@ class Survey:
         else:
             answer = read_survey(field, transcript)
 
-        if answer is None and self.attempts < 1:
+        # Ask again, twice, before giving up. A single miss is a noisy room or a hesitation,
+        # not an answer, and skipping the question loses the fact the survey exists to collect.
+        if answer is None and self.attempts < 2:
             self.attempts += 1
             self.turns.insert(self.i, self._say("agent_didnt_catch"))
             return "unclear"
 
         self.attempts = 0
         self.i += 1
+        if answer is None:
+            # Third time unheard: say so out loud instead of sliding silently to the next
+            # question as if they had answered.
+            self.turns.insert(self.i, self._say("agent_couldnt_hear"))
 
         if field == "is_household" and answer is False:
             self.turns = self.turns[: self.i]

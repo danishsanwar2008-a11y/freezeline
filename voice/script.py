@@ -413,15 +413,18 @@ class Call:
             self.i += 1
             return "ok"
         answer = classify_for(turn.field or "", transcript, self.first_name)
-        if answer is None and self.attempts < 1:
+        if answer is None and self.attempts < 2:
             self.attempts += 1
             # Apologise first, then ask again. Repeating the identical sentence in the same
             # flat tone is the clearest sign that nobody is on the line.
             self.turns.insert(self.i, self._say("agent_didnt_catch"))
-            return "unclear"        # the agent re-asks the same question once
+            return "unclear"        # the agent re-asks the same question
         self._record(turn.field or "", transcript, answer)
         self.attempts = 0
         self.i += 1
+        if answer is None:
+            # Unheard three times: admit it rather than move on as if they had answered.
+            self.turns.insert(self.i, self._say("agent_couldnt_hear"))
         if turn.field == "sees_list":
             self.sees_list = answer
             self.turns.append(self._say("agent_list_confirmed" if answer else "agent_list_resend"))

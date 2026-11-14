@@ -338,6 +338,10 @@
       "en": "Sorry, I didn't quite catch that.",
       "es": "Disculpe, no le entendí bien."
     },
+    "agent_couldnt_hear": {
+      "en": "Sorry, I'm having trouble hearing you. I'll note that this one wasn't answered and move on.",
+      "es": "Disculpe, me cuesta escucharlo. Voy a anotar que esta no se respondió y sigo adelante."
+    },
     "q_pipe_runs": {
       "en": "First, do you know where your water pipes run? For example, inside the walls or a heated space, under the concrete slab, or in places like the garage or the basement?",
       "es": "Primero, ¿sabe por dónde pasan las tuberías de agua? Por ejemplo, dentro de las paredes o en un espacio con calefacción, bajo la losa de concreto, o en lugares como el garaje o el sótano."

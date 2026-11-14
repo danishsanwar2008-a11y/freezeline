@@ -385,6 +385,14 @@ def make_app():
 
     sessions: dict[str, Any] = {}
 
+    # Words these five questions expect. Twilio's recognizer leans on them in a noisy room,
+    # which is the difference between "insulated" and "installed" on a phone line.
+    HINTS = (
+        "yes, no, yeah, nope, correct, speaking, garage, basement, crawlspace, slab, concrete, "
+        "interior, walls, heated, attic, insulated, mostly, wrapped, none, shutoff, valve, "
+        "turn, reach, frozen, burst, away, home, traveling, work, alone, neighbor"
+    )
+
     def _xml(inner: str) -> Any:
         return Response(
             '<?xml version="1.0" encoding="UTF-8"?><Response>' + inner + "</Response>",
@@ -414,10 +422,13 @@ def make_app():
             inner = "".join(_say_xml(s, lang) for s in spoken)
             inner += (
                 f'<Gather input="speech" language="{"es-US" if lang == "es" else "en-US"}"'
-                f' speechTimeout="auto" method="POST" action="https://{host}/voice/step">'
+                # 4 seconds of silence before it decides they are done: "auto" hangs up on
+                # a thinking pause mid-sentence, which is what cut the household off.
+                f' speechTimeout="4" timeout="10" enhanced="true" hints="{HINTS}"'
+                f' method="POST" action="https://{host}/voice/step">'
                 + _say_xml(question, lang)
                 + "</Gather>"
-                # Nothing heard: end the call rather than leave the line open in silence.
+                # Nothing heard at all: end the call rather than leave the line open.
                 + "<Hangup/>"
             )
             return _xml(inner)
