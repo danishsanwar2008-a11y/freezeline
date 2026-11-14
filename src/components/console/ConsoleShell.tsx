@@ -18,13 +18,14 @@ import { displayLevel } from "@/lib/steps";
 import type { HomeStatus } from "@/lib/household";
 import MapLegend from "./MapLegend";
 import Timeline from "./Timeline";
-import TopBar, { type Mode } from "./TopBar";
+import TopBar, { type AgentControls, type Mode } from "./TopBar";
+import { useSessionFlag } from "./useSessionFlag";
 import AgentPanel from "./AgentPanel";
 import { useAgent } from "./useAgent";
 import { statusAt, useOps } from "./useOps";
 import { useLiveForecast } from "./useLiveForecast";
 import { houstonNowHour } from "./format";
-import { CrewsPanel, FreezeReadings, HomeSummaryCard, OutreachFunnel, ReadyCheck, headingMs, isHeading } from "./CityCards";
+import { CrewsPanel, HomeSummaryCard, OutreachFunnel, ReadyCheck, headingMs, isHeading } from "./CityCards";
 import type { CrewMarker } from "./RiskMap";
 
 // WebGL map is browser-only.
@@ -66,6 +67,8 @@ function ConsoleBody({
   model,
   startHour,
   agent,
+  mode,
+  onMode,
 }: {
   homes: ConsoleHome[];
   zones: ConsoleZone[];
@@ -73,7 +76,10 @@ function ConsoleBody({
   startHour: number;
   /** Present in Replay mode only (the agent runs on the Uri replay). */
   agent?: ReturnType<typeof useAgent>;
+  mode: Mode;
+  onMode: (m: Mode) => void;
 }) {
+  const [panelsHidden, setPanelsHidden] = useSessionFlag("panels-hidden", false);
   const hours = model.hours;
   const last = hours.length - 1;
   const [hour, setHour] = useState(startHour);
@@ -213,88 +219,123 @@ function ConsoleBody({
     setSelectedHome(null);
   }, []);
 
+  const agentControls: AgentControls = {
+    enabled: !!agent,
+    running: run?.status === "running",
+    mode: agent?.mode ?? "auto",
+    onMode: (m) => agent?.setMode(m),
+    onRun: () => agent?.run(time),
+  };
+
   return (
-    <div className="console-body flex min-h-0 flex-1 flex-col lg:flex-row">
-      <main className="relative h-[58svh] min-h-[400px] lg:h-auto lg:flex-1">
-        <RiskMap
-          hexes={model.hexes}
-          need={need}
-          homes={homes}
-          statusOf={statusOf}
-          statusKey={data?.statuses ?? ""}
-          crews={crewMarkers}
-          explain={explain}
-          focusHex={focusHex}
-          selectedHome={selectedHome}
-          onSelectHex={selectHex}
-          onSelectHome={setSelectedHome}
-        />
-        <div className="absolute left-3 top-3 flex flex-col items-start gap-2">
+    <>
+      <TopBar mode={mode} onMode={onMode} agent={agentControls} panelsHidden={panelsHidden} onTogglePanels={() => setPanelsHidden(!panelsHidden)} />
+      <div className="relative flex min-h-0 flex-1 flex-col lg:block">
+        <main className="relative h-[58svh] min-h-[400px] lg:absolute lg:inset-0 lg:h-auto">
+          <RiskMap
+            hexes={model.hexes}
+            need={need}
+            homes={homes}
+            statusOf={statusOf}
+            statusKey={data?.statuses ?? ""}
+            crews={crewMarkers}
+            explain={explain}
+            focusHex={focusHex}
+            selectedHome={selectedHome}
+            onSelectHex={selectHex}
+            onSelectHome={setSelectedHome}
+          />
           {focusHex && (
-            <button type="button" onClick={() => selectHex(null)} className="glass rounded-full bg-surface/90 px-3 py-1.5 text-sm font-medium text-accent backdrop-blur">
+            <button
+              type="button"
+              onClick={() => selectHex(null)}
+              className="glass absolute left-1/2 top-3 -translate-x-1/2 px-4 py-1.5 text-sm font-medium text-accent-ink"
+            >
               ← All areas
             </button>
           )}
-          <MapLegend counts={dotCounts} />
-        </div>
-        {selectedHome !== null && (
-          <div className="absolute right-3 top-3">
-            <HomeSummaryCard
-              homeId={homes[selectedHome].id}
-              time={agent ? time : null}
-              level={displayLevel(plan.homes[selectedHome].level)}
-              onClose={() => setSelectedHome(null)}
+          {selectedHome !== null && (
+            <div className="absolute left-1/2 top-14 -translate-x-1/2">
+              <HomeSummaryCard
+                homeId={homes[selectedHome].id}
+                time={agent ? time : null}
+                level={displayLevel(plan.homes[selectedHome].level)}
+                onClose={() => setSelectedHome(null)}
+              />
+            </div>
+          )}
+          <div
+            className={`absolute inset-x-3 bottom-3 ${panelsHidden ? "lg:inset-x-3" : "lg:left-[304px] lg:right-[364px] xl:left-[324px] xl:right-[404px]"}`}
+          >
+            <Timeline
+              hours={hours}
+              hour={hour}
+              playing={isPlaying}
+              onHour={scrub}
+              onTogglePlay={togglePlay}
+              hoursBelow20={model.contexts[hour].hoursBelow20}
             />
           </div>
-        )}
-        <div className="console-timeline absolute inset-x-3 bottom-3 lg:inset-x-4 lg:bottom-4">
-          <Timeline hours={hours} hour={hour} playing={isPlaying} onHour={scrub} onTogglePlay={togglePlay} />
-        </div>
-      </main>
+        </main>
 
-      <aside className="console-side flex min-h-0 flex-col gap-3 border-border bg-surface p-4 lg:h-full lg:w-[440px] lg:shrink-0 lg:overflow-y-auto lg:border-l">
-        <ReadyCheck counts={counts.c} total={counts.total} ran={!!data?.ran} loading={!!agent && !ops.fresh && !ops.error} live={!agent} lowHomes={homes.length - counts.total} />
-        <OutreachFunnel {...(data?.funnel ?? { texted: 0, called: 0, doorChecks: 0, neighborFlags: 0 })} live={!agent} />
-        <CrewsPanel
-          crews={crewsData}
-          queue={data?.crewQueue ?? 0}
-          now={now}
-          proposals={crewProposals}
-          canApprove={(e) => e.id === firstPending}
-          approving={agent?.approving ?? null}
-          onApprove={(e) => agent?.approve(time, e)}
-        />
-        <PressureMonitor
-          areas={pressure}
-          hour={hour}
-          times={times}
-          stage2Entries={entries.filter((e) => e.tool === "send_stage2_alert")}
-          canApprove={(e) => e.id === firstPending}
-          approving={agent?.approving ?? null}
-          onApprove={(e) => agent?.approve(time, e)}
-          onSkip={(e) => agent?.skip(time, e)}
-          agentReady={!!agent}
-        />
-        <FreezeReadings w={hours[hour]} hoursBelow20={model.contexts[hour].hoursBelow20} />
-        <AgentPanel
-          time={time}
-          enabled={!!agent}
-          run={run}
-          mode={agent?.mode ?? "auto"}
-          onMode={(m) => agent?.setMode(m)}
-          onRun={() => agent?.run(time)}
-          onApprove={(e) => agent?.approve(time, e)}
-          onSkip={(e) => agent?.skip(time, e)}
-          approving={agent?.approving ?? null}
-        />
-        {ops.error && (
-          <p role="alert" className="rounded-md border border-danger/40 px-3 py-2 text-xs text-danger">
-            Couldn’t load this hour’s outreach: {ops.error}. Move the timeline or reload to try again.
-          </p>
-        )}
-      </aside>
-    </div>
+        {/* Left column (see-through boxes): map key, homes contacted. */}
+        <div
+          className={`${panelsHidden ? "hidden" : "flex"} no-scrollbar flex-col gap-3 p-3 lg:absolute lg:left-3 lg:top-3 lg:max-h-[calc(100%-1.5rem)] lg:w-[280px] lg:overflow-y-auto lg:p-0 xl:w-[300px]`}
+        >
+          <MapLegend counts={dotCounts} />
+          <ReadyCheck counts={counts.c} total={counts.total} ran={!!data?.ran} loading={!!agent && !ops.fresh && !ops.error} live={!agent} lowHomes={homes.length - counts.total} />
+          <OutreachFunnel {...(data?.funnel ?? { texted: 0, called: 0, doorChecks: 0, neighborFlags: 0 })} live={!agent} />
+        </div>
+
+        {/* Right column (solid boxes): pressure, crews, decision trace (fills the rest). */}
+        <div
+          className={`${panelsHidden ? "hidden" : "flex"} no-scrollbar flex-col gap-3 p-3 lg:absolute lg:bottom-3 lg:right-3 lg:top-3 lg:w-[340px] lg:overflow-y-auto lg:p-0 xl:w-[380px]`}
+        >
+          <PressureMonitor
+            areas={pressure}
+            hour={hour}
+            times={times}
+            stage2Entries={entries.filter((e) => e.tool === "send_stage2_alert")}
+            canApprove={(e) => e.id === firstPending}
+            approving={agent?.approving ?? null}
+            onApprove={(e) => agent?.approve(time, e)}
+            onSkip={(e) => agent?.skip(time, e)}
+            agentReady={!!agent}
+          />
+          <CrewsPanel
+            crews={crewsData}
+            queue={data?.crewQueue ?? 0}
+            now={now}
+            proposals={crewProposals}
+            canApprove={(e) => e.id === firstPending}
+            approving={agent?.approving ?? null}
+            onApprove={(e) => agent?.approve(time, e)}
+          />
+          <AgentPanel
+            time={time}
+            enabled={!!agent}
+            run={run}
+            mode={agent?.mode ?? "auto"}
+            onApprove={(e) => agent?.approve(time, e)}
+            onSkip={(e) => agent?.skip(time, e)}
+            approving={agent?.approving ?? null}
+          />
+          {ops.error && (
+            <p role="alert" className="box px-3 py-2 text-xs text-danger">
+              Couldn’t load this hour’s outreach: {ops.error}. Move the timeline or reload to try again.
+            </p>
+          )}
+        </div>
+      </div>
+    </>
   );
+}
+
+/** Top bar while the live forecast loads (no map yet, so the agent is off). */
+function IdleTopBar({ mode, onMode }: { mode: Mode; onMode: (m: Mode) => void }) {
+  const [panelsHidden, setPanelsHidden] = useSessionFlag("panels-hidden", false);
+  const idle: AgentControls = { enabled: false, running: false, mode: "auto", onMode: () => {}, onRun: () => {} };
+  return <TopBar mode={mode} onMode={onMode} agent={idle} panelsHidden={panelsHidden} onTogglePanels={() => setPanelsHidden(!panelsHidden)} />;
 }
 
 export default function ConsoleShell({ homes, zones }: { homes: ConsoleHome[]; zones: ConsoleZone[] }) {
@@ -312,20 +353,24 @@ export default function ConsoleShell({ homes, zones }: { homes: ConsoleHome[]; z
 
   return (
     <div className="console-theme flex min-h-dvh flex-col bg-bg text-text lg:h-dvh lg:overflow-hidden">
-      <TopBar mode={mode} onMode={setMode} />
       {mode === "replay" ? (
-        <ConsoleBody key="replay" homes={homes} zones={zones} model={replayModel} startHour={0} agent={agent} />
+        <ConsoleBody key="replay" homes={homes} zones={zones} model={replayModel} startHour={0} agent={agent} mode={mode} onMode={setMode} />
       ) : liveModel ? (
-        <ConsoleBody key="live" homes={homes} zones={zones} model={liveModel} startHour={liveStart} />
-      ) : live.state.status === "error" ? (
-        <ModeMessage title="Couldn’t load the live forecast">
-          <p>{live.state.message}</p>
-          <button type="button" onClick={live.retry} className="btn btn-primary mt-4">
-            Try again
-          </button>
-        </ModeMessage>
+        <ConsoleBody key="live" homes={homes} zones={zones} model={liveModel} startHour={liveStart} mode={mode} onMode={setMode} />
       ) : (
-        <ModeMessage title="Loading the live forecast…" />
+        <>
+          <IdleTopBar mode={mode} onMode={setMode} />
+          {live.state.status === "error" ? (
+            <ModeMessage title="Couldn’t load the live forecast">
+              <p>{live.state.message}</p>
+              <button type="button" onClick={live.retry} className="btn btn-primary mt-4">
+                Try again
+              </button>
+            </ModeMessage>
+          ) : (
+            <ModeMessage title="Loading the live forecast…" />
+          )}
+        </>
       )}
     </div>
   );

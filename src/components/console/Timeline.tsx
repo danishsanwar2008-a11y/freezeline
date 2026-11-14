@@ -2,7 +2,8 @@
 
 import { useMemo } from "react";
 import type { WeatherHour } from "@/lib/weather";
-import { formatDay, formatHour } from "./format";
+import { fmtF, formatDay, formatHour } from "./format";
+import { plural } from "@/lib/plural";
 
 const H = 56;
 
@@ -12,10 +13,12 @@ interface Props {
   playing: boolean;
   onHour: (h: number) => void;
   onTogglePlay: () => void;
+  /** Hours below 20°F so far at this hour (the freeze readings line). */
+  hoursBelow20: number;
 }
 
 /** Play button + scrubber drawn over the real Uri temperature curve, with the freeze lines marked. */
-export default function Timeline({ hours, hour, playing, onHour, onTogglePlay }: Props) {
+export default function Timeline({ hours, hour, playing, onHour, onTogglePlay, hoursBelow20 }: Props) {
   const n = hours.length;
   // Fit the curve, but always keep the 20°F and 32°F lines in view.
   const temps = hours.map((h) => h.temperature_f);
@@ -36,12 +39,12 @@ export default function Timeline({ hours, hour, playing, onHour, onTogglePlay }:
   }, [hours]);
 
   return (
-    <div className="glass flex items-center gap-3 rounded-panel border border-border bg-surface/90 p-3 backdrop-blur">
+    <div className="glass flex items-center gap-3 p-3">
       <button
         type="button"
         onClick={onTogglePlay}
         aria-label={playing ? "Pause replay" : "Play replay"}
-        className="flex size-11 shrink-0 items-center justify-center rounded-full bg-btn text-on-btn transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="flex size-11 shrink-0 items-center justify-center rounded-full bg-btn text-on-btn transition hover:brightness-110"
       >
         {playing ? (
           <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden><rect x="2" y="1" width="3.5" height="12" rx="1" fill="currentColor" /><rect x="8.5" y="1" width="3.5" height="12" rx="1" fill="currentColor" /></svg>
@@ -51,6 +54,7 @@ export default function Timeline({ hours, hour, playing, onHour, onTogglePlay }:
       </button>
 
       <div className="min-w-0 flex-1">
+        <Readings w={hours[hour]} hoursBelow20={hoursBelow20} />
         <div className="relative h-14">
           <svg viewBox={`0 0 ${n - 1} ${H}`} preserveAspectRatio="none" className="absolute inset-0 size-full overflow-visible" aria-hidden>
             <path d={area} fill="var(--accent)" opacity="0.08" />
@@ -89,5 +93,40 @@ export default function Timeline({ hours, hour, playing, onHour, onTogglePlay }:
         </div>
       </div>
     </div>
+  );
+}
+
+const ICON = {
+  thermo: "M14 14.76V3.5a2 2 0 1 0-4 0v11.26a4 4 0 1 0 4 0Z",
+  wind: "M3 8h11a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h7",
+  clock: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-13v4l3 2",
+};
+
+function Glyph({ d }: { d: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className="size-3.5 shrink-0 text-accent-ink" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d={d} />
+    </svg>
+  );
+}
+
+/** This hour's freeze readings in one line (real weather). */
+function Readings({ w, hoursBelow20 }: { w: WeatherHour; hoursBelow20: number }) {
+  const items = [
+    { d: ICON.thermo, text: `${fmtF(w.temperature_f)} now` },
+    { d: ICON.thermo, text: `feels like ${fmtF(w.apparent_temperature_f)}` },
+    { d: ICON.wind, text: `wind ${Math.round(w.wind_speed_mph)} mph` },
+    { d: ICON.clock, text: `${plural(hoursBelow20, "hour")} below 20°F` },
+  ];
+  return (
+    <p className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
+      <span className="font-medium text-text">{formatHour(w.time)}</span>
+      {items.map((it) => (
+        <span key={it.text} className="flex items-center gap-1 text-muted">
+          <Glyph d={it.d} />
+          <span className="font-mono tabular-nums">{it.text}</span>
+        </span>
+      ))}
+    </p>
   );
 }

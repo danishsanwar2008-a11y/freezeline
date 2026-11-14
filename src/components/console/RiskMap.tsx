@@ -62,7 +62,7 @@ function cityView(hexes: HexBin[], floating = false): MapViewState {
   }
   const { longitude, latitude, zoom } = new WebMercatorViewport({ width, height }).fitBounds(
     [[w, s], [e, n]],
-    { padding: { top: 40, bottom: 150, left: over ? 260 : 32, right: over ? PANEL : 32 } },
+    { padding: { top: 40, bottom: 150, left: over ? 330 : 32, right: over ? 410 : 32 } },
   );
   return { longitude, latitude, zoom, pitch: 0, bearing: 0 };
 }

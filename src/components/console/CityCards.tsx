@@ -13,13 +13,27 @@ import type { OpsCrew } from "./useOps";
 import { plural, verb } from "@/lib/plural";
 import type { AgentEntry } from "./useAgent";
 import { fmtF, formatHour } from "./format";
+import Panel from "./Panel";
 
-export function Card({ title, children, className = "" }: { title: string; children: React.ReactNode; className?: string }) {
+/** A floating box (see Panel.tsx). The id remembers its collapsed state for the session. */
+export function Card({
+  title,
+  tone = "solid",
+  action,
+  children,
+  className = "",
+}: {
+  title: string;
+  tone?: "solid" | "glass";
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const id = title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
   return (
-    <section className={`box rounded-panel border border-border bg-bg/40 p-4 ${className}`}>
-      <h3 className="eyebrow">{title}</h3>
-      <div className="mt-3">{children}</div>
-    </section>
+    <Panel id={id} title={title} tone={tone} action={action} className={className}>
+      {children}
+    </Panel>
   );
 }
 

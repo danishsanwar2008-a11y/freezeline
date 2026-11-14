@@ -3,11 +3,7 @@
 import { useState } from "react";
 import type { AgentEntry, AgentMode, AgentRun } from "./useAgent";
 import { plural } from "@/lib/plural";
-
-const MODES: { id: AgentMode; label: string }[] = [
-  { id: "auto", label: "Auto" },
-  { id: "approve", label: "Approve first" },
-];
+import Panel from "./Panel";
 
 const DOT: Record<AgentEntry["status"], string> = {
   done: "bg-ok",
@@ -65,15 +61,13 @@ interface Props {
   enabled: boolean;
   run?: AgentRun;
   mode: AgentMode;
-  onMode: (m: AgentMode) => void;
-  onRun: () => void;
   onApprove: (e: AgentEntry) => void;
   onSkip: (e: AgentEntry) => void;
   approving: string | null;
 }
 
 /** Run the agent for this hour and read, in plain sentences, what it did and why. */
-export default function AgentPanel({ enabled, run, mode, onMode, onRun, onApprove, onSkip, approving }: Props) {
+export default function AgentPanel({ enabled, run, mode, onApprove, onSkip, approving }: Props) {
   const [showAll, setShowAll] = useState(false);
   const entries = run?.entries ?? [];
   const pendingIdx = entries.findIndex((e) => e.status === "pending");
@@ -83,41 +77,14 @@ export default function AgentPanel({ enabled, run, mode, onMode, onRun, onApprov
   const visible = showAll ? entries : pendingIdx >= 0 ? entries.slice(start, start + 3) : entries.slice(-3);
   const running = run?.status === "running";
 
-  if (!enabled)
-    return <p className="text-sm text-muted">The agent runs on the Uri replay in this phase. Switch to Replay to try it.</p>;
-
   return (
-    <section aria-label="Agent" className="box rounded-panel border border-border p-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={onRun}
-          disabled={running}
-          className="btn btn-primary"
-        >
-          {running ? "Agent is working…" : "Run agent"}
-        </button>
-        <div role="radiogroup" aria-label="Agent mode" className="flex rounded-full border border-border p-0.5 text-xs">
-          {MODES.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              role="radio"
-              aria-checked={mode === m.id}
-              onClick={() => onMode(m.id)}
-              className={`rounded-full px-2.5 py-1 transition ${mode === m.id ? "bg-border text-text" : "text-muted hover:text-text"}`}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {run?.status === "error" && <p className="mt-3 text-sm text-danger">The agent couldn’t run: {run.error}</p>}
+    <Panel id="trace" title="Decision trace" grow>
+      {!enabled && <p className="text-sm text-muted">The agent runs on the Uri replay in this phase. Switch to Replay to try it.</p>}
+      {run?.status === "error" && <p className="text-sm text-danger">The agent couldn’t run: {run.error}</p>}
 
       {entries.length > 0 && (
         <>
-          <ul className="mt-4 space-y-3" aria-live="polite">
+          <ul className="space-y-3" aria-live="polite">
             {visible.map((e) => (
               <EntryRow
                 key={e.id}
@@ -143,11 +110,11 @@ export default function AgentPanel({ enabled, run, mode, onMode, onRun, onApprov
           </div>
         </>
       )}
-      {entries.length === 0 && !running && (
-        <p className="mt-3 text-xs text-muted">
+      {enabled && entries.length === 0 && !running && (
+        <p className="text-xs text-muted">
           {mode === "auto" ? "The agent publishes the plan and queues texts (simulated), explaining each step." : "Each step waits for your Approve click."}
         </p>
       )}
-    </section>
+    </Panel>
   );
 }

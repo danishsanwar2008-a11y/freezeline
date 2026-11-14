@@ -8,6 +8,7 @@ import { stage2Sentence, type AreaPressure, type PsiBand } from "@/lib/pressure"
 import { BOIL_WATER_PSI, EXTRA_TAP_LABEL, MODEL_NOTE, STOP_NEW_DRIPS_PSI } from "@/lib/pressureConfig";
 import type { AgentEntry } from "./useAgent";
 import { formatHour } from "./format";
+import Panel from "./Panel";
 
 const BAND_TEXT: Record<PsiBand, string> = { ok: "text-psi-ok", warn: "text-psi-warn", bad: "text-psi-bad" };
 const BAND_LABEL: Record<PsiBand, string> = {
@@ -179,15 +180,8 @@ export default function PressureMonitor({
   const needsRun = agentReady && areas.some((a) => a.stage2) && stage2Entries.length === 0;
 
   return (
-    <section className="box rounded-panel border border-border bg-bg/40 p-4" aria-labelledby="pressure-title">
-      <div className="flex items-start justify-between gap-2">
-        <h3 id="pressure-title" className="eyebrow">
-          Water pressure by area
-        </h3>
-        <InfoTip label="Simplified model" text={MODEL_NOTE} />
-      </div>
-
-      <div className="mt-3 space-y-2" aria-live="polite">
+    <Panel id="pressure" title="Water pressure by area" action={<InfoTip label="Simplified model" text={MODEL_NOTE} />}>
+      <div className="space-y-2" aria-live="polite">
         {stage2Entries.map((e) => {
           const a = areas.find((x) => x.zoneId === zoneOf(e));
           if (e.status === "pending" && a?.stage2)
@@ -268,6 +262,6 @@ export default function PressureMonitor({
         </ul>
         <p className="mt-2 text-[11px] text-muted">If every home dripped two taps (the blanket message), at this hour.</p>
       </details>
-    </section>
+    </Panel>
   );
 }

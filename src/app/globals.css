@@ -168,10 +168,13 @@ body {
   /* Filled-button color and its label (outside the console: ice fill, dark label). */
   --btn: var(--accent);
   --on-btn: var(--bg);
+  /* Small blue text and links (inside the console: Ice Blue on navy). */
+  --accent-ink: var(--accent);
 }
 @theme inline {
   --color-btn: var(--btn);
   --color-on-btn: var(--on-btn);
+  --color-accent-ink: var(--accent-ink);
 }
 /* ---------- City Operations theme (palette E2): Midnight Navy boxes on an off-white map, Action Blue for actions.
    Scoped to the officials' screens (.console-theme), so the public /register page keeps its own look. ---------- */
@@ -200,34 +203,20 @@ body {
   background: var(--surface);
   border-color: #1d3557;
 }
-/* Boxes: separate, rounded, subtle border, restrained shadow. Right solid, left slightly transparent. */
-.console-theme .box {
-  background: var(--surface);
-  border-color: rgb(243 246 250 / 0.1);
+/* Boxes (DESIGN.md §4): separate, rounded, subtle border, restrained shadow. Right solid, left slightly see-through. */
+.console-theme .box,
+.console-theme .glass {
+  border: 1px solid rgb(243 246 250 / 0.1);
   border-radius: 14px;
   box-shadow: 0 2px 10px rgb(16 28 46 / 0.22);
 }
+.console-theme .box { background: var(--surface); }
 .console-theme .glass {
   background: color-mix(in srgb, var(--surface) 92%, transparent);
-  border-color: rgb(243 246 250 / 0.1);
-  border-radius: 14px;
   backdrop-filter: blur(10px);
-  box-shadow: 0 2px 10px rgb(16 28 46 / 0.22);
 }
-@media (min-width: 1024px) {
-  .console-theme .console-body { position: relative; }
-  .console-theme .console-side {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    bottom: 12px;
-    width: 404px;
-    height: auto;
-    padding: 0 0 4px;
-    background: transparent;
-    border: 0;
-    overflow-y: auto;
-    scrollbar-width: none;
-  }
-  .console-theme .console-timeline { right: 432px; }
-}
+/* Box title: 13px / 500, sentence case, muted. */
+.console-theme .panel-title { font-size: 13px; font-weight: 500; color: var(--muted); }
+/* Columns that scroll on their own when a short window can't hold every box. */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
