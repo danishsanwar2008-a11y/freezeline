@@ -41,6 +41,8 @@ LANG_WORD = {"en": "English", "es": "Spanish"}
 # file we fall back to the first voice whose language prefix matches, so a newer voice
 # pack does not break the build.
 VOICE = {"en": "af_heart", "es": "ef_dora"}
+# Kokoro's pronunciation step (espeak) wants its own language codes: plain "en" is rejected.
+KOKORO_LANG = {"en": "en-us", "es": "es"}
 SPEED = 1.0
 
 SLOT = re.compile(r"\{(\w+)\}")
@@ -129,7 +131,7 @@ def voice_for(lang: str) -> str:
 def synthesize(text: str, lang: str, speed: float = SPEED) -> tuple[bytes, int]:
     """Return little-endian int16 mono PCM and its sample rate."""
     kokoro = load_kokoro()
-    samples, rate = kokoro.create(text, voice=voice_for(lang), speed=speed, lang=lang)
+    samples, rate = kokoro.create(text, voice=voice_for(lang), speed=speed, lang=KOKORO_LANG.get(lang, lang))
     pcm = b"".join(
         struct.pack("<h", max(-32768, min(32767, int(round(float(s) * 32767.0))))) for s in samples
     )
