@@ -15,6 +15,7 @@
     "postinstall": "node scripts/copy-maplibre-worker.mjs",
     "weather:neighborhoods": "tsx scripts/fetch-uri-neighborhoods.ts",
     "messages:check": "tsx scripts/check-messages.ts",
+    "sms": "tsx scripts/send-sms.ts",
     "db:status": "tsx scripts/db-status.ts",
     "osm:homes": "tsx scripts/fetch-osm-homes.ts",
     "osm:streets": "tsx scripts/fetch-osm-streets.ts"
