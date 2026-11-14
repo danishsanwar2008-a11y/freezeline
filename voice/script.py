@@ -118,6 +118,14 @@ def wants_repeat(text: str) -> bool:
 # the needs question and nothing at all to "do you live alone", so the extra reading is
 # per-field rather than a looser global classifier.
 NEIGHBOR_HINTS = ("next door", "neighbor", "neighbour", "vecino", "vecina", "casa de al lado")
+WRONG_PERSON = (
+    "wrong number", "no one by that", "nobody by that", "no one here by", "not here",
+    "he doesnt live", "she doesnt live", "they dont live", "numero equivocado", "no vive aqui",
+)
+SELF_YES = (
+    "speaking", "this is he", "this is she", "this is him", "this is her", "yes this is",
+    "soy yo", "si soy yo", "habla con", "si habla", "al habla",
+)
 AGE = re.compile(r"\b(\d{2})\b")
 
 
@@ -136,6 +144,12 @@ def classify_for(name: str, text: str) -> bool | None:
         return True
     if name == "neighbor_check" and any(k in t for k in NEIGHBOR_HINTS):
         return True
+    if name == "is_household":
+        # "Speaking" / "this is he" / "soy yo" are how people confirm, not "yes".
+        if any(k in t for k in WRONG_PERSON):
+            return False
+        if any(k in t for k in SELF_YES):
+            return True
     return None
 
 
@@ -221,6 +235,7 @@ FIELD_OF = {
     "q_heat": "has_heat",
     "q_neighbor": "neighbor_check",
     "q_sees_list": "sees_list",
+    "q_is_you": "is_household",
 }
 
 
@@ -257,6 +272,9 @@ class Call:
         # may say "I've texted you" in that case and nothing stronger otherwise.
         self.text_sent = text_sent
         self.sees_list: bool | None = None
+        # Wrong number: end the call where it is, do not run the survey at a stranger.
+        self.is_household: bool | None = None
+        self.ended = False
         self.hard_of_hearing = hard_of_hearing
         self.answers = Answers()
         self.turns: list[Turn] = []
@@ -269,8 +287,8 @@ class Call:
     def _say(self, key: str, params: dict[str, object] | None = None) -> Turn:
         return Turn("say", key, line(key, self.lang, params))
 
-    def _ask(self, key: str) -> Turn:
-        return Turn("ask", key, line(key, self.lang), FIELD_OF[key])
+    def _ask(self, key: str, params: dict[str, object] | None = None) -> Turn:
+        return Turn("ask", key, line(key, self.lang, params), FIELD_OF[key])
 
     def _greeting(self, replied_text: bool) -> Turn:
         """Name and street when the sign-up gave us them; the plain line when it did not.
@@ -289,6 +307,10 @@ class Call:
     def _build(self, replied_text: bool) -> None:
         level_word = messages()["levelWord"][self.level][self.lang]
         self.turns.append(self._greeting(replied_text))
+        if self.first_name:
+            # "Hello, is this Danish?" - confirm who picked up before anything else. The name is
+            # the only thing we know about them, so it doubles as the identity check.
+            self.turns.append(self._ask("q_is_you", {"first_name": self.first_name}))
         if self.hours_below_20 > 0:
             self.turns.append(self._say("agent_storm", {"temp": self.temp, "hours": self.hours_below_20, "level": level_word}))
         else:
@@ -313,7 +335,7 @@ class Call:
         return 1.1 if self.level == "High" else 1.0
 
     def _maybe_close(self) -> None:
-        if self.closed or self.i < len(self.turns):
+        if self.ended or self.closed or self.i < len(self.turns):
             return
         self.closed = True
         if self.answers.neighbor_check:
@@ -355,6 +377,12 @@ class Call:
         if turn.field == "sees_list":
             self.sees_list = answer
             self.turns.append(self._say("agent_list_confirmed" if answer else "agent_list_resend"))
+        if turn.field == "is_household" and answer is False:
+            # Say goodbye now, not after seven questions at a stranger: drop the rest of the
+            # survey and end the call where it stands.
+            self.turns = self.turns[: self.i]
+            self.turns.append(self._say("agent_wrong_number"))
+            self.ended = True
         return "ok"
 
     def _record(self, name: str, transcript: str, answer: bool | None) -> None:
@@ -384,6 +412,8 @@ class Call:
             a.has_heat = True if answer is None else answer
         elif name == "neighbor_check":
             a.neighbor_check = bool(answer)
+        elif name == "is_household":
+            self.is_household = answer
 
     def next_speech(self) -> str | None:
         """The next thing to say out loud, or None when the call is over."""
@@ -420,7 +450,7 @@ class Call:
 REQUIRED_KEYS = (
     "agent_hello", "agent_hello_text", "agent_storm", "agent_storm_mild", "agent_steps",
     *QUESTION_ORDER, "agent_neighbor", "agent_crew_requested", "agent_crew_assigned",
-    "agent_reminder", "agent_ready",
+    "agent_reminder", "agent_ready", "q_is_you", "agent_wrong_number",
 )
 
 
@@ -473,6 +503,27 @@ def check() -> int:
                 break
         if call.result()["assessment"] != "needs_crew":
             problems.append(f"{lang}: expected needs_crew, got {call.result()['assessment']}")
+
+    # A named call confirms who picked up, and stops at a stranger instead of running the
+    # survey at the wrong person.
+    wrong = Call(lang="en", level="High", temp=19, hours_below_20=6,
+                 steps=("a", "b", "c"), first_name="Danish", street="Harvard St")
+    wrong.next_speech()                      # the greeting
+    asked = wrong.current
+    if asked is None or asked.field != "is_household":
+        problems.append("a named call does not ask whether it reached the household")
+    else:
+        wrong.next_speech()                  # "Am I speaking with Danish?"
+        wrong.hear("sorry, no one here by that name")
+        left = 0
+        while (turn := wrong.current) is not None:
+            wrong.next_speech()
+            left += 1
+            if left > 4:
+                problems.append("a call to the wrong person did not end")
+                break
+        if line("agent_wrong_number", "en") not in [t for w, t in wrong.said if w == "agent"]:
+            problems.append("a call to the wrong person never says goodbye")
 
     if problems:
         print(f"{len(problems)} problem(s):")

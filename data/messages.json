@@ -334,6 +334,14 @@
       "en": "Hi, this is FreezeLine calling for your water utility about tonight's freeze.",
       "es": "Hola, le habla FreezeLine de parte de su compañía de agua por la helada de esta noche."
     },
+    "q_is_you": {
+      "en": "Am I speaking with {first_name}?",
+      "es": "¿Hablo con {first_name}?"
+    },
+    "agent_wrong_number": {
+      "en": "I'm sorry, I must have the wrong number. Have a good night.",
+      "es": "Disculpe, me equivoqué de número. Que tenga buena noche."
+    },
     "agent_hello_named": {
       "en": "Hi {first_name}, this is FreezeLine calling for your water utility about {street}.",
       "es": "Hola {first_name}, le habla FreezeLine de parte de su compañía de agua por {street}."
