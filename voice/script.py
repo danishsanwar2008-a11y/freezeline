@@ -69,7 +69,7 @@ NO_PHRASES = (
     "no estoy seguro", "no esta", "nadie", "tampoco", "negativo",
     # How people actually say no on the phone.
     "not really", "not at all", "no way", "havent", "hasnt", "isnt", "wasnt", "arent",
-    "wrong number", "no one", "not interested", "who is this", "quien habla",
+    "wrong number", "no one", "not interested", "quien habla",
     # "the power's out" loses its apostrophe long before we see it, and "not tonight" is
     # a no with no "no" in it.
     "powers out", "power went out", "lost power", "lost the power", "no electricity",
@@ -101,6 +101,12 @@ def classify(text: str) -> bool | None:
         return None
     # "I'm not sure" contains "sure"; a hedge is not a yes, it is a reason to ask again.
     if any(k in t for k in HEDGE):
+        return None
+    # Sentences that are not an answer to anything: a bad line, a confused caller, someone
+    # asking who is calling. Score one of those and we record a fiction, so treat it as
+    # unheard and ask again.
+    _words = set(t.split())
+    if any((p in t) if " " in p else (p in _words) for p in UNRELATED):
         return None
     if t.startswith("not "):
         return False
@@ -136,6 +142,14 @@ NEIGHBOR_HINTS = ("next door", "neighbor", "neighbour", "vecino", "vecina", "cas
 WRONG_PERSON = (
     "wrong number", "no one by that", "nobody by that", "no one here by", "not here",
     "he doesnt live", "she doesnt live", "they dont live", "numero equivocado", "no vive aqui",
+    # Someone who does not know us is not the household, whatever they are asking.
+    "who is this", "who are you", "quien habla", "quien es",
+)
+UNRELATED = (
+    "cant hear", "cannot hear", "can you hear me", "are you there", "speak up", "breaking up",
+    "youre breaking up", "what do you mean", "i dont understand", "do not understand",
+    "im confused", "what is this about", "what is this call", "is this a robot",
+    "are you a robot", "robocall", "what", "huh", "no entiendo", "no le escucho", "que dijo",
 )
 SELF_YES = (
     "speaking", "this is he", "this is she", "this is him", "this is her", "yes this is",

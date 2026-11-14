@@ -14,6 +14,7 @@ days before, which is why it asks about insulation and past bursts instead of to
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -23,6 +24,7 @@ if str(HERE) not in sys.path:
 
 from script import (  # noqa: E402  (path set above so this works from anywhere)
     LANGS,
+    UNRELATED,
     Turn,
     classify,
     classify_for,
@@ -88,7 +90,16 @@ def read_survey(field: str, text: str) -> object:
     t = normalise(text)
     if not t:
         return None
+    # Before any place name is matched: a question back at us ("what do you mean by heated
+    # space") mentions the very words we look for, so it has to be dismissed first.
+    words = set(t.split())
+    if any((p in t) if " " in p else (p in words) for p in UNRELATED):
+        return None
     if field == "pipe_runs":
+        # "I don't have a garage" mentions a garage without answering anything. Any negated
+        # place is held back for a re-ask rather than scored as that place.
+        if re.search(r"\b(no|not|dont|doesnt|isnt|never)\b[^.]{0,20}(garage|basement|slab|concrete|attic|outside|crawlspace)", t):
+            return None
         for band, words in (("outside", PIPE_OUTSIDE), ("slab", PIPE_SLAB), ("interior", PIPE_INTERIOR)):
             if any(w in t for w in words):
                 return band
