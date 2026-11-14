@@ -80,6 +80,26 @@ DESIGN.md is the source of truth for how FreezeLine looks.
 - All keys are server-only, never `NEXT_PUBLIC_`. No provider ever changes the planner's numbers.
 - Editing `data/messages.json`: same facts only, no new numbers, times or promises; every SMS keeps `(simulated)` and `{link}`. Run `npm run messages:check` and `npm test`.
 
+## Skill routing
+
+Applies to FreezeLine and overrides the user-level Skill map where they differ. If a task covers several rows, use every row that applies.
+
+| Work type | Examples | Skills, in order |
+|---|---|---|
+| Backend logic | risk, planner, pressure math, agent tools, API routes, Supabase SQL | engineering:system-design (new pieces only) → engineering:testing-strategy → engineering:code-review before commit; engineering:debug for any bug |
+| Security and deploy | console password, keys, env vars, Vercel, webhooks | security-review, engineering:deploy-checklist |
+| Frontend wiring | components, state, interactions, data loading, no visual change | ui-studio → web-design-guidelines (audit changed files) → playwright-cli (click through) |
+| Metrics and charts | pressure monitor, Ready check, funnel, legend, dot grids, hex scale | dataviz (chart form and colors) → ui-studio → web-design-guidelines → playwright-cli |
+| Visual design and polish | look, type, spacing, panels, empty/loading states, redesigns | design-md-library (update DESIGN.md) → design-taste-frontend (app screens: apply its system and motion rules and keep the palette; Taste 2.5 has no `--app`/`--keep` flags, so no dealt direction or gate scores; type and layout may change unless the prompt says otherwise) → ui-studio → web-design-guidelines → playwright-cli |
+| Map | deck.gl and MapLibre layers, camera, tilt | ui-studio + dataviz (color scales) → playwright-cli (check smoothness with all 8,034 homes) |
+| Homeowner wording | SMS, call scripts, messages.json | honesty-guard tests (`npm test`: `callScript.test.ts`, `audience.test.ts`, `messages.test.ts`) + `npm run messages:check` |
+| Every task | | self-check, task-observer; headroom-compression when wrapped |
+
+ui-studio and self-check are installed as `anthropic-skills:ui-studio` and `anthropic-skills:self-check`.
+
+- **Proof rule:** Every report ends with "Skills used": each skill, whether it was actually loaded, and what it changed (files or commits). A skill listed in the plan but not loaded must be called out. Any UI work ends with before/after screenshots at 1440 px and 768 px in demo-screens/. (`demo-screens/` is git-ignored, so the report lists the paths.)
+- Visual design passes are their own phase or session, never the last step of a feature phase.
+
 ## Rules
 
 - Push GitHub after each phase committed.
