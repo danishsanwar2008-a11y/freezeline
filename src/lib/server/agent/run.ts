@@ -8,6 +8,7 @@ import { crewStatus, queuedTextIds } from "../outreachState";
 import { stage2Reason, stage2Sentence } from "@/lib/pressure";
 import { formatHour } from "@/components/console/format";
 import { ZodError } from "zod";
+import { placeDemoCall } from "../demoCall";
 import { monitorAt, planAt, toTimestamp } from "../cityState";
 import { ACTION_TOOLS, TOOL_DEFS, cityStatus, entryId, runTool, type ActionTool, type AgentCtx, type AgentMode, type LogEntry, type TraceEvent } from "./tools";
 import { alsoNotified } from "@/lib/agentNotify";
@@ -141,7 +142,9 @@ async function runRules(ctx: AgentCtx): Promise<{ texted: number }> {
   actions.push(log);
   const stage2 = monitorAt(ctx.city, ctx.hour).filter((a) => a.stage2).length;
   // Steps: 2 reads + the crews check + every action + the replies read (Auto) + any Stage 2 alert.
-  ctx.onEvent?.({ type: "plan", total: 3 + actions.length + (ctx.mode === "auto" ? 1 : 0) + stage2 });
+  // (+1 for the demo call, when this laptop has one set up.)
+  const demo = process.env.DEMO_CALL_TO?.trim() ? 1 : 0;
+  ctx.onEvent?.({ type: "plan", total: 3 + actions.length + (ctx.mode === "auto" ? 1 : 0) + stage2 + demo });
   let texted = 0;
   for (const a of actions) {
     starting(ctx, a.tool);
@@ -282,7 +285,23 @@ export async function runAgent(
   }
   proposeStage2(ctx);
   await notifyOthers(ctx, texted);
+  await demoCallStep(ctx);
   return { time: ctx.time, mode, source: claude ? "claude" : "rules", entries: ctx.entries, usage };
+}
+
+/**
+ * Last step of a run: a real demo call to a teammate's phone (DEMO_CALL_TO), standing in for the
+ * highest-risk home this hour. Its answers arrive from the voice agent and are saved in Supabase
+ * (voice_calls); officials see them on /console/calls. Off unless .env.local configures it.
+ */
+async function demoCallStep(ctx: AgentCtx): Promise<void> {
+  if (!process.env.DEMO_CALL_TO?.trim()) return; // not set up on this laptop: say nothing
+  ctx.onEvent?.({ type: "start", label: "Placing the demo call" });
+  const out = await placeDemoCall(ctx.city, ctx.hour, ctx.time);
+  if (out.kind === "placed")
+    readStep(ctx, `Demo call placed: the demo phone stands in for the ${out.street} home`, `${out.phone} · answers on the Calls page`);
+  else if (out.kind === "skipped") readStep(ctx, out.reason, "skipped");
+  else emit(ctx, { id: entryId(), kind: "error", summary: out.reason, status: "failed" });
 }
 
 /** Execute one approved action (Approve mode). Inputs are re-validated by runTool. */

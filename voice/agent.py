@@ -24,7 +24,9 @@ import base64
 import importlib
 import json
 import os
+import queue
 import sys
+import threading
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -277,14 +279,39 @@ def call_from_params(params: dict[str, Any]) -> Any:
 
 # ---------- http ----------
 
-def report(result: dict, home_id: str | None) -> None:
-    """Hand the answers back to the Next.js app. Best-effort: a failed post must not
-    keep the call open, so it is logged and dropped."""
+def answered_fields(call: Any) -> list[str]:
+    """Which answer fields the household actually answered (the rest are defaults, not answers)."""
+    answers = getattr(call, "answers", None)
+    if hasattr(answers, "answered"):
+        return list(answers.answered)
+    if isinstance(answers, dict):
+        return list(answers.keys())
+    return []
+
+
+def report(
+    result: dict,
+    home_id: str | None,
+    call_id: str | None = None,
+    call_sid: str | None = None,
+    final: bool = True,
+    answered: list[str] | None = None,
+) -> None:
+    """Hand the answers back to the Next.js app (/api/voice/result, saved in Supabase voice_calls).
+    Best-effort: a failed post must not keep the call open, so it is logged and dropped.
+    Calls placed by the web app carry `call_id` (our row); the app ignores reports without one."""
     url = os.environ.get("VOICE_RESULT_URL")
     if not url:
         print("[agent] result (no VOICE_RESULT_URL set):", json.dumps(result, ensure_ascii=False), file=sys.stderr)
         return
-    body = json.dumps({"home_id": home_id, **result}).encode("utf-8")
+    payload: dict[str, Any] = {"home_id": home_id, **result, "final": final}
+    if call_id:
+        payload["call_id"] = call_id
+    if call_sid:
+        payload["call_sid"] = call_sid
+    if answered is not None:
+        payload["answered"] = answered
+    body = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(url, data=body, method="POST")
     req.add_header("content-type", "application/json")
     secret = os.environ.get("VOICE_SHARED_SECRET")
@@ -384,6 +411,21 @@ def make_app():
     # and the same script decides what comes next. It needs no WebSocket at all.
 
     sessions: dict[str, Any] = {}
+    homes: dict[str, dict[str, Any]] = {}   # CallSid -> the household payload (carries our call_id)
+
+    # Reports go out from one background thread, in the order they were made (Twilio waits on our
+    # replies, so posting can't happen inline; separate threads per report could arrive out of order).
+    report_queue: queue.Queue[tuple[Any, ...]] = queue.Queue()
+
+    def _report_worker() -> None:
+        while True:
+            args = report_queue.get()
+            try:
+                report(*args)
+            finally:
+                report_queue.task_done()
+
+    threading.Thread(target=_report_worker, daemon=True).start()
 
     # Words these five questions expect. Twilio's recognizer leans on them in a noisy room,
     # which is the difference between "insulated" and "installed" on a phone line.
@@ -449,8 +491,18 @@ def make_app():
         sid = form.get("CallSid") or request.query_params.get("CallSid") or ""
         home = home_from_parameter(request.query_params.get("home"))
         sessions[sid] = call_from_params(home)
+        homes[sid] = home
         print(f"[agent] gather call started mode={home.get('mode') or 'storm'}", flush=True)
         return _gather_xml(sessions[sid], _host(request))
+
+    def _report_turn(sid: str, call: Any, final: bool) -> None:
+        """After every answer: post what was heard so far, so a hang-up still keeps it. In a
+        thread, because Twilio waits on this response (and gives up after a few seconds)."""
+        home = homes.get(sid) or {}
+        if not home.get("call_id"):
+            return  # not placed by the web app: nothing to save it against
+        # One sender, first in first out, so the app receives a call's reports in order.
+        report_queue.put((call.result(), home.get("home_id"), home.get("call_id"), sid, final, answered_fields(call)))
 
     @app.api_route("/voice/step", methods=["GET", "POST"])
     async def voice_step(request: Request) -> Any:
@@ -464,10 +516,18 @@ def make_app():
         if said:
             outcome = call.hear(said)
             print(f"[agent] -> {outcome}", flush=True)
-        if call.current is None:
+        # Build the reply first: it speaks every remaining line (the closing included) and hangs up
+        # once the script has nothing left to ask. Only then is the call known to be finished, and
+        # Twilio won't come back after <Hangup/>, so the final report goes out with this reply.
+        reply = _gather_xml(call, _host(request))
+        finished = call.current is None
+        if said or finished:
+            _report_turn(sid, call, finished)
+        if finished:
             print(f"[agent] call finished: {json.dumps(call.result(), ensure_ascii=False)[:400]}", flush=True)
             sessions.pop(sid, None)
-        return _gather_xml(call, _host(request))
+            homes.pop(sid, None)
+        return reply
 
     @app.post("/twiml")
     async def twiml_route(request: Request) -> Any:
@@ -542,7 +602,10 @@ def make_app():
         call = call_from_params(home)
         print(f"[agent] call mode={home.get('mode') or 'storm'} first_name={home.get('first_name') or '-'} lang={home.get('lang') or '-'}", flush=True)
         speed = call.speech_speed()
-        pipeline = build_pipeline(transport, call, speed, lambda r: report(r, home.get("home_id")))
+        pipeline = build_pipeline(
+            transport, call, speed,
+            lambda r: report(r, home.get("home_id"), home.get("call_id"), call_sid, True, answered_fields(call)),
+        )
 
         PipelineTask = _need([("pipecat.pipeline.task", "PipelineTask")])
         PipelineRunner = _need([("pipecat.pipeline.runner", "PipelineRunner")])

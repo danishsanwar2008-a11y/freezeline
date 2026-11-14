@@ -2,7 +2,8 @@
 
 Two ways to try it. Run every command from the repo root (the `freezeline` folder).
 On macOS/Linux, `./voice/serve.sh` starts the agent and a cloudflared tunnel in one command instead.
-Call answers are only printed in the agent's window for now; saving them to Supabase comes later.
+Calls placed by the web app (Run agent, section C) save their answers in Supabase (`voice_calls`) and
+show on `/console/calls`; `call-me.ps1` test calls only print in the agent's window.
 
 ## A. Typed call, no setup (1 minute)
 
@@ -94,6 +95,15 @@ It answers with a call `sid` and `status: queued`. Your phone rings within a few
 
 Things to try: `lang = "es"` (Spanish), `crew = "Crew 3"` plus saying you can't do the steps
 (the "crew assigned" ending), or `mode = "survey"` (the pre-storm survey instead of the storm call).
+
+## C. Demo call from the website (answers saved to Supabase)
+
+1. `.env.local` also needs `DEMO_CALL_TO`, `VOICE_SHARED_SECRET` and
+   `VOICE_RESULT_URL=http://localhost:3000/api/voice/result`; restart window 1 after adding them.
+2. Windows 1 and 2 running, plus `npm run dev`.
+3. `/console` → pick a storm hour → **Run agent**. The last step in the decision trace says
+   "Demo call placed". Answer your phone.
+4. Top bar → **Calls**: the call shows its status and fills in each answer as you give it.
 
 ### If it doesn't work
 

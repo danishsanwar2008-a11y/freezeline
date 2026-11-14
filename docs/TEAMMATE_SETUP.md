@@ -5,6 +5,7 @@ and the public sign-up page), the shared Supabase database, and the voice agent 
 household. Last updated Nov 14, 2026.
 
 For the project rules read `CLAUDE.md`; for the history and the "why", `docs/CONTEXT.md`.
+Saved calls (Calls page, demo call from Run agent, testing without a phone): `docs/CALLS_SETUP.md`.
 **No keys or passwords are in this file.** Ask a teammate for the shared ones privately.
 
 ---
@@ -17,6 +18,7 @@ For the project rules read `CLAUDE.md`; for the history and the "why", `docs/CON
 | http://localhost:3000/register | Public sign-up + home survey (saves to Supabase) | Residents |
 | http://localhost:3000/console | City Operations: map, pressure, crews, agent (password) | Utility staff |
 | http://localhost:3000/console/registrations | Every sign-up, with its address match (password) | Utility staff |
+| http://localhost:3000/console/calls | Every call the agent placed and what the household said (password) | Utility staff |
 | http://localhost:8080/health | The voice agent (optional, section 6) | Demo calls |
 
 ---
@@ -66,6 +68,7 @@ If you were invited to the Supabase project you can also copy the keys yourself:
 | `VOICE_SHARED_SECRET` | Any long random string you make up. Stops strangers placing calls through your account |
 | `DEMO_CALL_TO` | Your own phone, `+1XXXXXXXXXX` (the one you signed up to Twilio with) |
 | `DEMO_CALL_NAME` | Optional: the first name the demo call greets |
+| `VOICE_RESULT_URL` | `http://localhost:3000/api/voice/result` (where the agent saves each call's answers) |
 | `WHISPER_MODEL=base`, `VOICE_IDLE_SECONDS=12`, `VOICE_AMD=0` | Keep these defaults |
 | `NOMINATIM_USER_AGENT` | Optional: e.g. `FreezeLine/0.1 (team contact)` for the address lookup |
 
@@ -80,12 +83,12 @@ Make a random secret in PowerShell:
 
 Everyone uses **one shared Supabase project**. Its setup is done:
 
-- SQL already run in the Supabase SQL Editor: `supabase/001_schema.sql` through `supabase/005_registration_matching.sql`
-  (005 = address matching for sign-ups). Saving a script as "Private" in the SQL Editor only hides
+- SQL already run in the Supabase SQL Editor: `supabase/001_schema.sql` through `supabase/006_voice_calls.sql`
+  (005 = address matching for sign-ups, 006 = call records). Saving a script as "Private" in the SQL Editor only hides
   the saved query; the tables exist for everyone.
 - Already seeded: 4 areas, 8,034 homes (real OpenStreetMap footprints, simulated details), 20 crews,
-  and **400 sample sign-ups** (`npm run seed:registrations`: invented names, `example.com` emails,
-  fictional 555-01XX numbers).
+  **400 sample sign-ups** (`npm run seed:registrations`: invented names, `example.com` emails,
+  fictional 555-01XX numbers) and **36 sample calls** (`npm run seed:calls`).
 
 Re-running a seed is harmless, but there's no need. Check the connection any time:
 ```powershell
@@ -93,8 +96,8 @@ npm run db:status
 ```
 
 **It's shared:** sign-ups you submit show up for everyone, and a repeated email gets "already signed up".
-Only if you ever use your *own* Supabase project: run the SQL files 001 → 005 in order, then
-`npm run seed` and `npm run seed:registrations`.
+Only if you ever use your *own* Supabase project: run the SQL files 001 → 006 in order, then
+`npm run seed`, `npm run seed:registrations` and `npm run seed:calls`.
 
 ---
 
@@ -129,7 +132,8 @@ Open http://localhost:3000. Before you push changes: `npm test` and `npm run mes
 The agent (`voice/`, Python) phones a household, reads the storm facts and its 3 steps, asks the
 7 check-in questions and understands spoken answers. The words come only from
 `data/messages.json`, and it never says a crew is on the way unless one is assigned.
-**Answers are only printed in the agent's window for now**; saving them to Supabase comes later.
+Answers are saved in Supabase (`voice_calls`) after every answer, so a hang-up keeps what was said,
+and officials see them at `/console/calls`.
 
 **No-setup preview** (type the answers yourself):
 ```powershell
@@ -193,6 +197,14 @@ can't do the steps), `-Survey` (the pre-storm survey), `-DryRun` (shows the open
 On the call: Twilio may play a short trial notice first. FreezeLine greets you by name, asks if it's
 you ("yes"), reads the storm facts and 3 steps, then asks 7 questions. Answer naturally; staying
 silent ends the call. Window 1 shows each answer as `[agent] heard: '...'`.
+
+### 6.5 Demo call from the website
+
+With `DEMO_CALL_TO` set, the agent and tunnel running (6.4 windows 1 and 2) and `npm run dev`:
+open `/console`, pick a storm hour, click **Run agent**. Its last step places a real call to your
+phone, standing in for the highest-risk home that hour (that home's real 3 steps and street).
+Answer it, then open **Calls** in the top bar: the call appears and its answers fill in live.
+Only one demo call at a time; without `DEMO_CALL_TO` the step is skipped.
 
 **macOS/Linux:** `./voice/serve.sh` starts the agent and a free cloudflared tunnel together
 (`brew install cloudflared`; it reads `.env` and makes a new tunnel address each run). Full Windows

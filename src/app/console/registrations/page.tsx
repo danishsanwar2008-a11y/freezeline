@@ -78,6 +78,9 @@ function Shell({ children }: { children: React.ReactNode }) {
         <a href="/register" target="_blank" rel="noopener" className="btn btn-quiet btn-sm">
           Public sign-up page ↗
         </a>
+        <Link href="/console/calls" className="btn btn-quiet btn-sm">
+          Calls
+        </Link>
         <Link href="/console" className="btn btn-quiet btn-sm">
           ← Map
         </Link>

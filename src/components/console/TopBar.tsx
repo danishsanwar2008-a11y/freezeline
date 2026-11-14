@@ -62,6 +62,9 @@ export default function TopBar({ agent, panelsHidden, onTogglePanels }: Props) {
       <Link href="/console/registrations" className="btn btn-quiet btn-sm">
         Sign-ups
       </Link>
+      <Link href="/console/calls" className="btn btn-quiet btn-sm">
+        Calls
+      </Link>
       <InfoTip />
       <form method="post" action="/api/logout">
         <button type="submit" className="btn btn-quiet btn-sm">
