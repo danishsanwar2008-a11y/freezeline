@@ -259,6 +259,9 @@ def call_from_params(params: dict[str, Any]) -> Call:
         # script falls back to the unnamed greeting rather than speaking a blank.
         first_name=str(params.get("first_name") or ""),
         street=str(params.get("street") or ""),
+        # Set by the Next route once the checklist SMS is accepted; the agent never claims a
+        # text it did not send.
+        text_sent=bool(params.get("text_sent", False)),
     )
 
 

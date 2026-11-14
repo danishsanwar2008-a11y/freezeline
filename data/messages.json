@@ -470,6 +470,22 @@
       "en": "Great, you're all set. Thank you for helping keep your neighbors' water on.",
       "es": "Excelente, ya está listo. Gracias por ayudar a que sus vecinos sigan teniendo agua."
     },
+    "q_sees_list": {
+      "en": "I've just texted you your checklist for tonight. Can you see the message?",
+      "es": "Acabo de enviarle su lista para esta noche. ¿Puede ver el mensaje?"
+    },
+    "agent_list_confirmed": {
+      "en": "Good. Work through it in order, and reply to the text if anything is unclear.",
+      "es": "Bien. Hágalas en orden y responda al mensaje si algo no está claro."
+    },
+    "agent_list_resend": {
+      "en": "No problem, I'm sending it again. Please check your messages in a minute.",
+      "es": "No hay problema, se la envío de nuevo. Revise sus mensajes en un minuto."
+    },
+    "agent_text_pending": {
+      "en": "I'll text you that checklist right after this call, so watch for a message from your water utility.",
+      "es": "Le enviaré esa lista justo después de esta llamada, así que esté atento a un mensaje de su compañía de agua."
+    },
     "status_text_reply": {
       "en": "You answered by text.",
       "es": "Usted respondió por mensaje de texto."

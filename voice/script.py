@@ -220,6 +220,7 @@ FIELD_OF = {
     "q_faucet": "faucet_covered",
     "q_heat": "has_heat",
     "q_neighbor": "neighbor_check",
+    "q_sees_list": "sees_list",
 }
 
 
@@ -237,6 +238,7 @@ class Call:
         hard_of_hearing: bool = False,
         first_name: str = "",
         street: str = "",
+        text_sent: bool = False,
     ) -> None:
         if lang not in LANGS:
             raise ValueError(f"lang must be one of {LANGS}")
@@ -251,6 +253,10 @@ class Call:
         # name, and the street name proves we are talking about the right house.
         self.first_name = first_name.strip()
         self.street = street.strip()
+        # True only when the checklist SMS has actually been accepted by the carrier. The agent
+        # may say "I've texted you" in that case and nothing stronger otherwise.
+        self.text_sent = text_sent
+        self.sees_list: bool | None = None
         self.hard_of_hearing = hard_of_hearing
         self.answers = Answers()
         self.turns: list[Turn] = []
@@ -321,6 +327,13 @@ class Call:
         else:
             self.turns.append(self._say(key))
 
+        # The hand-off to the written checklist. A text we have not sent is a text we do not
+        # claim to have sent, so the only promise here is conditional on text_sent.
+        if self.text_sent:
+            self.turns.append(self._ask("q_sees_list"))
+        else:
+            self.turns.append(self._say("agent_text_pending"))
+
     def hear(self, transcript: str) -> str:
         """Feed one caller utterance. Returns "ok", "unclear" or "repeat"."""
         turn = self.current
@@ -339,6 +352,9 @@ class Call:
         self._record(turn.field or "", transcript, answer)
         self.attempts = 0
         self.i += 1
+        if turn.field == "sees_list":
+            self.sees_list = answer
+            self.turns.append(self._say("agent_list_confirmed" if answer else "agent_list_resend"))
         return "ok"
 
     def _record(self, name: str, transcript: str, answer: bool | None) -> None:
@@ -392,6 +408,8 @@ class Call:
             "confidence": "confirmed",
             "answers": self.answers.as_dict(),
             "closing": closing_key(a, self.assigned_crew),
+            "sees_list": self.sees_list,
+            "text_sent": self.text_sent,
             "lang": self.lang,
             "transcript": [{"who": w, "text": t} for w, t in self.said],
         }
