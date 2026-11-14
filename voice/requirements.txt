@@ -1,8 +1,15 @@
 # FreezeLine voice agent - Python side. All permissively licensed and free at any volume.
 # The only metered thing here is the phone line itself (Twilio), never the speech pipeline.
 
-# Pipeline: VAD, transports, the Kokoro TTS service, frame processors.
-pipecat-ai[kokoro,silero]>=0.0.60
+# Needs Python 3.11 or newer. pipecat-ai 1.x publishes no wheels for 3.10 and older, and on an
+# older interpreter pip silently caps at pipecat 0.0.36 (which cannot run this code) and then
+# fails with "No matching distribution found" rather than saying the interpreter is too old.
+#   macOS:  brew install python@3.12 && python3.12 -m venv .venv
+#   check:  python3 --version   (and `python3 -m pip --version` should not be ancient)
+
+# Pipeline: VAD, transports, the Kokoro TTS service, Whisper STT, frame processors.
+# `websocket` and `whisper` are extras: without them those modules raise ImportError on import.
+pipecat-ai[websocket,whisper,kokoro,silero]>=1.0
 
 # Text-to-speech, locally, on CPU. Apache-2.0 weights (54 voices, English + Spanish).
 kokoro-onnx>=0.4.0

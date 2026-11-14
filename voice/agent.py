@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import base64
+import importlib
 import json
 import os
 import sys
@@ -80,12 +81,18 @@ def _need(module_variants: list[tuple[str, str]]) -> Any:
 
 def make_driver(call: Call, on_done: Callable[[dict], None], speed: float):
     FrameProcessor = _need([("pipecat.processors.frame_processor", "FrameProcessor")])
-    frames = _need([("pipecat.frames.frames", "frames")])
+    # The frame classes all live in this one module; import it rather than asking it for an
+    # attribute called "frames" (which no release ever had).
+    frames = importlib.import_module("pipecat.frames.frames")
     StartFrame, EndFrame = frames.StartFrame, frames.EndFrame
     TranscriptionFrame = frames.TranscriptionFrame
     OutputAudioRawFrame = frames.OutputAudioRawFrame
     TTSSpeakFrame = frames.TTSSpeakFrame
-    FrameDirection = _need([("pipecat.frames.frames", "FrameDirection")])
+    # pipecat 1.x keeps this beside FrameProcessor; older releases had it in frames.frames.
+    FrameDirection = _need([
+        ("pipecat.processors.frame_processor", "FrameDirection"),
+        ("pipecat.frames.frames", "FrameDirection"),
+    ])
 
     class ScriptAgent(FrameProcessor):  # type: ignore[misc, valid-type]
         """Speaks the next line, waits for the caller, records the answer, repeats on "sorry?".
@@ -125,7 +132,9 @@ def make_driver(call: Call, on_done: Callable[[dict], None], speed: float):
                     FrameDirection.DOWNSTREAM,
                 )
             else:
-                await self.push_frame(TTSSpeakFrame(text), FrameDirection.DOWNSTREAM)
+                # Keyword: on newer releases the frame's own positional fields start after the
+                # base ones, so a bare `text` would land in `id`.
+                await self.push_frame(TTSSpeakFrame(text=text), FrameDirection.DOWNSTREAM)
 
         async def _run(self) -> None:
             try:
@@ -169,6 +178,15 @@ def make_driver(call: Call, on_done: Callable[[dict], None], speed: float):
 
 # ---------- pipeline ----------
 
+def _language(lang: str) -> Any:
+    """pipecat 1.x takes a Language enum; older releases took a code string."""
+    try:
+        Language = _need([("pipecat.transcriptions.language", "Language")])
+    except SystemExit:
+        return lang
+    return getattr(Language, lang.upper(), lang)
+
+
 def make_stt(lang: str):
     WhisperSTTService = _need([
         ("pipecat.services.whisper.stt", "WhisperSTTService"),
@@ -178,7 +196,7 @@ def make_stt(lang: str):
         model=os.environ.get("WHISPER_MODEL", "large-v3-turbo"),
         device=os.environ.get("WHISPER_DEVICE", "auto"),
         compute_type=os.environ.get("WHISPER_COMPUTE_TYPE", "int8"),
-        language=lang,
+        language=_language(lang),
     )
     try:
         return WhisperSTTService(**kwargs)
