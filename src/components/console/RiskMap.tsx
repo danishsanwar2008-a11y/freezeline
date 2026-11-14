@@ -13,6 +13,17 @@ import type { ConsoleHome, HexBin } from "@/lib/replay";
 import type { HomeStatus } from "@/lib/household";
 import { MAP_LOOK, NEED_STEPS, STATUS_RGB, needStep } from "@/lib/riskScale";
 import type { HexWhy } from "@/lib/hexWhy";
+import Callout from "./Callout";
+
+/** A quick view pinned to a point on the map. */
+export interface PinnedCallout {
+  key: string;
+  lngLat: [number, number];
+  title: string;
+  subtitle?: string;
+  body: React.ReactNode;
+  onClose: () => void;
+}
 
 // Worker is copied into /public by `npm install` (scripts/copy-maplibre-worker.mjs).
 setWorkerUrl("/maplibre-gl-worker.mjs");
@@ -97,9 +108,28 @@ interface Props {
   selectedHome: number | null;
   onSelectHex: (h3: string) => void;
   onSelectHome: (idx: number) => void;
+  selectedCrew: number | null;
+  onSelectCrew: (id: number) => void;
+  /** A quick view pinned to a map point (follows the map as it pans). */
+  callout: PinnedCallout | null;
 }
 
-export default function RiskMap({ hexes, need, homes, statusOf, statusKey, crews, explain, focusHex, selectedHome, onSelectHex, onSelectHome }: Props) {
+export default function RiskMap({
+  hexes,
+  need,
+  homes,
+  statusOf,
+  statusKey,
+  crews,
+  explain,
+  focusHex,
+  selectedHome,
+  onSelectHex,
+  onSelectHome,
+  selectedCrew,
+  onSelectCrew,
+  callout,
+}: Props) {
   // Deck owns the camera (uncontrolled). Changing initialViewState with transition props makes
   // deck fly there itself; feeding interim frames back as a controlled viewState cancels the flight.
   const [initialViewState, setInitialViewState] = useState<MapViewState>(() => (focusHex ? areaView(focusHex) : cityView(hexes, look.floating)));
@@ -203,14 +233,31 @@ export default function RiskMap({ hexes, need, homes, statusOf, statusKey, crews
     getPosition: (d) => d.position,
     getFillColor: [...look.crew, 255],
     getLineColor: [...look.crewRing, 255],
-    getRadius: 7,
+    getRadius: (d) => (d.id === selectedCrew ? 10 : 7),
     radiusUnits: "pixels",
     stroked: true,
-    getLineWidth: 2,
+    getLineWidth: (d) => (d.id === selectedCrew ? 3 : 2),
     lineWidthUnits: "pixels",
     pickable: true,
+    updateTriggers: { getRadius: selectedCrew, getLineWidth: selectedCrew },
+    onClick: (info) => {
+      if (info.object) onSelectCrew(info.object.id);
+      return true;
+    },
     parameters: { depthCompare: "always" },
   });
+
+  // deck.gl calls function children with the live viewport each frame, so the quick view stays on its point
+  // while the map pans or zooms (its types only declare ReactNode children, hence the cast where it is used).
+  const calloutChild = ({ viewport, width }: { viewport: { project: (p: [number, number]) => number[] }; width: number }) => {
+    if (!callout) return null;
+    const [x, y] = viewport.project(callout.lngLat);
+    return (
+      <Callout key={callout.key} x={x} y={y} mapWidth={width} title={callout.title} subtitle={callout.subtitle} onClose={callout.onClose}>
+        {callout.body}
+      </Callout>
+    );
+  };
 
   // Faint gray wash over the basemap: off-white, slightly gray.
   const tintLayer = new SolidPolygonLayer<{ polygon: [number, number][] }>({
@@ -248,6 +295,7 @@ export default function RiskMap({ hexes, need, homes, statusOf, statusKey, crews
       }}
     >
       <Map mapStyle={look.basemap} attributionControl={{ compact: true }} />
+      {calloutChild as unknown as React.ReactNode}
     </DeckGL>
   );
 }

@@ -25,9 +25,9 @@ import { useAgent } from "./useAgent";
 import { statusAt, useOps } from "./useOps";
 import { useLiveForecast } from "./useLiveForecast";
 import { houstonNowHour } from "./format";
-import { CrewsPanel, HomeSummaryCard, HomesContacted, isHeading } from "./CityCards";
+import { CrewQuickView, CrewsPanel, HomeSummaryCard, HomesContacted, isHeading } from "./CityCards";
 import { alongPath, driveFraction, minutesLeft } from "@/lib/route";
-import type { CrewMarker } from "./RiskMap";
+import type { CrewMarker, PinnedCallout } from "./RiskMap";
 
 // WebGL map is browser-only.
 const RiskMap = dynamic(() => import("./RiskMap"), {
@@ -87,6 +87,15 @@ function ConsoleBody({
   const [playing, setPlaying] = useState(false);
   const [focusHex, setFocusHex] = useState<string | null>(null);
   const [selectedHome, setSelectedHome] = useState<number | null>(null);
+  const [selectedCrew, setSelectedCrew] = useState<number | null>(null);
+  const selectHome = useCallback((i: number | null) => {
+    setSelectedCrew(null);
+    setSelectedHome(i);
+  }, []);
+  const selectCrew = useCallback((id: number | null) => {
+    setSelectedHome(null);
+    setSelectedCrew(id);
+  }, []);
   const time = hours[hour].time;
 
   const atEnd = hour >= last;
@@ -203,16 +212,31 @@ function ConsoleBody({
     [crewsData, now],
   );
 
-  // Pending crew proposals from the agent (Approve-first mode) are approved from the Crews panel.
+  // Pending crew proposals (Approve-first mode) are approved in the decision trace.
   const run = agent?.runs[time];
   const entries = run?.entries ?? [];
   const firstPending = entries.find((e) => e.status === "pending")?.id;
-  const crewProposals = entries.filter((e) => e.tool === "propose_crew" && e.status === "pending");
 
   const selectHex = useCallback((h3: string | null) => {
     setFocusHex(h3);
     setSelectedHome(null);
+    setSelectedCrew(null);
   }, []);
+
+  // The selected crew's quick view, pinned to the crew on the map.
+  const crewCallout = useMemo<PinnedCallout | null>(() => {
+    const c = crewsData.find((x) => x.id === selectedCrew);
+    const m = crewMarkers.find((x) => x.id === selectedCrew);
+    if (!c || !m) return null;
+    return {
+      key: `crew-${c.id}`,
+      lngLat: m.position,
+      title: c.name,
+      subtitle: `${c.area} crew (sample)`,
+      body: <CrewQuickView crew={c} now={now} />,
+      onClose: () => setSelectedCrew(null),
+    };
+  }, [crewsData, crewMarkers, selectedCrew, now]);
 
   const agentControls: AgentControls = {
     enabled: !!agent,
@@ -238,7 +262,10 @@ function ConsoleBody({
             focusHex={focusHex}
             selectedHome={selectedHome}
             onSelectHex={selectHex}
-            onSelectHome={setSelectedHome}
+            onSelectHome={selectHome}
+            selectedCrew={selectedCrew}
+            onSelectCrew={selectCrew}
+            callout={crewCallout}
           />
           {focusHex && (
             <button
@@ -255,7 +282,7 @@ function ConsoleBody({
                 homeId={homes[selectedHome].id}
                 time={agent ? time : null}
                 level={displayLevel(plan.homes[selectedHome].level)}
-                onClose={() => setSelectedHome(null)}
+                onClose={() => selectHome(null)}
               />
             </div>
           )}
@@ -308,10 +335,8 @@ function ConsoleBody({
             crews={crewsData}
             queue={data?.crewQueue ?? 0}
             now={now}
-            proposals={crewProposals}
-            canApprove={(e) => e.id === firstPending}
-            approving={agent?.approving ?? null}
-            onApprove={(e) => agent?.approve(time, e)}
+            selectedCrew={selectedCrew}
+            onSelectCrew={selectCrew}
           />
           <AgentPanel
             time={time}

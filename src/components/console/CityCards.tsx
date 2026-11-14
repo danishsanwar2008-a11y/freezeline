@@ -3,7 +3,7 @@
 // City Operations cards. Officials' third-person wording only. One big headline per card,
 // every number has a visual, details collapsed underneath.
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { HomeStatus } from "@/lib/household";
 import { CREW_TRIP } from "@/lib/crewTrip";
 import { minutesLeft } from "@/lib/route";
@@ -11,8 +11,7 @@ import { STATUS_LABEL } from "@/lib/cityWording";
 import { STATUS_BG, STATUS_RGB } from "@/lib/riskScale";
 import type { OpsCrew } from "./useOps";
 import { plural, verb } from "@/lib/plural";
-import type { AgentEntry } from "./useAgent";
-import Panel from "./Panel";
+import Panel, { Chevron } from "./Panel";
 
 /** A floating box (see Panel.tsx). The id remembers its collapsed state for the session. */
 export function Card({
@@ -132,20 +131,27 @@ export function isHeading(c: OpsCrew, now: number): boolean {
   return !!c.assignment && minutesLeft(c.assignment, now) > 0;
 }
 
-/** "Crew 7 · Heading to W 11th St · 1.2 mi · ~6 min" / "Crew 3 · On standby · Heights". */
-export function crewLine(c: OpsCrew, now: number): string {
+/** What a crew is doing, in two short lines (officials' wording). */
+export function crewStatus(c: OpsCrew, now: number): { line: string; detail: string } {
   const a = c.assignment;
-  if (!a) return `${c.name} · On standby · ${c.area}`;
+  if (!a) return { line: "On standby", detail: `At the ${c.area} depot` };
   const from = a.otherArea ? ` · from ${c.area}` : "";
   return isHeading(c, now)
-    ? `${c.name} · Heading to ${a.street} · ${a.miles.toFixed(1)} mi · ~${minutesLeft(a, now)} min${from}`
-    : `${c.name} · Helping a home on ${a.street} (${a.needs}) · ${a.miles.toFixed(1)} mi${from}`;
+    ? { line: `Heading to ${a.street}`, detail: `${a.miles.toFixed(1)} mi · ~${minutesLeft(a, now)} min left${from}` }
+    : { line: `Helping a home on ${a.street}`, detail: `${a.needs}${from}` };
 }
 
-function CrewIcon({ id, active }: { id: number; active: boolean }) {
+/** "Crew 7 · Heading to W 11th St · 1.2 mi · ~6 min left" (one line, for logs and labels). */
+export function crewLine(c: OpsCrew, now: number): string {
+  const st = crewStatus(c, now);
+  return `${c.name} · ${st.line} · ${st.detail}`;
+}
+
+/** The crew's number in a hairline disc (the accent stays on the dot strip and the map). */
+function CrewDisc({ id, active }: { id: number; active: boolean }) {
   return (
     <span
-      className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${active ? "bg-btn text-on-btn" : "border border-border text-muted"}`}
+      className={`flex size-7 shrink-0 items-center justify-center rounded-full border font-mono text-xs font-medium tabular-nums ${active ? "border-accent text-text" : "border-border text-muted"}`}
       aria-hidden
     >
       {id}
@@ -153,88 +159,186 @@ function CrewIcon({ id, active }: { id: number; active: boolean }) {
   );
 }
 
+const FINE_POINTER = "(hover: hover) and (pointer: fine)";
+
+/** Area picker: hover or click opens the 4 areas; keyboard works (Enter/Space opens, Escape closes). */
+function AreaPicker({
+  areas,
+  value,
+  onChange,
+}: {
+  areas: { id: string; name: string; busy: number }[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const current = areas.find((x) => x.id === value);
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => {
+        if (window.matchMedia(FINE_POINTER).matches) setOpen(true);
+      }}
+      onMouseLeave={() => setOpen(false)}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") setOpen(false);
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="true"
+        aria-expanded={open}
+        className="flex min-h-8 items-center gap-1.5 rounded-full border border-border bg-bg px-3 text-[13px] font-medium text-text transition-colors hover:border-accent"
+      >
+        {current?.name ?? "Area"}
+        <Chevron open={!open} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-20 w-48 pt-1">
+          <ul
+            role="menu"
+            aria-label="Show crews for"
+            className="callout-enter overflow-hidden rounded-lg border border-white/10 bg-bg py-1 shadow-lg"
+            style={{ transformOrigin: "top right" }}
+          >
+            {areas.map((x) => (
+              <li key={x.id} role="none">
+                <button
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={x.id === value}
+                  onClick={() => {
+                    onChange(x.id);
+                    setOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-between px-3 py-2 text-left text-[13px] transition-colors hover:bg-surface ${x.id === value ? "text-text" : "text-muted"}`}
+                >
+                  {x.name}
+                  <span className="font-mono text-xs tabular-nums text-muted">{x.busy}/5 busy</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function CrewsPanel({
   crews,
   queue,
   now,
-  proposals,
-  canApprove,
-  approving,
-  onApprove,
+  selectedCrew,
+  onSelectCrew,
 }: {
   crews: OpsCrew[];
   queue: number;
   now: number;
-  proposals: AgentEntry[];
-  canApprove: (e: AgentEntry) => boolean;
-  approving: string | null;
-  onApprove: (e: AgentEntry) => void;
+  selectedCrew: number | null;
+  onSelectCrew: (id: number) => void;
 }) {
   const working = crews.filter((c) => c.assignment);
-  const standby = crews.filter((c) => !c.assignment);
+  const areas = useMemo(() => {
+    const by = new Map<string, { id: string; name: string; busy: number }>();
+    for (const c of crews) {
+      const id = c.zone_id ?? c.area;
+      const x = by.get(id) ?? { id, name: c.area, busy: 0 };
+      if (c.assignment) x.busy++;
+      by.set(id, x);
+    }
+    return [...by.values()];
+  }, [crews]);
+  const [picked, setPicked] = useState<string | null>(null);
+  // The selected crew's area wins (clicking a crew on the map shows its area), then the official's pick.
+  const selectedArea = crews.find((c) => c.id === selectedCrew)?.zone_id;
+  const area = selectedArea ?? picked ?? areas[0]?.id ?? "";
+  const shown = crews.filter((c) => (c.zone_id ?? c.area) === area);
+  const areaName = areas.find((x) => x.id === area)?.name ?? "this area";
+
   return (
-    <Card title="Help crews (sample)">
+    <Card title="Crews (sample)" action={areas.length > 0 ? <AreaPicker areas={areas} value={area} onChange={setPicked} /> : undefined}>
       <p className="stat">
         {working.length} <span className="stat-unit">of {crews.length} crews helping</span>
       </p>
       {/* One dot per crew: filled = on a job. */}
       <div className="mt-2 flex flex-wrap gap-1" role="img" aria-label={`${working.length} of ${crews.length} crews on a job`}>
         {crews.map((c) => (
-          <span key={c.id} className={`size-2.5 rounded-full ${c.assignment ? "bg-accent" : "border border-border"}`} />
+          <span key={c.id} className={`size-2 rounded-full ${c.assignment ? "bg-accent" : "border border-border"}`} />
         ))}
       </div>
-      {working.length > 0 && (
-        <ul className="mt-3 space-y-2" aria-label="Crews on a job">
-          {working.map((c) => (
-            <li key={c.id} className="flex items-start gap-3 text-sm">
-              <CrewIcon id={c.id} active />
-              <span className="pt-1 leading-snug">{crewLine(c, now)}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-      {standby.length > 0 && (
-        <ul className="mt-3 grid grid-cols-1 gap-x-3 gap-y-1 text-xs text-muted sm:grid-cols-2" aria-label="Crews on standby">
-          {standby.map((c) => (
-            <li key={c.id} className="truncate">
-              {crewLine(c, now)}
-            </li>
-          ))}
-        </ul>
-      )}
-      <p className="mt-2 text-[11px] text-muted">
-        Routes follow real streets (OpenStreetMap); {CREW_TRIP.mph} mph on icy roads and {CREW_TRIP.jobMinutes} min on site are simulated. Nearest free crew in
-        the same area goes first; if none is free there, the nearest crew from another area.
-      </p>
-      {proposals.length > 0 && (
-        <ul className="mt-3 space-y-2 border-t border-border pt-3">
-          {proposals.map((p) => (
-            <li key={p.id} className="flex items-center gap-3 text-sm">
-              <span className="min-w-0 flex-1 leading-snug">
-                <span className="text-muted">Proposed: </span>
-                {p.summary.replace(/^Assign /, "").replace(/\.$/, "")}
-              </span>
-              {canApprove(p) ? (
+      {shown.length > 0 && (
+        <ul className="mt-3 space-y-1" aria-label={`Crews in ${areaName}`}>
+          {shown.map((c) => {
+            const st = crewStatus(c, now);
+            const sel = c.id === selectedCrew;
+            return (
+              <li key={c.id}>
                 <button
                   type="button"
-                  onClick={() => onApprove(p)}
-                  disabled={approving === p.id}
-                  className="btn btn-primary btn-sm shrink-0"
+                  onClick={() => onSelectCrew(c.id)}
+                  aria-pressed={sel}
+                  className={`flex w-full items-start gap-3 rounded-lg px-2 py-1.5 text-left transition-colors ${sel ? "bg-bg ring-1 ring-accent" : "hover:bg-bg"}`}
                 >
-                  {approving === p.id ? "Assigning…" : "Approve"}
+                  <CrewDisc id={c.id} active={!!c.assignment} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm leading-snug text-text">
+                      {c.name} · {st.line}
+                    </span>
+                    <span className="block text-xs leading-snug text-muted">{st.detail}</span>
+                  </span>
                 </button>
-              ) : (
-                <span className="shrink-0 text-xs text-muted">After earlier steps</span>
-              )}
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
-      <p className="mt-3 text-xs text-muted">
-        {queue > 0 ? `${plural(queue, "more home")} ${verb(queue, "needs a crew and waits", "need a crew and wait")} in the queue, highest risk first.` : "No homes waiting for a crew."} Crews only go to homes whose
-        call says they can’t do the steps themselves.
+      {crews.length === 0 && <p className="mt-3 text-[13px] text-muted">Crews appear once this hour’s outreach has run.</p>}
+      <p className={`mt-3 text-[13px] ${queue > 0 ? "text-text" : "text-muted"}`}>
+        {queue > 0
+          ? `${plural(queue, "more home")} ${verb(queue, "needs a crew and waits", "need a crew and wait")} in the queue, highest risk first.`
+          : "No homes waiting for a crew."}
+      </p>
+      <p className="mt-1 text-xs text-muted">
+        Crews only go to homes whose call says they can’t do the steps themselves. Routes follow real streets; {CREW_TRIP.mph} mph on icy roads
+        and {CREW_TRIP.jobMinutes} min on site are simulated.
       </p>
     </Card>
+  );
+}
+
+/** The crew's quick view on the map (pointing at the crew). */
+export function CrewQuickView({ crew, now }: { crew: OpsCrew; now: number }) {
+  const a = crew.assignment;
+  const st = crewStatus(crew, now);
+  const heading = isHeading(crew, now);
+  return (
+    <div className="mt-2.5 space-y-2 text-[13px]">
+      <p className="leading-snug">{st.line}</p>
+      {a ? (
+        <div className="grid grid-cols-3 gap-1.5">
+          <div className="rounded-md bg-bg px-2 py-1.5">
+            <p className="text-[11px] text-muted">Distance</p>
+            <p className="font-mono text-sm tabular-nums">{a.miles.toFixed(1)} mi</p>
+          </div>
+          <div className="rounded-md bg-bg px-2 py-1.5">
+            <p className="text-[11px] text-muted">{heading ? "Arrives in" : "Arrived"}</p>
+            <p className="font-mono text-sm tabular-nums">{heading ? `~${minutesLeft(a, now)} min` : "On site"}</p>
+          </div>
+          <div className="rounded-md bg-bg px-2 py-1.5">
+            <p className="text-[11px] text-muted">From</p>
+            <p className="truncate text-sm">{crew.area}</p>
+          </div>
+        </div>
+      ) : (
+        <p className="text-muted">Waiting at the {crew.area} depot for the next home that needs a crew.</p>
+      )}
+      {a && <p className="text-xs leading-snug text-muted">Household: {a.needs}</p>}
+      <p className="text-[11px] text-muted">
+        {a && !a.routed ? "Straight-line estimate (no street route found)" : "Route on real streets"} · timing simulated
+      </p>
+    </div>
   );
 }
 
