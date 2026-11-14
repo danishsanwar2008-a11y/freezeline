@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import DeckGL from "@deck.gl/react";
 import { H3HexagonLayer } from "@deck.gl/geo-layers";
-import { LineLayer, ScatterplotLayer, SolidPolygonLayer } from "@deck.gl/layers";
+import { PathLayer, ScatterplotLayer, SolidPolygonLayer } from "@deck.gl/layers";
 import { FlyToInterpolator, WebMercatorViewport, type MapViewState, type PickingInfo } from "@deck.gl/core";
 import { cellToLatLng } from "h3-js";
 import { Map } from "react-map-gl/maplibre";
@@ -36,11 +36,15 @@ const TOP_BAR = 52;
 const PANEL = 440;
 const AREA_ZOOM = 16;
 
-/** Crew marker + line (no text labels on the map; names and trips are in the sidebar). */
+/** Crew marker + the rest of its street route (no text labels on the map; names and trips are in the boxes). */
 export interface CrewMarker {
   id: number;
+  name: string;
   position: [number, number];
-  target: [number, number] | null;
+  /** The route still to drive, [lng, lat] from the marker to the home; null when not driving. */
+  rest: [number, number][] | null;
+  minutesLeft: number;
+  street: string | null;
 }
 
 interface Dot {
@@ -181,14 +185,16 @@ export default function RiskMap({ hexes, need, homes, statusOf, statusKey, crews
         updateTriggers: { getRadius: selectedHome, getFillColor: statusKey },
       });
 
-  const crewLines = new LineLayer<CrewMarker>({
-    id: "crew-lines",
-    data: crews.filter((c) => c.target),
-    getSourcePosition: (d) => d.position,
-    getTargetPosition: (d) => d.target!,
-    getColor: [...look.crew, 230],
-    getWidth: 2,
+  // The route still to drive, along the streets (Action Blue), under the crew dot.
+  const crewLines = new PathLayer<CrewMarker>({
+    id: "crew-routes",
+    data: crews.filter((c) => c.rest && c.rest.length > 1),
+    getPath: (d) => d.rest!,
+    getColor: [...MAP_LOOK.route, 235],
+    getWidth: 3,
     widthUnits: "pixels",
+    capRounded: true,
+    jointRounded: true,
     parameters: { depthCompare: "always" },
   });
   const crewDots = new ScatterplotLayer<CrewMarker>({
@@ -202,7 +208,7 @@ export default function RiskMap({ hexes, need, homes, statusOf, statusKey, crews
     stroked: true,
     getLineWidth: 2,
     lineWidthUnits: "pixels",
-    pickable: false,
+    pickable: true,
     parameters: { depthCompare: "always" },
   });
 
@@ -225,6 +231,15 @@ export default function RiskMap({ hexes, need, homes, statusOf, statusKey, crews
       getTooltip={({ object, layer }: PickingInfo<HexBin | Dot | CrewMarker>) => {
         if (!object) return null;
         if (layer?.id === "homes") return { text: homes[(object as Dot).i].label, style: TIP_STYLE };
+        if (layer?.id === "crews") {
+          const c = object as CrewMarker;
+          const text = c.street
+            ? c.minutesLeft > 0
+              ? `${c.name} · ~${c.minutesLeft} min to ${c.street} (simulated)`
+              : `${c.name} · helping a home on ${c.street}`
+            : `${c.name} · on standby`;
+          return { text, style: TIP_STYLE };
+        }
         if (layer?.id === "need-hexes" && (object as HexBin).h3 !== focusHex) {
           const hex = object as HexBin;
           return { html: whyHtml(hex.neighborhood, explain(hexIndex.get(hex.h3)!)), style: TIP_STYLE };

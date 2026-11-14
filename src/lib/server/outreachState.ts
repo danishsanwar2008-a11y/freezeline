@@ -4,7 +4,6 @@ import {
   assess,
   nearestNeighbors,
   outreachSummary,
-  crewTrip,
   jobActive,
   proposeCrews,
   simulateOutreach,
@@ -20,6 +19,7 @@ import {
 } from "@/lib/household";
 import { assessmentSentence, needsList } from "@/lib/cityWording";
 import { getSupabaseAdmin } from "./supabaseAdmin";
+import { routedTrip } from "./crewRoutes";
 import { planAt, toTimestamp, type City } from "./cityState";
 import { areaOf, generateCrews } from "@/lib/seed/generate";
 import type { AgentCtx } from "./agent/tools";
@@ -60,7 +60,7 @@ export async function loadCrewJobs(
     const crew = crews.find((c) => c.id === r.crew_id);
     const i = city.byId.get(r.home_id as string);
     if (!crew || i === undefined || hoursAgo > JOB_LOOKBACK_HOURS) continue;
-    const job = { crew_id: crew.id, home_id: r.home_id as string, hoursAgo, minutes: crewTrip(crew, city.homes[i]).minutes, assigned_at: r.created_at as string };
+    const job = { crew_id: crew.id, home_id: r.home_id as string, hoursAgo, minutes: routedTrip(crew, city.homes[i]).minutes, assigned_at: r.created_at as string };
     if (jobActive(job)) active.push(job);
   }
   return { active, helpedHomes };
@@ -258,13 +258,17 @@ export async function crewStatus(ctx: AgentCtx) {
       const a = jobs.active.find((x) => x.crew_id === c.id);
       return { crew_id: c.id, name: c.name, area: c.zone_id, busy: !!a, helping: a ? a.home_id : null };
     }),
-    suggested: proposals.map((p) => ({
-      crew_id: p.crew_id,
-      ...homeLabel(p.homeIdx),
-      miles: Math.round(p.miles * 10) / 10,
-      minutes: p.minutes,
-      from_other_area: p.fromOtherArea,
-    })),
+    suggested: proposals.map((p) => {
+      // The pick is the nearest free crew (straight line); distance and time come from its street route.
+      const trip = routedTrip(crews.find((c) => c.id === p.crew_id)!, ctx.city.homes[p.homeIdx]);
+      return {
+        crew_id: p.crew_id,
+        ...homeLabel(p.homeIdx),
+        miles: Math.round(trip.miles * 10) / 10,
+        minutes: trip.minutes,
+        from_other_area: p.fromOtherArea,
+      };
+    }),
     queue_length: queue.length,
     queue_top: queue.slice(0, 5).map(homeLabel),
   };
@@ -293,7 +297,7 @@ export async function proposeCrew(ctx: AgentCtx, input: z.output<typeof Outreach
   if (assessment !== "needs_crew" || confidence !== "confirmed")
     throw new Error(`Crews only go to homes whose call says they can't do the steps. This home is: ${assessmentSentence(assessment, reasons)}.`);
 
-  const trip = crewTrip(crew, home);
+  const trip = routedTrip(crew, home);
   const line = `${crew.name} → home on ${home.street} (${needsList(reasons)}) · ${trip.miles.toFixed(1)} mi · ~${trip.minutes} min`;
   if (!execute) return { status: "awaiting_approval", summary: `Assign ${line}.` };
 

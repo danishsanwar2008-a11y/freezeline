@@ -1,7 +1,7 @@
 import { requireConsole } from "@/lib/server/consoleAuth";
 import { getCity, hourIndex } from "@/lib/server/cityState";
 import { getCrews, loadCrewJobs, loadHourRecords } from "@/lib/server/outreachState";
-import { crewTrip } from "@/lib/household";
+import { routedTrip } from "@/lib/server/crewRoutes";
 import { STATUS_OF, type HomeStatus } from "@/lib/household";
 import { STATUS_CODE } from "@/lib/riskScale";
 import { needsList } from "@/lib/cityWording";
@@ -45,7 +45,7 @@ export async function GET(req: Request) {
         const j = jobs.active.find((x) => x.crew_id === c.id);
         const h = j ? home(j.home_id) : null;
         const reasons = (j ? (records.calls.get(j.home_id)?.reason_key ?? "") : "").split(",").filter(Boolean) as ReasonFactor[];
-        const trip = h ? crewTrip(c, h) : null;
+        const trip = h ? routedTrip(c, h) : null;
         return {
           ...c,
           area: area(c.zone_id),
@@ -60,6 +60,9 @@ export async function GET(req: Request) {
                   assigned_at: j.assigned_at,
                   miles: Math.round(trip.miles * 10) / 10,
                   minutes: trip.minutes,
+                  /** The drive along real streets, [lng, lat] from depot to home (straight line if no route was found). */
+                  route: trip.path,
+                  routed: trip.routed,
                   hoursAgo: j.hoursAgo,
                   otherArea: h.zone_id !== c.zone_id,
                 }

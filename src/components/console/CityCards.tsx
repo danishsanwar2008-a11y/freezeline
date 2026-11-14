@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import type { HomeStatus } from "@/lib/household";
 import { CREW_TRIP } from "@/lib/crewTrip";
+import { minutesLeft } from "@/lib/route";
 import { STATUS_LABEL } from "@/lib/cityWording";
 import { STATUS_BG, STATUS_RGB } from "@/lib/riskScale";
 import type { OpsCrew } from "./useOps";
@@ -126,14 +127,9 @@ export function HomesContacted({
 
 // ---------- Crews ----------
 
-/** On screen, one simulated minute of driving takes this long, so a 6-minute drive animates for 30 s. */
-export const MS_PER_DRIVE_MINUTE = 5_000;
-export const headingMs = (minutes: number) => minutes * MS_PER_DRIVE_MINUTE;
-
-/** Still driving: assigned this replay hour and the on-screen drive hasn't finished. */
+/** Still driving: the simulated drive hasn't reached the home yet (src/lib/route.ts). */
 export function isHeading(c: OpsCrew, now: number): boolean {
-  const a = c.assignment;
-  return !!a && a.hoursAgo === 0 && now - Date.parse(a.assigned_at) < headingMs(a.minutes);
+  return !!c.assignment && minutesLeft(c.assignment, now) > 0;
 }
 
 /** "Crew 7 · Heading to W 11th St · 1.2 mi · ~6 min" / "Crew 3 · On standby · Heights". */
@@ -142,7 +138,7 @@ export function crewLine(c: OpsCrew, now: number): string {
   if (!a) return `${c.name} · On standby · ${c.area}`;
   const from = a.otherArea ? ` · from ${c.area}` : "";
   return isHeading(c, now)
-    ? `${c.name} · Heading to ${a.street} · ${a.miles.toFixed(1)} mi · ~${a.minutes} min${from}`
+    ? `${c.name} · Heading to ${a.street} · ${a.miles.toFixed(1)} mi · ~${minutesLeft(a, now)} min${from}`
     : `${c.name} · Helping a home on ${a.street} (${a.needs}) · ${a.miles.toFixed(1)} mi${from}`;
 }
 
@@ -207,7 +203,7 @@ export function CrewsPanel({
         </ul>
       )}
       <p className="mt-2 text-[11px] text-muted">
-        Distance by road (straight line × {CREW_TRIP.roadFactor}) at {CREW_TRIP.mph} mph, {CREW_TRIP.jobMinutes} min on site (simulated). Nearest free crew in
+        Routes follow real streets (OpenStreetMap); {CREW_TRIP.mph} mph on icy roads and {CREW_TRIP.jobMinutes} min on site are simulated. Nearest free crew in
         the same area goes first; if none is free there, the nearest crew from another area.
       </p>
       {proposals.length > 0 && (

@@ -22,6 +22,10 @@ export interface OpsCrew {
     /** Road miles from the depot and drive time (simulated). */
     miles: number;
     minutes: number;
+    /** The drive along real streets, [lng, lat] from depot to home. */
+    route: [number, number][];
+    /** false = no street route found; a straight-line estimate is shown. */
+    routed: boolean;
     /** Replay hours since the job was assigned (0 = this hour). */
     hoursAgo: number;
     /** The crew came from another area (none free in the home's own area). */

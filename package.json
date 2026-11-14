@@ -16,7 +16,8 @@
     "weather:neighborhoods": "tsx scripts/fetch-uri-neighborhoods.ts",
     "messages:check": "tsx scripts/check-messages.ts",
     "db:status": "tsx scripts/db-status.ts",
-    "osm:homes": "tsx scripts/fetch-osm-homes.ts"
+    "osm:homes": "tsx scripts/fetch-osm-homes.ts",
+    "osm:streets": "tsx scripts/fetch-osm-streets.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",

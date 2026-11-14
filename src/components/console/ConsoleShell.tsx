@@ -25,7 +25,8 @@ import { useAgent } from "./useAgent";
 import { statusAt, useOps } from "./useOps";
 import { useLiveForecast } from "./useLiveForecast";
 import { houstonNowHour } from "./format";
-import { CrewsPanel, HomeSummaryCard, HomesContacted, headingMs, isHeading } from "./CityCards";
+import { CrewsPanel, HomeSummaryCard, HomesContacted, isHeading } from "./CityCards";
+import { alongPath, driveFraction, minutesLeft } from "@/lib/route";
 import type { CrewMarker } from "./RiskMap";
 
 // WebGL map is browser-only.
@@ -177,27 +178,27 @@ function ConsoleBody({
   }, [plan, data]);
 
 
-  // Crew positions: driving from the depot for the trip's drive time (scaled on screen), then at the home.
-  // Jobs from an earlier replay hour are already on site.
+  // Crew positions: driving along its street route on the simulated clock (1 min = 2 s on screen), then at
+  // the home. A job from an earlier replay hour has been driving for those hours.
   const [tick, setNow] = useState(() => Date.now());
   const now = Math.max(tick, ops.at); // advance to the moment fresh data arrived
   const crewsData = useMemo(() => data?.crews ?? [], [data]);
   const anyHeading = crewsData.some((c) => isHeading(c, now));
   useEffect(() => {
     if (!anyHeading) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
+    const id = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(id);
   }, [anyHeading]);
   const crewMarkers = useMemo<CrewMarker[]>(
     () =>
       crewsData.map((c) => {
         const depot: [number, number] = [c.depot_lng, c.depot_lat];
-        if (!c.assignment) return { id: c.id, position: depot, target: null };
+        if (!c.assignment) return { id: c.id, name: c.name, position: depot, rest: null, minutesLeft: 0, street: null };
         const a = c.assignment;
-        const home: [number, number] = [a.lng, a.lat];
-        const t = a.hoursAgo > 0 ? 1 : Math.min(1, (now - Date.parse(a.assigned_at)) / headingMs(a.minutes));
-        const pos: [number, number] = [depot[0] + (home[0] - depot[0]) * t, depot[1] + (home[1] - depot[1]) * t];
-        return { id: c.id, position: pos, target: t < 1 ? home : null };
+        const t = driveFraction(a, now);
+        const route = a.route?.length ? a.route : [depot, [a.lng, a.lat] as [number, number]];
+        const { position, rest } = alongPath(route, t);
+        return { id: c.id, name: c.name, position, rest: t < 1 ? rest : null, minutesLeft: minutesLeft(a, now), street: a.street };
       }),
     [crewsData, now],
   );
