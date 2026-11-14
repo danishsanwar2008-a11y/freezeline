@@ -427,7 +427,25 @@ def make_app():
             with urllib.request.urlopen(req, timeout=20) as r:
                 created = json.loads(r.read().decode())
         except Exception as e:  # noqa: BLE001 - surface Twilio's message to the caller
-            return JSONResponse({"error": str(e)}, status_code=502)
+            # urllib collapses Twilio's 400 into a bare "Bad Request". The JSON body names the
+            # parameter that was wrong (21606: From is not a number on this account,
+            # 21219: To is not a verified number on a trial), so read it before answering.
+            detail = ""
+            reader = getattr(e, "read", None)
+            if callable(reader):
+                try:
+                    detail = reader().decode("utf-8", "replace")
+                except Exception:  # noqa: BLE001
+                    detail = ""
+            payload: dict[str, Any] = {"error": str(e)}
+            if detail:
+                try:
+                    twilio_body = json.loads(detail)
+                    payload["twilio_code"] = twilio_body.get("code")
+                    payload["twilio_message"] = twilio_body.get("message")
+                except Exception:  # noqa: BLE001
+                    payload["twilio"] = detail[:400]
+            return JSONResponse(payload, status_code=502)
         return JSONResponse({"sid": created.get("sid"), "status": created.get("status")})
 
     return app
