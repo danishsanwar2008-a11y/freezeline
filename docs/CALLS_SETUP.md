@@ -37,6 +37,7 @@ Run agent (on /console)
   is assigned (it shows on the map at Feb 16, 12 PM) and only then does the call or text say it's on
   the way. Needs `supabase/008_call_followup.sql`. On a Twilio trial Sam's phone must be verified too,
   and `EMERGENCY_CALL_FROM` = the trial number Twilio pairs with it.
+- **Texts through Photon (free):** `SMS_PROVIDER=photon` sends every text as an iMessage from Photon's shared iMessage line (`src/lib/photonSms.ts`). A shared line can only reply: text the agent's number once from the demo phone first. Needs `PHOTON_PROJECT_ID` and `PHOTON_API_KEY` (project:read + project:write).
 - **Text after the call:** a pre-survey call gets the research doc's text for its priority row plus
   one line for who helps next. A storm call (the older script) gets its 3 steps plus one line for how it ended ("before 8 PM", "you're all set", or "we're requesting a
   crew"; never "a crew is on the way"). It goes through `SMS_PROVIDER` (`textbee` = an Android phone's

@@ -6,7 +6,7 @@ DESIGN.md is the source of truth for how FreezeLine looks. The rules in CLAUDE.m
 
 Professional emergency-management software for a water utility during a hard freeze. The map is the protagonist: an off-white city with blue cells where homes need action and one dot per home. Around it float a few dark Midnight Navy boxes, each holding one idea, like instrument panels laid over a paper map.
 
-- **Light map, dark boxes.** The basemap is off-white and quiet; the boxes are Midnight Navy with Cloud White text. The map shows *where*; the boxes say *how much* and *what next*.
+- **Light map, dark boxes.** The basemap is a warm off-white ground with every street drawn as one dark-gray line (bolder for bigger roads) and soft warm-gray building blocks, so streets read between the cells; the boxes are Midnight Navy with Cloud White text. The map shows *where*; the boxes say *how much* and *what next*.
 - **One accent: Action Blue** for buttons, active states, selections, routes and chart lines. Everything else is neutral, or a color that *means* something (home status, need shading, pressure).
 - **Separate boxes, not a sidebar.** Each metric is its own rounded box with space around it, so the map shows between them. Left boxes are slightly see-through; right boxes are solid.
 - **Honest.** Simulated data is always labeled, confirmed vs estimated always looks different (solid vs dashed), and the agent's trace shows only steps it actually ran.
@@ -27,7 +27,7 @@ Professional emergency-management software for a water utility during a hard fre
 | Button fill | `--btn` | #3c75be | Filled primary buttons (white label 4.7:1) |
 | Link ink | `--accent-ink` | Ice Blue #a9d9f5 | Small blue text and links on the navy boxes (9.6:1) |
 | Deep Blue | — | #1d3557 | Top-bar insets, crew van outline and number badge |
-| Map | `MAP_LOOK` | CARTO Positron + gray wash → #eaecec | The basemap |
+| Map | `MAP_LOOK.ground` | CARTO Positron recoloured (`src/lib/basemapStyle.ts`): ground #f3f0e9 · local streets #8d8a83 · main roads #66635d · highways #4a4844 · buildings #e3e0d8 (edge #d2cec4) · water #c8d3d5 · labels #5e5a54; no gray wash | The basemap |
 | Danger / warn / ok | `--danger` `--warn` `--ok` | #f87171 / #fbbf24 / #4ade80 | Errors, the amber pressure band, the green band (light shades read on navy) |
 
 **Meaning colors (own scales, never mixed):**
@@ -87,7 +87,7 @@ Sentence case everywhere. No all-caps titles, no text under 11px.
 
 | Level | Treatment | Use |
 |---|---|---|
-| Map | Off-white basemap, blue cells, dots | The ground |
+| Map | Warm off-white basemap, dark-gray streets, blue cells, dots | The ground |
 | Box | `--surface` + hairline + restrained shadow | Every floating box, the timeline, quick views |
 | Inset | `--bg` inside a box | Tiles, rows, bar tracks |
 | Focus | 2px Action Blue outline, 2px off | Every focusable control |

@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { preconnect } from "react-dom";
 import DeckGL from "@deck.gl/react";
 import { H3HexagonLayer } from "@deck.gl/geo-layers";
-import { PathLayer, ScatterplotLayer, SolidPolygonLayer } from "@deck.gl/layers";
+import { PathLayer, ScatterplotLayer } from "@deck.gl/layers";
 import { FlyToInterpolator, WebMercatorViewport, type MapViewState, type PickingInfo } from "@deck.gl/core";
 import { cellToLatLng } from "h3-js";
 import { Map } from "react-map-gl/maplibre";
@@ -14,6 +15,34 @@ import type { HomeStatus } from "@/lib/household";
 import { MAP_LOOK, NEED_STEPS, STATUS_RGB, needStep } from "@/lib/riskScale";
 import type { HexWhy } from "@/lib/hexWhy";
 import { CrewOverlay } from "./CrewVehicles";
+import { warmBasemap, type StyleLike } from "@/lib/basemapStyle";
+
+/**
+ * The base map: CARTO Positron's tiles, recoloured (warm off-white ground, dark-gray streets;
+ * src/lib/basemapStyle.ts). Fetched once per page; on a failed fetch the plain Positron style is used.
+ */
+let basemapStyle: Promise<StyleLike | string> | null = null;
+function loadBasemap(): Promise<StyleLike | string> {
+  basemapStyle ??= fetch(MAP_LOOK.basemap)
+    .then((r) => (r.ok ? (r.json() as Promise<StyleLike>) : Promise.reject(new Error(`HTTP ${r.status}`))))
+    .then(warmBasemap)
+    .catch(() => MAP_LOOK.basemap);
+  return basemapStyle;
+}
+function useBasemap(): StyleLike | string | null {
+  // The style and its tiles come from CARTO's CDN: open the connections early.
+  preconnect("https://basemaps.cartocdn.com");
+  preconnect("https://tiles.basemaps.cartocdn.com");
+  const [style, setStyle] = useState<StyleLike | string | null>(null);
+  useEffect(() => {
+    let live = true;
+    loadBasemap().then((s) => live && setStyle(s));
+    return () => {
+      live = false;
+    };
+  }, []);
+  return style;
+}
 
 /** A quick view pinned to a point on the map. */
 export interface PinnedCallout {
@@ -32,11 +61,10 @@ setWorkerUrl("/maplibre-gl-worker.mjs");
 
 /** Everything drawn on the light basemap (palette E2; values in src/lib/riskScale.ts). */
 const look = {
-  basemap: MAP_LOOK.basemap,
+  basemap: MAP_LOOK.basemap, // recoloured at load: useBasemap()
   steps: NEED_STEPS,
   hexLineFocus: MAP_LOOK.hexLineFocus,
   highlight: MAP_LOOK.highlight,
-  tint: MAP_LOOK.wash,
   status: STATUS_RGB,
   statusLine: MAP_LOOK.dotRing,
   halo: MAP_LOOK.halo,
@@ -133,6 +161,7 @@ export default function RiskMap({
   onSelectCrew,
   callout,
 }: Props) {
+  const basemap = useBasemap();
   // Deck owns the camera (uncontrolled). Changing initialViewState with transition props makes
   // deck fly there itself; feeding interim frames back as a controlled viewState cancels the flight.
   const [initialViewState, setInitialViewState] = useState<MapViewState>(() => (focusHex ? areaView(focusHex) : cityView(hexes, look.floating)));
@@ -256,20 +285,14 @@ export default function RiskMap({
     <CrewOverlay viewport={viewport} width={width} crews={crews} selectedCrew={selectedCrew} onSelectCrew={onSelectCrew} callout={callout} />
   );
 
-  // Faint gray wash over the basemap: off-white, slightly gray.
-  const tintLayer = new SolidPolygonLayer<{ polygon: [number, number][] }>({
-        id: "map-tint",
-        data: [{ polygon: [[-97, 28.5], [-93.5, 28.5], [-93.5, 31], [-97, 31]] }],
-        getPolygon: (d) => d.polygon,
-        getFillColor: look.tint,
-        pickable: false,
-      });
 
   return (
     <DeckGL
+      // The ground colour from the first frame, so the map never flashes the navy page while its style loads.
+      style={{ background: MAP_LOOK.ground.land }}
       initialViewState={initialViewState}
       controller={{ dragRotate: false }}
-      layers={[tintLayer, hexLayer, haloLayer, dotLayer, crewLines]}
+      layers={[hexLayer, haloLayer, dotLayer, crewLines]}
       onError={(err) => console.error("[FreezeLine map]", err)}
       onViewStateChange={({ viewState }) => {
         const z = Math.round((viewState as MapViewState).zoom * 2) / 2;
@@ -286,7 +309,7 @@ export default function RiskMap({
         return null;
       }}
     >
-      <Map mapStyle={look.basemap} attributionControl={{ compact: true }} />
+      {basemap && <Map mapStyle={basemap as never} attributionControl={{ compact: true }} />}
       {overlayChild as unknown as React.ReactNode}
     </DeckGL>
   );

@@ -165,9 +165,20 @@ SHUTOFF_OK = ("i can", "can get", "reach it", "get to it", "turn it", "i know wh
 
 def read_survey(field: str, text: str) -> object:
     """The doc's answer for one question, from whatever the person actually said."""
+    # "No, they're in the garage" answers "do you know where your pipes run?" with a place: the
+    # opening "no," is a reply to the question's wording, not a negated place. Dropped here, only
+    # for these questions (on the shutoff question a leading "no" IS the answer).
+    if field in ("pipe_runs", "pipe_material", "home_age"):
+        text = re.sub(r"^\s*(no|nope|nah)\s*[,.!;:-]+\s*", "", text, flags=re.I)
     t = normalise(text)
     if not t:
         return None
+    # A named pipe material is an answer even inside "I don't know what they're made of... PVC"
+    # (the "what" would otherwise read as a question back), unless they're asking what it means.
+    if field == "pipe_material" and "mean" not in t.split():
+        for value, mat_words in (("copper", MATERIAL_COPPER), ("pvc", MATERIAL_PVC), ("pex", MATERIAL_PEX)):
+            if any(w in t for w in mat_words):
+                return value
     # Before any place name is matched: a question back at us ("what do you mean by heated
     # space") mentions the very words we look for, so it has to be dismissed first.
     words = set(t.split())
@@ -216,6 +227,27 @@ def read_survey(field: str, text: str) -> object:
     return None
 
 
+# Questions where "I don't know" or "no" moves the call on ("Got it, no problem. I'll move on.")
+# instead of asking again: the household can't know, and asking twice more only annoys them.
+SKIPPABLE = ("pipe_runs", "pipe_material", "home_age")
+DONT_KNOW = (
+    "dont know", "do not know", "not sure", "no idea", "idk", "im not sure", "unsure", "no clue",
+    "cant remember", "dont remember", "couldnt tell", "have no idea", "never checked",
+    "no se", "ni idea", "no estoy seguro", "no me acuerdo",
+)
+JUST_NO = ("no", "nope", "nah", "no sir", "no maam", "not really", "no i dont")
+
+
+def doesnt_know(text: str) -> bool:
+    """'I don't know', 'not sure', or a plain 'no' (to "do you know where your pipes run?")."""
+    t = normalise(text)
+    if not t:
+        return False
+    if any(p in t for p in DONT_KNOW):
+        return True
+    return t in JUST_NO or t.rstrip(" .") in JUST_NO
+
+
 def survey_texts() -> dict:
     """data/messages.json `surveyTexts`: the doc's text table, which also gives each row's priority."""
     return __import__("script").messages()["surveyTexts"]
@@ -262,6 +294,8 @@ class Survey:
         self.lang = lang
         # The forecast low for the home's area, in F. Unknown = no freeze forecast = mild.
         self.temp = temp
+        # Questions the household said they don't know (moved on politely; scored as Medium).
+        self.skipped: list[str] = []
         # The emergency contact from the household's sign-up (/register). Empty = none on file,
         # so the agent never offers to call someone it can't reach.
         self.emergency_name = emergency_name.strip()
@@ -363,6 +397,16 @@ class Survey:
             answer = classify(transcript)
         else:
             answer = read_survey(field, transcript)
+
+        # Where the pipes run, what they're made of, how old the home is: "I don't know" (or a plain
+        # "no") is an answer, not a bad line. Say so kindly and move on instead of asking again. It's
+        # left unanswered, so it counts as Medium in the score (never quietly Low).
+        if answer is None and field in SKIPPABLE and doesnt_know(transcript):
+            self.attempts = 0
+            self.i += 1
+            self.skipped.append(field)
+            self.turns.insert(self.i, self._say("agent_skip"))
+            return "ok"
 
         # Ask again, twice, before giving up. A single miss is a noisy room or a hesitation,
         # not an answer, and skipping the question loses the fact the survey exists to collect.
@@ -496,7 +540,7 @@ def check() -> int:
     problems: list[str] = []
     pack = __import__("script").messages()["call"]
     keys = (*QUESTION_KEYS, "q_is_you", "survey_low", "survey_medium", "survey_high", "survey_text_pending",
-            "q_neighbor_help", "survey_followup_contact", "survey_followup_crew_assigned", "survey_followup_crew_requested")
+            "q_neighbor_help", "agent_skip", "survey_followup_contact", "survey_followup_crew_assigned", "survey_followup_crew_requested")
     for key in keys:
         for lang in LANGS:
             if not pack.get(key, {}).get(lang):
@@ -577,6 +621,45 @@ def check() -> int:
         s = scored(answers, temp)
         if (s.text_row(), s.level()) != (row, level):
             problems.append(f"temp {temp}, {'best' if answers is best else 'worst'} answers: got {s.text_row()} {s.level()}, expected {row} {level}")
+    # "I don't know" / "no" on where the pipes run, what they're made of and how old the home is:
+    # one "Got it, no problem. I'll move on." and the next question, never a re-ask; scored Medium.
+    for lang in LANGS:
+        for said in ("I don't know", "no", "not sure, sorry", "No idea."):
+            s = Survey(lang=lang, first_name="Danish", temp=12)
+            heard = {"is_household": "yes", "pipe_runs": said, "pipe_material": said, "home_age": said,
+                     "insulated": "no", "shutoff_access": "yes I can turn it", "frozen_before": "no", "someone_home": "yes"}
+            asked: list[str] = []
+            n = 0
+            while (turn := s.current) is not None and n < 60:
+                n += 1
+                s.next_speech()
+                if turn.kind == "ask":
+                    asked.append(turn.field or "")
+                    s.hear(heard.get(turn.field or "", "yes"))
+            skip_line = line("agent_skip", lang)
+            spoken = [t for w, t in s.said if w == "agent"]
+            if s.skipped != ["pipe_runs", "pipe_material", "home_age"]:
+                problems.append(f"{lang} {said!r}: skipped {s.skipped}, expected the 3 questions")
+            if spoken.count(skip_line) != 3:
+                problems.append(f"{lang} {said!r}: said the move-on line {spoken.count(skip_line)} times, expected 3")
+            if asked.count("pipe_material") != 1 or asked.count("pipe_runs") != 1 or asked.count("home_age") != 1:
+                problems.append(f"{lang} {said!r}: re-asked a skipped question ({asked})")
+            if any(f in s.answers for f in ("pipe_runs", "pipe_material", "home_age")):
+                problems.append(f"{lang} {said!r}: a skipped question was recorded as an answer")
+            # Unanswered counts as Medium: 3 Mediums (25+25+12.5 x 0.5) + bare pipes (12.5) = 0.4375 -> pass.
+            if s.score() != 0.4375:
+                problems.append(f"{lang} {said!r}: score {s.score()}, expected 0.4375 (skipped = Medium)")
+    # Real answers that contain "no" or "don't know" still count as answers.
+    for field, said, want in (
+        ("pipe_runs", "no, they're in the garage", "outside"),
+        ("pipe_material", "I don't know what they're made of... PVC I think", "pvc"),
+        ("home_age", "not sure, maybe 30 years", 30),
+    ):
+        if read_survey(field, said) != want:
+            problems.append(f"{field}: {said!r} read as {read_survey(field, said)!r}, expected {want!r}")
+    if doesnt_know("no, they're in the garage") and read_survey("pipe_runs", "no, they're in the garage") is None:
+        problems.append("a real answer starting with no was treated as don't know")
+
     # Who helps next (the team's rule): can't reach the shutoff -> "is there a neighbor who can
     # help? I can call {emergency contact}"; yes -> call them, no / none on file -> a crew.
     # Nobody home -> the emergency contact, else a crew.

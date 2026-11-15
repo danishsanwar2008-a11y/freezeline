@@ -113,10 +113,24 @@ type RGBA = [number, number, number, number];
 const CLOUD: RGB = [243, 246, 250];
 const DARK_RING: RGBA = [11, 18, 32, 225];
 export const MAP_LOOK = {
-  /** CARTO Positron: free light basemap, no API key. */
+  /** CARTO Positron: free light basemap, no API key. Recoloured by src/lib/basemapStyle.ts with `ground`. */
   basemap: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
-  /** Faint gray wash over the basemap: off-white, slightly gray (#eaecec). */
-  wash: [196, 203, 210, 60] as RGBA,
+  /**
+   * The base map's own colours: a warm off-white ground, streets drawn as single dark-gray lines
+   * (three weights: local, main, highway), light warm-gray building blocks. Labels in the same gray family.
+   */
+  ground: {
+    land: "#f3f0e9",
+    park: "rgba(214, 222, 202, 0.55)",
+    water: "#c8d3d5",
+    building: "#e3e0d8",
+    buildingEdge: "#d2cec4",
+    roadLocal: "#8d8a83",
+    roadMain: "#66635d",
+    roadHighway: "#4a4844",
+    rail: "#a19d95",
+    label: "#5e5a54",
+  },
   hexLineFocus: [16, 28, 46, 235] as RGBA,
   highlight: [16, 28, 46, 40] as RGBA,
   /** Every dot: a thin dark ring (reads on the map and pale cells) over a light halo (reads on dark cells). */
