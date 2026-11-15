@@ -1,4 +1,4 @@
-// Fetches the drivable street network around the 4 FreezeLine areas from OpenStreetMap (Overpass API,
+// Fetches the drivable street network around the FreezeLine areas from OpenStreetMap (Overpass API,
 // free, no key), ONCE, and caches it as a compact graph in data/osm-streets.json. Crew routes are
 // computed from this file on the server (src/lib/streetGraph.ts); the demo never calls a routing service.
 // Usage: npm run osm:streets
@@ -40,7 +40,7 @@ async function overpass(query: string): Promise<Way[]> {
 }
 
 async function main() {
-  // One box around all 4 areas plus the roads between them (≈ 1 km margin).
+  // One box around all the areas plus the roads between them (≈ 1 km margin).
   const s = Math.min(...NEIGHBORHOODS.map((n) => n.bbox[0])) - 0.01;
   const w = Math.min(...NEIGHBORHOODS.map((n) => n.bbox[1])) - 0.01;
   const n = Math.max(...NEIGHBORHOODS.map((x) => x.bbox[2])) + 0.01;

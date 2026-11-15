@@ -1,4 +1,4 @@
-// Seeds zones, homes and the 20 sample crews (5 per area) into Supabase. Homes are REAL OpenStreetMap footprints (data/osm-homes.json)
+// Seeds zones, homes and the sample crews (5 per area, 50 for 10 areas) into Supabase. Homes are REAL OpenStreetMap footprints (data/osm-homes.json)
 // with SIMULATED details. Safe to re-run: upserts on id, then removes homes no longer in the set
 // (their test drip plans, texts, calls and photo results go with them via ON DELETE CASCADE).
 // Usage: npm run seed   (reads .env.local; run supabase/003_phase35.sql first)

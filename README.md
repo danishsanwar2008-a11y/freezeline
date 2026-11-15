@@ -6,8 +6,8 @@ protected **and** water pressure stays above the 20 psi line where Texas require
 It then reaches each household by text and phone call, and sends help crews to the people who can't do
 the steps themselves.
 
-The demo replays **Winter Storm Uri (Feb 13–19, 2021)** over four Houston neighborhoods, hour by hour,
-with real weather and 8,034 real house footprints.
+The demo replays **Winter Storm Uri (Feb 13–19, 2021)** over ten Houston neighborhoods, hour by hour,
+with real weather and 18,105 real house footprints.
 
 ---
 
@@ -18,10 +18,10 @@ $5.8 billion in claims. The usual advice is "drip your faucets", but when a whol
 collapses. On Feb 17, 2021, Houston told residents **"Please do NOT drip faucets."** One message for
 everyone fails either way:
 
-- **Everyone drips:** at the storm's coldest hour, all four areas fall below 20 psi (as low as 4.5 psi).
+- **Everyone drips:** at the storm's coldest hour, all ten areas fall below 20 psi (as low as 2.5 psi).
 - **Nobody drips:** the most exposed homes are left to freeze.
 - **FreezeLine:** every High-risk home drips one chosen faucet, and every area stays above 25 psi
-  (20 psi plus a 5 psi safety margin). Over the whole storm: 0 area-hours below 20 psi, vs 528 of 672
+  (20 psi plus a 5 psi safety margin). Over the whole storm: 0 area-hours below 20 psi, vs 1,278 of 1,680
   if everyone drips.
 
 *(Results from the project's simplified, simulated pressure model; see "Real and simulated data".)*
@@ -98,8 +98,8 @@ Households never see the console. They get texts and calls, and use `/register`.
 | Real | Simulated (and labeled as such everywhere) |
 |---|---|
 | Hourly weather for Feb 13–19, 2021 per neighborhood ([Open-Meteo](https://open-meteo.com)) | Each home's details: year built, foundation, pipe locations, insulation, outdoor faucets, household needs |
-| 8,034 house footprints and the street network ([OpenStreetMap](https://www.openstreetmap.org)) | Area base pressures and the pressure-model constants (calibrated assumptions, not Houston's pipe network) |
-| Sign-ups on `/register`, and demo phone calls to a teammate's phone | Outreach replies, call answers in the replay, the 20 crews |
+| 18,105 house footprints and the street network ([OpenStreetMap](https://www.openstreetmap.org)) | Area base pressures and the pressure-model constants (calibrated assumptions, not Houston's pipe network) |
+| Sign-ups on `/register`, and demo phone calls to a teammate's phone | Outreach replies, call answers in the replay, the 50 crews (5 per area) |
 
 Simulated values come from a seeded generator, so the demo is repeatable and the tests can check
 exact results.
@@ -155,9 +155,9 @@ The team's Supabase project is already set up. If you use your own, run `supabas
 through `supabase/008_call_followup.sql` in order in the Supabase SQL Editor, then:
 
 ```powershell
-npm run seed                 # 4 areas, 8,034 homes, 20 crews
+npm run seed                 # 10 areas, 18,105 homes, 50 crews
 npm run seed:registrations   # 400 sample sign-ups
-npm run seed:calls           # 36 sample calls
+npm run seed:calls           # 60 sample calls
 npm run db:status            # check the connection
 ```
 

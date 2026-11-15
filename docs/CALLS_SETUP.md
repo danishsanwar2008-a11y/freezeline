@@ -54,7 +54,7 @@ Run agent (on /console)
 
 - `supabase/006_voice_calls.sql` has been run: the `voice_calls` table exists. No public access;
   only the server and scripts (with the secret key) read or write it.
-- The 36 sample calls are loaded (`npm run seed:calls`).
+- The 60 sample calls are loaded (`npm run seed:calls`).
 
 You don't need to run either again. Only on your **own** Supabase project: run the SQL files
 001 → 006 in order, then `npm run seed`, `npm run seed:registrations`, `npm run seed:calls`.

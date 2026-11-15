@@ -60,6 +60,13 @@ export const NEIGHBORHOODS: Neighborhood[] = [
   { id: "montrose",   name: "Montrose",        bbox: [29.737, -95.405, 29.757, -95.383], basePressure: 48, yearRange: [1915, 2022], oldShare: 0.55, elderlyShare: 0.15 },
   { id: "third-ward", name: "Third Ward",      bbox: [29.715, -95.372, 29.735, -95.350], basePressure: 44, yearRange: [1920, 2020], oldShare: 0.6,  elderlyShare: 0.27 },
   { id: "meyerland",  name: "Meyerland",       bbox: [29.680, -95.472, 29.698, -95.448], basePressure: 50, yearRange: [1955, 2021], oldShare: 0.7,  elderlyShare: 0.3 },
+  // Six more areas (Phase "more Houston"): real neighborhoods inside the cached street network, so crews route there too.
+  { id: "woodland-heights",  name: "Woodland Heights",  bbox: [29.777, -95.3875, 29.791, -95.369], basePressure: 48, yearRange: [1907, 2022], oldShare: 0.7,  elderlyShare: 0.16 },
+  { id: "near-northside",    name: "Near Northside",    bbox: [29.783, -95.366, 29.803, -95.346],  basePressure: 42, yearRange: [1910, 2021], oldShare: 0.6,  elderlyShare: 0.24 },
+  { id: "timbergrove",       name: "Timbergrove",       bbox: [29.784, -95.440, 29.801, -95.4125], basePressure: 51, yearRange: [1948, 2022], oldShare: 0.6,  elderlyShare: 0.22 },
+  { id: "river-oaks",        name: "River Oaks",        bbox: [29.742, -95.445, 29.762, -95.4085], basePressure: 54, yearRange: [1925, 2022], oldShare: 0.4,  elderlyShare: 0.28 },
+  { id: "braeswood",         name: "Braeswood Place",   bbox: [29.684, -95.444, 29.702, -95.418],  basePressure: 50, yearRange: [1950, 2022], oldShare: 0.55, elderlyShare: 0.25 },
+  { id: "riverside-terrace", name: "Riverside Terrace", bbox: [29.706, -95.388, 29.722, -95.3735], basePressure: 46, yearRange: [1925, 2020], oldShare: 0.7,  elderlyShare: 0.32 },
 ];
 
 export interface OsmHome {
@@ -198,7 +205,7 @@ const DEPOT_SPOTS: [number, number][] = [
 ];
 export const CREWS_PER_AREA = DEPOT_SPOTS.length;
 
-/** 20 sample crews: 5 per area, each starting at a depot inside its area. Crew 1–5 Heights, 6–10 Montrose, ... */
+/** Sample crews: 5 per area (50 for the 10 areas), each starting at a depot inside its area. Crew 1–5 Heights, 6–10 Montrose, ... */
 export function generateCrews(): CrewRow[] {
   return NEIGHBORHOODS.flatMap((n, a) =>
     DEPOT_SPOTS.map(([fy, fx], k) => {

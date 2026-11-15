@@ -9,6 +9,7 @@ import { BOIL_WATER_PSI, EXTRA_TAP_LABEL, MODEL_NOTE, STOP_NEW_DRIPS_PSI } from 
 import type { AgentEntry } from "./useAgent";
 import { formatHour } from "./format";
 import Panel from "./Panel";
+import { plural } from "@/lib/plural";
 
 const BAND_TEXT: Record<PsiBand, string> = { ok: "text-psi-ok", warn: "text-psi-warn", bad: "text-psi-bad" };
 const BAND_LABEL: Record<PsiBand, string> = {
@@ -101,6 +102,42 @@ function PressureChart({ a, hour, times }: { a: AreaPressure; hour: number; time
   );
 }
 
+/** A compact area tile: name, psi now (in its band colour) and a small trend line of the same 24 hours. */
+function AreaTile({ a, hour, onOpen }: { a: AreaPressure; hour: number; onOpen: () => void }) {
+  const w = 64, h = 18;
+  const first = a.series[0].hour;
+  const span = Math.max(1, a.series[a.series.length - 1].hour - first);
+  const x = (t: number) => ((t - first) / span) * w;
+  const y = (psi: number) => 2 + (1 - (Math.min(Y_MAX, Math.max(Y_MIN, psi)) - Y_MIN) / (Y_MAX - Y_MIN)) * (h - 4);
+  const line = a.series.map((p, k) => `${k ? "L" : "M"}${x(p.hour).toFixed(1)},${y(p.psi).toFixed(1)}`).join("");
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="w-full rounded-md bg-bg px-2.5 py-1.5 text-left transition-colors duration-150 ease-[var(--ease)] hover:bg-border/60 focus-visible:outline-2 focus-visible:outline-accent"
+        aria-label={`${a.area}: ${a.nowPsi.toFixed(1)} psi now, ${BAND_LABEL[a.band]}. Show chart.`}
+      >
+        <span className="block truncate text-[12px] text-muted">{a.area}</span>
+        <span className="flex items-center justify-between gap-2">
+          <span className={`font-mono text-[15px] font-medium tabular-nums leading-tight ${a.band === "ok" ? "text-text" : BAND_TEXT[a.band]}`}>
+            {a.nowPsi.toFixed(1)}
+            <span className="ml-0.5 text-[11px] font-normal text-muted">psi</span>
+          </span>
+          <svg width={w} height={h} className="shrink-0 overflow-visible" aria-hidden>
+            <line x1={0} x2={w} y1={y(STOP_NEW_DRIPS_PSI)} y2={y(STOP_NEW_DRIPS_PSI)} stroke="var(--psi-warn)" strokeWidth={1} strokeDasharray="2 2" opacity={0.6} />
+            <path d={line} fill="none" stroke="var(--accent)" strokeWidth={1.5} strokeLinejoin="round" />
+            <circle cx={x(hour)} cy={y(a.nowPsi)} r={2.5} fill="var(--accent)" />
+          </svg>
+        </span>
+      </button>
+    </li>
+  );
+}
+
+/** How many areas get a full chart before the rest fold into tiles. */
+const CHARTED = 2;
+
 export default function PressureMonitor({
   areas,
   hour,
@@ -118,6 +155,13 @@ export default function PressureMonitor({
 }) {
   const zoneOf = (e: AgentEntry) => e.zoneId ?? (e.input as { args?: { zone_id?: string } } | undefined)?.args?.zone_id ?? null;
   const needsRun = agentReady && areas.some((a) => a.stage2) && stage2Entries.length === 0;
+  // Most at risk first: a Stage 2 proposal, then the lowest forecast. The top few keep a full chart;
+  // the rest are tiles, and an official can open any tile's chart.
+  const [opened, setOpened] = useState<string[]>([]);
+  const ranked = [...areas].sort((a, b) => Number(!!b.stage2) - Number(!!a.stage2) || a.lowest.psi - b.lowest.psi);
+  const charted = ranked.filter((a, i) => i < CHARTED || opened.includes(a.zoneId));
+  const tiles = ranked.filter((a) => !charted.includes(a));
+  const toggle = (id: string) => setOpened((o) => (o.includes(id) ? o.filter((x) => x !== id) : [...o, id]));
   /** This hour's Stage 2 state for an area (from the agent's run): pending, done or skipped. */
   const stage2Tag = (zoneId: string): "pending" | "done" | "failed" | null =>
     stage2Entries.find((e) => zoneOf(e) === zoneId)?.status ?? null;
@@ -133,8 +177,13 @@ export default function PressureMonitor({
         )}
       </div>
 
+      {areas.length > CHARTED && (
+        <p className="text-[11px] text-muted">
+          {plural(areas.length, "area")} · lowest forecast first
+        </p>
+      )}
       <ul className="divide-y divide-border">
-        {areas.map((a) => (
+        {charted.map((a) => (
           <li key={a.zoneId} className="flex items-center gap-3 py-2">
             <div className="w-[104px] shrink-0">
               <p className="truncate text-[13px] text-text">{a.area}</p>
@@ -150,9 +199,26 @@ export default function PressureMonitor({
               )}
             </div>
             <PressureChart a={a} hour={hour} times={times} />
+            {opened.includes(a.zoneId) && (
+              <button
+                type="button"
+                onClick={() => toggle(a.zoneId)}
+                className="-mr-1 flex size-8 shrink-0 items-center justify-center rounded-full text-muted transition-colors duration-150 ease-[var(--ease)] hover:text-text"
+                aria-label={`Fold ${a.area} back into a tile`}
+              >
+                <span aria-hidden>×</span>
+              </button>
+            )}
           </li>
         ))}
       </ul>
+      {tiles.length > 0 && (
+        <ul className="mt-1 grid grid-cols-2 gap-1.5" aria-label="Other areas">
+          {tiles.map((a) => (
+            <AreaTile key={a.zoneId} a={a} hour={hour} onOpen={() => toggle(a.zoneId)} />
+          ))}
+        </ul>
+      )}
 
       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">
         <span className="flex items-center gap-1.5">

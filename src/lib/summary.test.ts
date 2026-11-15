@@ -13,10 +13,11 @@ const zones = generateZones();
 const vuln = homes.map(vulnerability);
 
 describe("comparison card numbers", () => {
-  it("at Uri's peak: everyone dripping breaks all 4 areas, the plan keeps all safe", () => {
+  it("at Uri's peak: everyone dripping breaks all 10 areas, the plan keeps all safe", () => {
     const t = hours.findIndex((h) => h.time === "2021-02-16T06:00");
     const s = compareFutures(planCity(zones, homes, vuln, ctx[t].exposure));
-    expect(s.blanketFail).toBe(4);
+    expect(s.blanketFail).toBe(zones.length);
+    expect(zones).toHaveLength(10);
     expect(s.planFail).toBe(0);
     expect(s.lowestPlan).toBeGreaterThanOrEqual(23);
     expect(s.needMessage).toBeGreaterThan(0);

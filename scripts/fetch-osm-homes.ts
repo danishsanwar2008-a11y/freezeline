@@ -1,6 +1,7 @@
-// Fetches real house footprints from OpenStreetMap (Overpass API) for the 4 FreezeLine
+// Fetches real house footprints from OpenStreetMap (Overpass API) for the FreezeLine
 // neighborhoods, ONCE, and caches them in data/osm-homes.json.
-// Usage: npm run osm:homes
+// Usage: npm run osm:homes            (fetches only areas not in the file yet; existing areas are kept as they are)
+//        npm run osm:homes -- --all   (re-fetches every area)
 //
 // Kept as homes:
 //  - buildings tagged as houses (house|residential|detached|semidetached_house|bungalow|terrace), 40–600 m²
@@ -9,7 +10,7 @@
 // Street: addr:street, else the nearest named street within 150 m.
 // Data © OpenStreetMap contributors, available under the ODbL.
 
-import { writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { NEIGHBORHOODS } from "../src/lib/seed/generate";
 
 const ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
@@ -189,19 +190,29 @@ out geom;`;
 }
 
 async function main() {
-  const all: OsmHome[] = [];
-  const perZone: Record<string, unknown> = {};
+  const FILE = "data/osm-homes.json";
+  const prev = existsSync(FILE) && !process.argv.includes("--all")
+    ? (JSON.parse(readFileSync(FILE, "utf8")) as { homes: OsmHome[]; perZone: Record<string, unknown>; fetchedAt?: string })
+    : { homes: [] as OsmHome[], perZone: {} as Record<string, unknown> };
+  const have = new Set(prev.homes.map((h) => h.zone_id));
+  // Keep cached areas exactly as fetched (same footprints, same ids), and only for areas still in the list.
+  const all: OsmHome[] = prev.homes.filter((h) => NEIGHBORHOODS.some((z) => z.id === h.zone_id));
+  const perZone: Record<string, unknown> = Object.fromEntries(Object.entries(prev.perZone).filter(([id]) => have.has(id)));
   for (const z of NEIGHBORHOODS) {
+    if (have.has(z.id)) {
+      console.log(`${z.name}: cached (${all.filter((h) => h.zone_id === z.id).length} homes)`);
+      continue;
+    }
     console.log(`${z.name}: querying Overpass…`);
     const { homes, stats } = await fetchZone(z);
     console.log(`  ${homes.length} homes (tagged ${stats.tagged}, residential-area ${stats.untagged}) from ${stats.buildings} buildings, ${stats.residentialAreas} residential areas, ${stats.streets} streets; ${homes.filter((h) => !h.street).length} without a street name`);
-    perZone[z.id] = { homes: homes.length, ...stats };
+    perZone[z.id] = { homes: homes.length, fetchedAt: new Date().toISOString(), ...stats };
     all.push(...homes);
     await sleep(5_000); // be polite to the shared server
   }
   mkdirSync("data", { recursive: true });
   writeFileSync(
-    "data/osm-homes.json",
+    FILE,
     JSON.stringify({
       attribution: "© OpenStreetMap contributors, available under the Open Database License (ODbL)",
       source: "Overpass API",
@@ -212,7 +223,7 @@ async function main() {
       homes: all,
     }) + "\n",
   );
-  console.log(`Saved ${all.length} homes to data/osm-homes.json`);
+  console.log(`Saved ${all.length} homes to ${FILE}`);
 }
 
 main().catch((e) => {

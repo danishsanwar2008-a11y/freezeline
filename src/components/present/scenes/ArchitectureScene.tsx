@@ -15,7 +15,7 @@ type Node = { id: string; x: number; y: number; title: string; sub: string; step
 const NODES: Node[] = [
   // 1 · data in
   { id: "weather", x: 120, y: 340, title: "Weather", sub: "Open-Meteo · real Feb 2021", step: 0 },
-  { id: "homes", x: 120, y: 510, title: "Homes + streets", sub: "OpenStreetMap · 8,034 homes", step: 0 },
+  { id: "homes", x: 120, y: 510, title: "Homes + streets", sub: "OpenStreetMap · 18,105 homes", step: 0 },
   { id: "signups", x: 120, y: 680, title: "Sign-ups", sub: "/register · consent", step: 0 },
   // 2 · deterministic engine
   { id: "risk", x: 560, y: 340, title: "Risk engine", sub: "weather × plumbing → score", step: 1, tone: "cyan" },

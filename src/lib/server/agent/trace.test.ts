@@ -40,8 +40,8 @@ describe("decision trace (real run state, Uri peak)", async () => {
   it("starts by reading the storm and the pressure, with real results", () => {
     expect(entries[0]).toMatchObject({ kind: "step", summary: "Read the storm and risk" });
     expect(entries[0].result).toMatch(/°F · [\d,]+ High homes, [\d,]+ Watch homes/);
-    expect(entries[1]).toMatchObject({ kind: "step", summary: "Read pressure in 4 areas" });
-    expect(entries[1].result).toBe("lowest 24.6 psi · Third Ward");
+    expect(entries[1]).toMatchObject({ kind: "step", summary: "Read pressure in 10 areas" });
+    expect(entries[1].result).toBe("lowest 22.8 psi · Near Northside");
   });
 
   it("announces the plan size and each action before it runs", () => {
@@ -53,8 +53,9 @@ describe("decision trace (real run state, Uri peak)", async () => {
 
   it("Stage 2 waits for the supervisor and is never skipped", () => {
     const s2 = entries.filter((e) => e.tool === "send_stage2_alert");
-    expect(s2).toHaveLength(1);
-    expect(s2[0].status).toBe("pending");
+    // Third Ward and Near Northside both fall below 25 psi at the peak: one pending alert each.
+    expect(s2).toHaveLength(2);
+    for (const e of s2) expect(e.status).toBe("pending");
   });
 
   it("ends with who else was notified, all simulated, after the Stage 2 step", () => {

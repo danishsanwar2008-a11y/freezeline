@@ -10,37 +10,47 @@ import type { PresentData } from "../types";
 // vs FreezeLine's targeted plan, against the 20 psi boil-water line. Values come straight from the
 // planner (planner.ts) via presentData.ts; nothing is computed here but bar heights.
 
-const CHART = { left: 940, right: 1620, top: 250, baseline: 830, max: 55 };
-const H = CHART.baseline - CHART.top;
-const y = (psi: number) => CHART.baseline - (Math.max(0, psi) / CHART.max) * H;
-const GROUP = (CHART.right - CHART.left) / 4;
-const BAR = 68;
+// Horizontal bars, one row per area (any number of areas): area names on the left, psi along the x-axis.
+const CHART = { names: 880, left: 1130, right: 1610, top: 250, bottom: 830, max: 55 };
+const x = (psi: number) => CHART.left + (Math.max(0, Math.min(CHART.max, psi)) / CHART.max) * (CHART.right - CHART.left);
 const fmt = (n: number) => n.toLocaleString("en-US");
 
-function Bar({ x, psi, shown, tone, delay }: { x: number; psi: number; shown: boolean; tone: "amber" | "cyan"; delay: number }) {
-  const h = (Math.max(0, psi) / CHART.max) * H;
+/** Row geometry for n areas: each row holds two bars (everyone drips, FreezeLine plan). */
+function rows(n: number) {
+  const row = (CHART.bottom - CHART.top) / Math.max(1, n);
+  const bar = Math.max(10, Math.min(30, (row - 14) / 2));
+  return { row, bar, label: bar >= 22 ? 24 : 18 };
+}
+
+function Bar({ top, psi, shown, tone, delay, height, label }: { top: number; psi: number; shown: boolean; tone: "amber" | "cyan"; delay: number; height: number; label: number }) {
+  const w = x(psi) - CHART.left;
   return (
     <>
       <motion.div
-        className={`absolute rounded-t-[4px] ${tone === "amber" ? "bg-present-chart-amber" : "bg-present-chart-cyan"}`}
-        style={{ left: x, width: BAR, bottom: 1080 - CHART.baseline }}
+        className={`absolute rounded-r-[4px] ${tone === "amber" ? "bg-present-chart-amber" : "bg-present-chart-cyan"}`}
+        style={{ left: CHART.left, top, height }}
         initial={false}
-        animate={{ height: shown ? h : 0, opacity: shown ? 1 : 0 }}
+        animate={{ width: shown ? w : 0, opacity: shown ? 1 : 0 }}
         transition={{ ...sceneMove, duration: 1.4, delay: shown ? delay : 0 }}
       />
-      <Show when={shown} delay={delay + 0.6} rise={8} className="absolute text-center" style={{ left: x - 20, width: BAR + 40, top: y(psi) - 46 }}>
-        <p className="text-[28px] font-semibold tabular-nums text-present-ink">{psi.toFixed(1)}</p>
+      <Show when={shown} delay={delay + 0.6} rise={0} className="absolute" style={{ left: x(psi) + 10, top: top + height / 2 - label * 0.65 }}>
+        <p className="font-semibold tabular-nums text-present-ink" style={{ fontSize: label, lineHeight: 1.3 }}>
+          {psi.toFixed(1)}
+        </p>
       </Show>
     </>
   );
 }
 
-/** A threshold across the chart, labelled in the margin to the right of the bars (never on top of them). */
-function Rule({ psi, label, sub, dashed }: { psi: number; label: string; sub: string; dashed: string }) {
+/** A threshold down the chart, labelled above or below it (never on top of the bars). */
+function Rule({ psi, label, sub, dashed, at }: { psi: number; label: string; sub: string; dashed: string; at: "top" | "bottom" }) {
   return (
-    <div className="absolute" style={{ left: CHART.left - 20, width: CHART.right - CHART.left + 40, top: y(psi) }}>
-      <div className="h-0 border-t-2 border-present-ink/70" style={{ borderStyle: dashed as never }} />
-      <p className="absolute left-full top-[-14px] ml-4 w-[230px] text-[22px] font-semibold leading-tight tabular-nums text-present-ink">
+    <div className="absolute" style={{ left: x(psi), top: CHART.top - 12, height: CHART.bottom - CHART.top + 24 }}>
+      <div className="h-full w-0 border-l-2 border-present-ink/70" style={{ borderStyle: dashed as never }} />
+      <p
+        className="absolute -translate-x-1/2 whitespace-nowrap text-center text-[22px] font-semibold leading-tight tabular-nums text-present-ink"
+        style={at === "top" ? { bottom: "100%", marginBottom: 8 } : { top: "100%", marginTop: 8 }}
+      >
         {label}
         <span className="block text-[18px] font-normal text-present-muted">{sub}</span>
       </p>
@@ -116,7 +126,7 @@ export default function PressureScene({ data, beat }: { data: PresentData; beat:
 
       {/* Chart */}
       <Show when={inScene} rise={0} className="absolute inset-0">
-        <div className="absolute flex gap-8" style={{ left: CHART.left, top: CHART.top - 120 }}>
+        <div className="absolute flex gap-8" style={{ left: CHART.names, top: CHART.top - 175 }}>
           <span className="deck-label flex items-center gap-3 text-present-ink">
             <span aria-hidden className="inline-block size-4 rounded-sm bg-present-chart-amber" /> Everyone drips
           </span>
@@ -124,36 +134,45 @@ export default function PressureScene({ data, beat }: { data: PresentData; beat:
             <span aria-hidden className="inline-block size-4 rounded-sm bg-present-chart-cyan" /> FreezeLine plan
           </span>
         </div>
-        <p className="deck-note absolute" style={{ left: CHART.left, top: CHART.top - 70 }}>
+        <p className="deck-note absolute" style={{ left: CHART.names, top: CHART.top - 130 }}>
           Water pressure at {new Date(`${data.hours[data.peak].time}:00-06:00`).toLocaleString("en-US", { timeZone: "America/Chicago", weekday: "short", month: "short", day: "numeric", hour: "numeric" })}, psi
         </p>
-        <div className="absolute h-[2px] bg-present-line" style={{ left: CHART.left - 20, width: CHART.right - CHART.left + 40, top: CHART.baseline }} />
-        <Rule psi={20} label="20 psi" sub="boil-water line" dashed="dashed" />
+        <div className="absolute w-[2px] bg-present-line" style={{ left: CHART.left - 2, top: CHART.top - 12, height: CHART.bottom - CHART.top + 24 }} />
+        <Rule psi={20} label="20 psi" sub="boil-water line" dashed="dashed" at="bottom" />
         <div className={`transition-opacity duration-700 ${planShown ? "opacity-100" : "opacity-0"}`}>
-          <Rule psi={25} label="25 psi" sub="FreezeLine floor" dashed="dotted" />
+          <Rule psi={25} label="25 psi" sub="FreezeLine floor" dashed="dotted" at="top" />
         </div>
         {zones.map((z, i) => {
-          const gx = CHART.left + i * GROUP + (GROUP - (BAR * 2 + 10)) / 2;
+          const { row, bar, label } = rows(zones.length);
+          const top = CHART.top + i * row + (row - (bar * 2 + 4)) / 2;
           const stage2Here = beat === "stage2" && third?.zone === z.zone;
           return (
             <div key={z.zone}>
-              <Bar x={gx} psi={z.blanket} shown={blanketShown} tone="amber" delay={0.15 * i} />
-              <Bar x={gx + BAR + 10} psi={stage2Here && third ? third.stage2!.psiAfter : planShown ? z.plan : 0} shown={planShown} tone="cyan" delay={0.15 * i} />
-              {third && third.zone === z.zone && (
-                <Show when={beat === "stage2"} delay={0.3} rise={0} className="absolute" style={{ left: gx + BAR + 10 - 14, top: y(third.nowPsi) - 1, width: BAR + 28 }}>
-                  <div className="h-0 border-t-[3px] border-dashed border-present-amber" role="img" aria-label={`${third.nowPsi.toFixed(1)} psi with extra taps`} />
-                </Show>
-              )}
               <p
-                className={`deck-label absolute text-center ${stage2Here ? "text-present-ink" : ""}`}
-                style={{ left: CHART.left + i * GROUP, width: GROUP, top: CHART.baseline + 18 }}
+                className={`absolute truncate text-right font-medium ${stage2Here ? "text-present-ink" : "text-present-muted"}`}
+                style={{ left: CHART.names, width: CHART.left - CHART.names - 20, top: CHART.top + i * row + row / 2 - label * 0.65, fontSize: label, lineHeight: 1.3 }}
               >
                 {z.name}
               </p>
+              <Bar top={top} height={bar} label={label} psi={z.blanket} shown={blanketShown} tone="amber" delay={0.08 * i} />
+              <Bar
+                top={top + bar + 4}
+                height={bar}
+                label={label}
+                psi={stage2Here && third ? third.stage2!.psiAfter : planShown ? z.plan : 0}
+                shown={planShown}
+                tone="cyan"
+                delay={0.08 * i}
+              />
+              {third && third.zone === z.zone && (
+                <Show when={beat === "stage2"} delay={0.3} rise={0} className="absolute" style={{ left: x(third.nowPsi) - 1, top: top + bar - 4, height: bar + 16 }}>
+                  <div className="h-full w-0 border-l-[3px] border-dashed border-present-amber" role="img" aria-label={`${third.nowPsi.toFixed(1)} psi with extra taps`} />
+                </Show>
+              )}
             </div>
           );
         })}
-        <div className="deck-note absolute" style={{ left: CHART.left - 20, top: CHART.baseline + 90, width: 900 }}>
+        <div className="deck-note absolute" style={{ left: CHART.names, top: CHART.bottom + 90, width: 900 }}>
           <Simulated />
           <p className="mt-3">
             Simplified pressure model: base pressure − freeze demand − drip flow. Calibrated assumptions, not Houston&rsquo;s pipe network;

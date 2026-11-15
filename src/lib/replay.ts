@@ -1,5 +1,5 @@
 // Precomputes everything the console replay needs, once, so scrubbing/playing is just array lookups.
-// 2,000 homes x 168 hours = 336k multiply-adds: a few ms in the browser.
+// ~20,000 homes x 168 hours ≈ 3.4M scores, each computed once (one pass per hour feeds counts and hex averages).
 
 import { latLngToCell } from "h3-js";
 import {
@@ -78,34 +78,35 @@ export function buildReplay(
   const vuln = Float32Array.from(homes, (h) => vulnerability(h));
   const homeCtx = homes.map((h) => zoneContexts[h.zone_id]);
 
-  const byCell = new Map<string, HexBin>();
+  const byCell = new Map<string, number>();
+  const hexes: HexBin[] = [];
+  const binOf = new Int32Array(homes.length);
   homes.forEach((h, i) => {
     const cell = latLngToCell(h.lat, h.lng, HEX_RESOLUTION);
-    let bin = byCell.get(cell);
-    if (!bin) {
-      bin = { h3: cell, neighborhood: h.neighborhood, zoneId: h.zone_id, homeIdx: [], avg: new Float32Array(hours.length) };
-      byCell.set(cell, bin);
+    let b = byCell.get(cell);
+    if (b === undefined) {
+      b = hexes.length;
+      byCell.set(cell, b);
+      hexes.push({ h3: cell, neighborhood: h.neighborhood, zoneId: h.zone_id, homeIdx: [], avg: new Float32Array(hours.length) });
     }
-    bin.homeIdx.push(i);
+    binOf[i] = b;
+    hexes[b].homeIdx.push(i);
   });
-  const hexes = [...byCell.values()];
 
+  // One pass per hour: each home's score is computed once and feeds both the level counts and its hex average.
+  const sums = new Float64Array(hexes.length);
   const counts: [number, number, number][] = contexts.map((_, t) => {
     const c: [number, number, number] = [0, 0, 0];
+    sums.fill(0);
     for (let i = 0; i < homes.length; i++) {
-      const level = levelFor(scoreFrom(homeCtx[i][t].exposure, vuln[i]));
+      const score = scoreFrom(homeCtx[i][t].exposure, vuln[i]);
+      sums[binOf[i]] += score;
+      const level = levelFor(score);
       c[level === "High" ? 0 : level === "Medium" ? 1 : 2]++;
     }
+    for (let b = 0; b < hexes.length; b++) hexes[b].avg[t] = sums[b] / hexes[b].homeIdx.length;
     return c;
   });
-
-  for (const bin of hexes) {
-    for (let t = 0; t < contexts.length; t++) {
-      let sum = 0;
-      for (const i of bin.homeIdx) sum += scoreFrom(homeCtx[i][t].exposure, vuln[i]);
-      bin.avg[t] = sum / bin.homeIdx.length;
-    }
-  }
 
   return { hours, contexts, zoneContexts, hexes, counts, vuln };
 }

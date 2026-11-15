@@ -175,7 +175,7 @@ function CrewDisc({ id, active }: { id: number; active: boolean }) {
 
 const FINE_POINTER = "(hover: hover) and (pointer: fine)";
 
-/** Area picker: hover or click opens the 4 areas; keyboard works (Enter/Space opens, Escape closes). */
+/** Area picker: hover or click opens the areas; keyboard works (Enter/Space opens, Escape closes). */
 function AreaPicker({
   areas,
   value,

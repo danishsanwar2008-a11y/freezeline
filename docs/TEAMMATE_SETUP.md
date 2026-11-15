@@ -86,9 +86,9 @@ Everyone uses **one shared Supabase project**. Its setup is done:
 - SQL already run in the Supabase SQL Editor: `supabase/001_schema.sql` through `supabase/006_voice_calls.sql`
   (005 = address matching for sign-ups, 006 = call records). Saving a script as "Private" in the SQL Editor only hides
   the saved query; the tables exist for everyone.
-- Already seeded: 4 areas, 8,034 homes (real OpenStreetMap footprints, simulated details), 20 crews,
+- Already seeded: 10 areas, 18,105 homes (real OpenStreetMap footprints, simulated details), 50 crews,
   **400 sample sign-ups** (`npm run seed:registrations`: invented names, `example.com` emails,
-  fictional 555-01XX numbers) and **36 sample calls** (`npm run seed:calls`).
+  fictional 555-01XX numbers) and **60 sample calls** (`npm run seed:calls`).
 
 Re-running a seed is harmless, but there's no need. Check the connection any time:
 ```powershell
@@ -118,7 +118,7 @@ Open http://localhost:3000. Before you push changes: `npm test` and `npm run mes
 - **Address matching:** the address is looked up with OpenStreetMap (Nominatim; only the address is
   sent) and matched to a mapped home: within 40 m = *matched*, else the nearest mapped home on the same
   street within 250 m = *nearest home on street* (an estimate, shown dashed). Otherwise: no mapped home
-  nearby / outside the 4 areas / address not found. Our map has only part of each neighborhood, so
+  nearby / outside the 10 areas / address not found. Our map has only part of each neighborhood, so
   real addresses often land on an estimate.
 - If the lookup failed or was busy, the sign-up still saves as "not looked up yet"; retry with
   `npm run registrations:match`.

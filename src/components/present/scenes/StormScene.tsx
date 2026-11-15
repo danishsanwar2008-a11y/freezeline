@@ -7,7 +7,7 @@ import { Show, Simulated } from "../Show";
 import type { Beat } from "../timeline";
 import type { PresentData } from "../types";
 
-// Scene 1: Houston on the eve of Winter Storm Uri. The map's dots are the 8,034 homes, coloured by
+// Scene 1: Houston on the eve of Winter Storm Uri. The map's dots are every home (18,105), coloured by
 // the risk engine hour by hour; this layer carries the words, the clock and the counts.
 
 /** The title's radar: centred over the homes, which the map frames on the right of the slide. */
@@ -94,7 +94,7 @@ export default function StormScene({ data, beat, hour }: { data: PresentData; be
       <Show when={beat === "calm"} className="absolute" style={{ left: 128, top: 260, width: 760 }}>
         <p className="deck-eyebrow">The city</p>
         <p className="deck-figure mt-6">{fmt(total)}</p>
-        <p className="deck-lede mt-4">homes in four Houston neighborhoods, each one a real house footprint.</p>
+        <p className="deck-lede mt-4">homes in ten Houston neighborhoods, each one a real house footprint.</p>
         <ul className="deck-label mt-10 space-y-3">
           <li className="flex items-center gap-4">
             <Dot tone="Low" /> Low risk

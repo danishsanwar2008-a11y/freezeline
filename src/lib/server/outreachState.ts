@@ -30,7 +30,7 @@ function withArea(rows: Omit<Crew, "zone_id">[]): Crew[] {
   return rows.map((c) => ({ ...c, zone_id: areaOf(c.depot_lat, c.depot_lng) }));
 }
 
-/** Sample crews if the crews table is empty or missing: 20 crews, 5 per area (same rows `npm run seed` writes). */
+/** Sample crews if the crews table is empty or missing: 5 crews per area (same rows `npm run seed` writes). */
 export const DEFAULT_CREWS: Crew[] = withArea(generateCrews());
 
 /** Assignments look back this many replay hours for jobs still running. */

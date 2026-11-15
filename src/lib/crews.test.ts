@@ -11,17 +11,17 @@ import type { WeatherSeries } from "./weather";
 
 const crews: Crew[] = generateCrews().map((c) => ({ ...c, zone_id: areaOf(c.depot_lat, c.depot_lng) }));
 
-describe("20 sample crews", () => {
+describe("sample crews (5 per area)", () => {
   it("5 per area, each depot inside its own area", () => {
-    expect(crews).toHaveLength(20);
+    expect(crews).toHaveLength(5 * NEIGHBORHOODS.length);
     const per = new Map<string, number>();
     for (const c of crews) per.set(c.zone_id!, (per.get(c.zone_id!) ?? 0) + 1);
-    expect([...per.values()]).toEqual([5, 5, 5, 5]);
-    expect(new Set(crews.map((c) => c.id)).size).toBe(20);
+    expect([...per.values()]).toEqual(NEIGHBORHOODS.map(() => 5));
+    expect(new Set(crews.map((c) => c.id)).size).toBe(crews.length);
   });
 
-  it("exactly 5 crews in every one of the 4 areas, each depot inside its own area's box and no other", () => {
-    expect(NEIGHBORHOODS).toHaveLength(4);
+  it("exactly 5 crews in every one of the 10 areas, each depot inside its own area's box and no other", () => {
+    expect(NEIGHBORHOODS).toHaveLength(10);
     for (const n of NEIGHBORHOODS) {
       const mine = crews.filter((c) => c.zone_id === n.id);
       expect(mine, n.id).toHaveLength(5);
@@ -64,7 +64,7 @@ describe("crews shown per area (the map and the Crews box)", () => {
     // Crews 6-10 (Montrose) and 16-20 (Meyerland) each hold an old job in Houston Heights at this hour.
     const rows = [6, 7, 8, 9, 10, 16, 17, 18, 19, 20].map((id, k) => row(id, homeIn("heights", k), 0));
     rows.push(row(1, homeIn("heights", 20), 0)); // a real Heights job
-    expect(shownPerArea(rows)).toEqual({ heights: 5, montrose: 5, "third-ward": 5, meyerland: 5 });
+    expect(shownPerArea(rows)).toEqual(Object.fromEntries(NEIGHBORHOODS.map((n) => [n.id, 5])));
     const jobs = crewJobsAt(rows, crews, zoneOf, minutesOf, at, { lookbackHours: 3 });
     expect(jobs.active.map((j) => j.crew_id)).toEqual([1]);
     // Their homes stay helped (no second crew) and those crews are not offered a second job this hour.
@@ -76,7 +76,7 @@ describe("crews shown per area (the map and the Crews box)", () => {
 
   it("every area shows exactly 5 crews whatever jobs exist, and a crew shows only its newest job", () => {
     const rows = crews.flatMap((c, k) => [row(c.id, homeIn(c.zone_id!, 2 * k), 1, realNow - 120_000), row(c.id, homeIn(c.zone_id!, 2 * k + 1), 0)]);
-    expect(shownPerArea(rows)).toEqual({ heights: 5, montrose: 5, "third-ward": 5, meyerland: 5 });
+    expect(shownPerArea(rows)).toEqual(Object.fromEntries(NEIGHBORHOODS.map((n) => [n.id, 5])));
     const { active } = crewJobsAt(rows, crews, zoneOf, minutesOf, at, { lookbackHours: 3, realNow });
     expect(currentJob(active, 1)!.hoursAgo).toBe(0);
   });

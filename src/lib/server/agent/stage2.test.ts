@@ -27,7 +27,7 @@ describe("Stage 2 alert (Uri peak, simulated data)", () => {
   it("the monitor proposes Stage 2 only where the forecast falls below 25 psi, and the change lands at or above 25", () => {
     const areas = monitorAt(city, hourIndex(PEAK));
     const alerted = areas.filter((a) => a.stage2);
-    expect(alerted.map((a) => a.zoneId)).toEqual(["third-ward"]);
+    expect(alerted.map((a) => a.zoneId)).toEqual(["third-ward", "near-northside"]);
     for (const a of alerted) {
       expect(a.lowest.psi).toBeLessThan(25);
       expect(a.stage2!.psiAfter).toBeGreaterThanOrEqual(25);

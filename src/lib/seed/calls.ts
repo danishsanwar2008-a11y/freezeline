@@ -17,7 +17,8 @@ import { renderPlan } from "../pregenerated";
 import type { WeatherSeries } from "../weather";
 
 export const SAMPLE_CALL_HOURS = ["2021-02-15T02:00", "2021-02-15T18:00", "2021-02-16T06:00"];
-export const SAMPLE_CALLS_PER_HOUR = 12;
+/** Two per area (10 areas). */
+export const SAMPLE_CALLS_PER_HOUR = 20;
 
 /** Question order on the call, as answer fields (q_needs fills three). */
 const ORDER: string[][] = [

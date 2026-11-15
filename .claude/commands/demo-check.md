@@ -44,7 +44,7 @@ Screenshots: take them with the Chrome tool's `screenshot` action and `save_to_d
 
 ## 3. Run agent
 
-- Click **Run agent** in the top bar. Time it. The **Decision trace** scrolls into view and fills **live**: a progress strip ("Step 4 of 13"), the running step pulsing ("Publishing the drip plan…"), then a dot per step: Read the storm and risk (°F · High / Watch homes), Read pressure in 4 areas (lowest psi · area), Checked crews, the drip plan, **Queued texts by area** (folded; click "5 steps" to open), Ran outreach, Read replies from households, **Assigned crews** (folded), the log.
+- Click **Run agent** in the top bar. Time it. The **Decision trace** scrolls into view and fills **live**: a progress strip ("Step 4 of 13"), the running step pulsing ("Publishing the drip plan…"), then a dot per step: Read the storm and risk (°F · High / Watch homes), Read pressure in 10 areas (lowest psi · area), Checked crews, the drip plan, **Queued texts by area** (folded; click "5 steps" to open), Ran outreach, Read replies from households, **Assigned crews** (folded), the log.
 - **Stage 2:** the trace ends at **Waiting for supervisor approval** for Third Ward ("kitchen tap only at 281 homes → stays at 27 psi") with **Approve / Not yet**, in Auto too. The Third Ward pressure row shows a **Stage 2 pending** tag. Click **Not yet** in the walkthrough (the tag becomes "Stage 2 not sent"; approving queues simulated texts and is safe and idempotent if you want to test it). Screenshot `03b-stage2`.
 - **Also notified:** under the trace, maintenance contractors, the water utility control room, city officials and the mayor's office, each with this run's numbers, the block tagged **simulated · nothing is sent**.
 - Check that the dots turn green/red/yellow/black and Homes contacted updates. Screenshot `03-agent-auto`.
@@ -52,7 +52,7 @@ Screenshots: take them with the Chrome tool's `screenshot` action and `save_to_d
 
 ## 4. Crews on real streets
 
-- In **Crews (sample)**, hover (or click) the area button: a menu of the 4 areas, each "n/5 busy". Pick each area in turn; the list shows that area's 5 crews ("Crew N · ~X min to <street>", "Helping a home on …" or "On standby"). Screenshot `04-crews-menu`.
+- In **Crews (sample)**, hover (or click) the area button: a menu of the 10 areas, each "n/5 busy". Pick each area in turn; the list shows that area's 5 crews ("Crew N · ~X min to <street>", "Helping a home on …" or "On standby"). Screenshot `04-crews-menu`.
 - On the map each crew is a white top-down van with its number. Exactly 5 vans per area at every hour (count them per area at 4 AM and 6 AM too). A crew heading to a home drives along **real streets** (a blue route line, not a straight line through houses) **in real time** (a 6-minute drive takes 6 minutes), facing the way it drives, with a light beacon blinking once a second; on arrival the beacon stops and the van stays parked at the house. Hover the van: "Crew N · ~X min to <street> (simulated)". Crews only move after a run in this session, so run the agent at an hour that still has free crews (e.g. Feb 16 · 8 AM). Screenshot `04b-crew-route` at city zoom and zoomed into the street (the van fits inside the road).
 - Click a crew van (or its row): a **quick view** grows out of the crew and stays on it while the map pans: distance, arrives in / on site, from, the household's needs, "route on real streets (simulated timing)". Screenshot `04c-crew-quickview`.
 
