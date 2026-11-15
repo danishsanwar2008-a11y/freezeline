@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 // Front door: residents go to the public sign-up page; utility staff go to City Operations
-// (password-protected). Nothing here reads data.
+// (password-protected); anyone can open the /present pitch deck. Nothing here reads data.
 
 export const metadata = { title: "FreezeLine" };
 
@@ -47,6 +47,12 @@ export default function Home() {
             body="The storm console: every home on the map, water pressure, outreach, crews and sign-ups. Password required."
             cta="Open the console"
           />
+        </div>
+        <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <Link href="/present" className="btn btn-primary">
+            Watch the presentation <span aria-hidden>→</span>
+          </Link>
+          <p className="text-sm text-muted">Four scenes on the Uri replay. Arrow keys to step, F for fullscreen.</p>
         </div>
         <p className="mt-6 text-xs text-muted">
           Demo: replays Winter Storm Uri (Feb 2021) over Houston. Home locations are real OpenStreetMap footprints; household details are
