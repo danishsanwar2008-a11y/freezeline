@@ -46,7 +46,15 @@ export interface HomeOutreach {
 }
 
 /** Sample rates for the simulated funnel (documented, so the demo is explainable). */
-export const RATES = { textReply: 0.42, callAnswer: 0.72, callsNotYetMade: 0.18, neighborFlag: 0.05, powerOut: 0.08 };
+export const RATES = {
+  textReply: 0.68,
+  callAnswer: 0.88,
+  callsNotYetMade: 0.06,
+  neighborFlag: 0.05,
+  powerOut: 0.06,
+  /** Of households that can do the steps, the share that already did them when they answered. */
+  didSteps: 0.85,
+};
 
 export function sampleAnswers(home: ConsoleHome, neighbor: string | null): CallAnswers {
   const r = rng(hash32(`${home.id}|call`));
@@ -55,7 +63,7 @@ export function sampleAnswers(home: ConsoleHome, neighbor: string | null): CallA
   if (home.mobility_limited) canDo -= 0.3;
   if (home.elderly && home.lives_alone) canDo -= 0.08;
   const can_do_steps = r() < canDo;
-  const did_steps = can_do_steps && r() < 0.55;
+  const did_steps = can_do_steps && r() < RATES.didSteps;
   const cant_go_outside = home.mobility_limited || (home.elderly && r() < 0.3);
   const knows_shutoff = r() < (home.year_built >= 1990 ? 0.75 : 0.6);
   const faucet_covered = home.outdoor_faucets > 0 ? r() < 0.3 : null;
