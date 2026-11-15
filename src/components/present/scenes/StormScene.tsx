@@ -1,11 +1,17 @@
 "use client";
 
+import { AnimatePresence, motion } from "motion/react";
+import Radar from "@/components/react-bits/Radar";
+import { quickFade } from "../motion";
 import { Show, Simulated } from "../Show";
 import type { Beat } from "../timeline";
 import type { PresentData } from "../types";
 
 // Scene 1: Houston on the eve of Winter Storm Uri. The map's dots are the 8,034 homes, coloured by
 // the risk engine hour by hour; this layer carries the words, the clock and the counts.
+
+/** The title's radar: centred over the homes, which the map frames on the right of the slide. */
+const RADAR = { x: 1460, y: 490, size: 900 };
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 const when = (iso: string) =>
@@ -38,6 +44,44 @@ export default function StormScene({ data, beat, hour }: { data: PresentData; be
 
   return (
     <>
+      {/* Title backdrop: a radar sweep over the dimmed city, "scanning" it house by house. Decorative only, so no
+          blips or targets that could read as data; mounted only on the title so it costs nothing elsewhere. */}
+      <AnimatePresence>
+        {beat === "title" && (
+          <motion.div
+            key="radar"
+            aria-hidden
+            className="absolute"
+            style={{ left: RADAR.x - RADAR.size / 2, top: RADAR.y - RADAR.size / 2, width: RADAR.size, height: RADAR.size }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ ...quickFade, duration: 0.8 }}
+          >
+            <Radar
+              color="#5fd3e6"
+              mode="sweep"
+              speed={0.6}
+              trail={0.45}
+              scale={0.88}
+              ringCount={6}
+              spokeCount={12}
+              ticks
+              targets={0}
+              clutter={0}
+              glow={0.8}
+              brightness={0.85}
+              gridOpacity={0.8}
+              lineWidth={1}
+              grain={0}
+              fade={0.2}
+              mouseInteraction={false}
+              intro
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <Show when={beat === "title"} className="absolute" style={{ left: 128, top: 300, width: 1100 }}>
         <p className="deck-eyebrow">Winter Storm Uri · Houston · February 2021</p>
         <p className="deck-title mt-8">FreezeLine</p>
