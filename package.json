@@ -13,6 +13,7 @@
     "registrations:match": "tsx scripts/match-registrations.ts",
     "seed:calls": "tsx scripts/seed-calls.ts",
     "calls:rehearse": "tsx scripts/rehearse-call.ts",
+    "call:me": "tsx scripts/call-me.ts",
     "weather:uri": "tsx scripts/fetch-uri-weather.ts",
     "postinstall": "node scripts/copy-maplibre-worker.mjs",
     "weather:neighborhoods": "tsx scripts/fetch-uri-neighborhoods.ts",

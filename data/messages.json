@@ -346,6 +346,14 @@
       "en": "First, do you know where your water pipes run? For example, inside the walls or a heated space, under the concrete slab, or in places like the garage or the basement?",
       "es": "Primero, ¿sabe por dónde pasan las tuberías de agua? Por ejemplo, dentro de las paredes o en un espacio con calefacción, bajo la losa de concreto, o en lugares como el garaje o el sótano."
     },
+    "q_pipe_material": {
+      "en": "What are your pipes made of? For example PEX, which is flexible plastic tubing, PVC or CPVC, or copper?",
+      "es": "¿De qué material son sus tuberías? Por ejemplo PEX, que es tubería de plástico flexible, PVC o CPVC, o cobre."
+    },
+    "q_home_age": {
+      "en": "About how old is your home?",
+      "es": "¿Más o menos cuántos años tiene su casa?"
+    },
     "q_insulated": {
       "en": "Are your exposed pipes insulated?",
       "es": "¿Las tuberías expuestas están aisladas?"
@@ -363,20 +371,60 @@
       "es": "¿Habrá alguien en casa durante los próximos tres días?"
     },
     "survey_low": {
-      "en": "Thanks, that's all I need. Your home looks well protected for the freeze, and I've saved your answers.",
-      "es": "Gracias, eso es todo. Su casa parece bien protegida para la helada y ya guardé sus respuestas."
+      "en": "Thanks, that's all I need. Based on your answers and the forecast, your home is low priority.",
+      "es": "Gracias, eso es todo. Según sus respuestas y el pronóstico, su casa tiene prioridad baja."
     },
     "survey_medium": {
-      "en": "Thanks, that's all I need. Your home has some risk in a hard freeze, and I've saved your answers for the crew lead.",
-      "es": "Gracias, eso es todo. Su casa tiene algo de riesgo con una helada fuerte y guardé sus respuestas para el jefe de cuadrilla."
+      "en": "Thanks, that's all I need. Based on your answers and the forecast, your home is medium priority.",
+      "es": "Gracias, eso es todo. Según sus respuestas y el pronóstico, su casa tiene prioridad media."
     },
     "survey_high": {
-      "en": "Thanks, that's all I need. Your home is at high risk in a hard freeze, and I've saved that for the crew lead.",
-      "es": "Gracias, eso es todo. Su casa tiene alto riesgo con una helada fuerte y lo dejé registrado para el jefe de cuadrilla."
+      "en": "Thanks, that's all I need. Based on your answers and the forecast, your home is high priority.",
+      "es": "Gracias, eso es todo. Según sus respuestas y el pronóstico, su casa tiene prioridad alta."
+    },
+    "q_neighbor_help": {
+      "en": "Is there a neighbor who can help you? I can call your emergency contact, {emergency_name}.",
+      "es": "¿Hay algún vecino que pueda ayudarle? Puedo llamar a su contacto de emergencia, {emergency_name}."
+    },
+    "survey_followup_contact": {
+      "en": "Thanks. Right after this call, I'll call {emergency_name} and ask them to help. If I can't reach them, I'll request a crew.",
+      "es": "Gracias. Justo después de esta llamada, llamaré a {emergency_name} para pedirle ayuda. Si no lo localizo, pediré un equipo."
+    },
+    "survey_followup_crew_assigned": {
+      "en": "Thank you for telling me. {crew} is on the way to help you.",
+      "es": "Gracias por decírmelo. {crew} va en camino para ayudarle."
+    },
+    "survey_followup_crew_requested": {
+      "en": "Thank you for telling me. I'm requesting a crew to help you. We'll text you as soon as one is assigned.",
+      "es": "Gracias por decírmelo. Estoy pidiendo un equipo para ayudarle. Le enviaremos un mensaje en cuanto se asigne un equipo."
+    },
+    "contact_hello": {
+      "en": "Hi {contact_name}, this is FreezeLine calling for the water utility.",
+      "es": "Hola {contact_name}, le habla FreezeLine de parte de la compañía de agua."
+    },
+    "contact_reason_shutoff": {
+      "en": "{homeowner} listed you as their emergency contact. A hard freeze is coming, and they can't get to their water shutoff.",
+      "es": "{homeowner} le registró como su contacto de emergencia. Se acerca una helada fuerte y no puede llegar a su llave de paso del agua."
+    },
+    "contact_reason_away": {
+      "en": "{homeowner} listed you as their emergency contact. A hard freeze is coming, and no one will be at their home for the next few days.",
+      "es": "{homeowner} le registró como su contacto de emergencia. Se acerca una helada fuerte y no habrá nadie en su casa en los próximos días."
+    },
+    "q_contact_can_help": {
+      "en": "Can you go over and help them?",
+      "es": "¿Puede ir a ayudarle?"
+    },
+    "contact_yes": {
+      "en": "Thank you. I'll text you their address and what to do.",
+      "es": "Gracias. Le enviaré por mensaje la dirección y qué hacer."
+    },
+    "contact_no": {
+      "en": "Okay, thank you for letting me know. We'll request a crew for them instead.",
+      "es": "Está bien, gracias por avisarme. Pediremos un equipo para esa casa."
     },
     "survey_text_pending": {
-      "en": "We'll text you a short checklist before the freeze, so watch for a message from your water utility.",
-      "es": "Le enviaremos una lista corta antes de la helada, así que esté atento a un mensaje de su compañía de agua."
+      "en": "I'll text you your checklist right after this call, so watch for a message from your water utility.",
+      "es": "Le enviaré su lista justo después de esta llamada, así que esté atento a un mensaje de su compañía de agua."
     },
     "q_is_you": {
       "en": "Am I speaking with {first_name}?",
@@ -582,44 +630,56 @@
     }
   },
   "surveyTexts": {
-    "about": "The text each home gets before the storm, picked by the forecast temperature (mild / cold / very_cold) and the pre-survey result (pass / fail). Keys are temp|survey. {drip} and {outdoor_valve} are filled from the lines below. Texts only, not call lines. Not wired to sending yet: replies (YES, BURST) are not handled by anything yet.",
+    "about": "The text a home gets right after the pre-survey call (FreezeLine Research doc, its 4 rows), picked by the forecast (mild >= 32F, cold 20-31F, very_cold < 20F) and the weighted pre-survey result (pass / fail, voice/survey.py). Keys are temp|survey; use_row sends the 2 combinations the doc has no row for to the nearest row. {drip} and {outdoor_valve} are filled from the lines below; action_* lines are added when the call found them. Texts only, not call lines. Replies (YES, BURST) are not handled by anything yet.",
     "messages": {
       "mild|pass": {
         "level": "Low",
-        "call_first": false,
         "en": "FreezeLine (simulated): Hi {name}, a winter storm is in the forecast for {county}, but your home is at low risk. Follow these steps to stay safe:\n- Keep your heat at 55°F or above.\n- Open the cabinet doors under your sinks.\n- Wrap exposed pipes with insulation.\n- No need to drip your faucets.\n- Know where your main water shutoff is.\nReply YES when you've done these steps. We'll message you if any further actions are needed.",
         "es": "FreezeLine (simulated): Hola {name}, se pronostica una tormenta invernal en {county}, pero su casa tiene un riesgo bajo. Siga estos pasos para estar seguro:\n- Mantenga la calefacción a 55°F o más.\n- Abra las puertas de los gabinetes debajo de sus fregaderos.\n- Envuelva las tuberías expuestas con aislante.\n- No necesita dejar gotear sus llaves.\n- Sepa dónde está la llave de paso principal del agua.\nResponda SÍ cuando haya hecho estos pasos. Le escribiremos si hace falta hacer algo más."
       },
       "mild|fail": {
         "level": "Medium",
-        "call_first": false,
         "en": "FreezeLine (simulated): Hi {name}, a winter storm is in the forecast for {county}. Your pipes are vulnerable. Follow these steps to stay safe:\n- Wrap exposed pipes with insulation.\n- Keep your heat at 55°F or above.\n- Open the cabinet doors under your sinks.\n- Know where your main water shutoff is.\n- Make sure your water supply is on.\n- {drip}\nReply YES when done. We'll message you if any further actions are needed.",
         "es": "FreezeLine (simulated): Hola {name}, se pronostica una tormenta invernal en {county}. Sus tuberías son vulnerables. Siga estos pasos para estar seguro:\n- Envuelva las tuberías expuestas con aislante.\n- Mantenga la calefacción a 55°F o más.\n- Abra las puertas de los gabinetes debajo de sus fregaderos.\n- Sepa dónde está la llave de paso principal del agua.\n- Asegúrese de que el agua esté abierta.\n- {drip}\nResponda SÍ cuando termine. Le escribiremos si hace falta hacer algo más."
       },
-      "very_cold|pass": {
-        "level": "Medium",
-        "call_first": false,
-        "en": "FreezeLine (simulated): Hi {name}, a winter storm is in the forecast for {county}. Your pipes are well protected, but follow these steps to stay safe:\n- Keep your heat at 55°F or above, day and night, even when you're out.\n- Make sure your water supply is on.\n- Know where your main water shutoff is.\n- {drip}\nReply YES when done. We'll message you if any further actions are needed.",
-        "es": "FreezeLine (simulated): Hola {name}, se pronostica una tormenta invernal en {county}. Sus tuberías están bien protegidas, pero siga estos pasos para estar seguro:\n- Mantenga la calefacción a 55°F o más, de día y de noche, aunque no esté en casa.\n- Asegúrese de que el agua esté abierta.\n- Sepa dónde está la llave de paso principal del agua.\n- {drip}\nResponda SÍ cuando termine. Le escribiremos si hace falta hacer algo más."
-      },
       "very_cold|fail": {
         "level": "High",
-        "call_first": false,
         "en": "FreezeLine (simulated): Hi {name}, a hard freeze is coming and your pipes are at high risk. Follow these steps to stay safe:\n- Wrap exposed pipes with insulation.\n- Open the cabinet doors under your sinks.\n- Keep your heat at 55°F or above.\n- Don't shut off your main water valve.\n- {outdoor_valve}\n- {drip}\nReply YES when you've done these steps.\nIf a pipe bursts, shut off your water supply right away and text BURST. We'll flag your home for crew assistance.",
         "es": "FreezeLine (simulated): Hola {name}, se acerca una helada fuerte y sus tuberías tienen un riesgo alto. Siga estos pasos para estar seguro:\n- Envuelva las tuberías expuestas con aislante.\n- Abra las puertas de los gabinetes debajo de sus fregaderos.\n- Mantenga la calefacción a 55°F o más.\n- No cierre la llave de paso principal del agua.\n- {outdoor_valve}\n- {drip}\nResponda SÍ cuando haya hecho estos pasos.\nSi se revienta una tubería, cierre el agua de inmediato y escriba BURST. Marcaremos su casa para que reciba ayuda de un equipo."
       },
       "cold|pass": {
         "level": "Medium",
-        "call_first": false,
         "en": "FreezeLine (simulated): Hi {name}, a hard freeze is coming. Your pipes are at risk, even though they're well protected. Follow these steps to stay safe:\n- Open the cabinet doors under your sinks.\n- Keep your heat at 55°F or above if you can.\n- Don't shut off your main water valve.\n- {drip}\nReply YES when you've done these steps.\nIf a pipe bursts, shut off your water supply right away and text BURST. We'll flag your home for crew assistance.",
         "es": "FreezeLine (simulated): Hola {name}, se acerca una helada fuerte. Sus tuberías están en riesgo, aunque estén bien protegidas. Siga estos pasos para estar seguro:\n- Abra las puertas de los gabinetes debajo de sus fregaderos.\n- Mantenga la calefacción a 55°F o más si puede.\n- No cierre la llave de paso principal del agua.\n- {drip}\nResponda SÍ cuando haya hecho estos pasos.\nSi se revienta una tubería, cierre el agua de inmediato y escriba BURST. Marcaremos su casa para que reciba ayuda de un equipo."
-      },
-      "cold|fail": {
-        "level": "High",
-        "call_first": true,
-        "en": "FreezeLine (simulated): Hi {name}, a hard freeze is coming. Your water pipes are vulnerable, which puts your home at very high risk of a burst pipe. Follow these steps to stay safe:\n- Don't shut off your main water valve.\n- {outdoor_valve}\n- {drip}\n- Wrap exposed pipes with insulation.\n- Keep your heat at 55°F or above if you can.\nIf a pipe bursts, shut off your water supply right away and text BURST. We'll flag your home for crew assistance.",
-        "es": "FreezeLine (simulated): Hola {name}, se acerca una helada fuerte. Sus tuberías son vulnerables, y eso pone su casa en un riesgo muy alto de que se reviente una tubería. Siga estos pasos para estar seguro:\n- No cierre la llave de paso principal del agua.\n- {outdoor_valve}\n- {drip}\n- Envuelva las tuberías expuestas con aislante.\n- Mantenga la calefacción a 55°F o más si puede.\nSi se revienta una tubería, cierre el agua de inmediato y escriba BURST. Marcaremos su casa para que reciba ayuda de un equipo."
       }
+    },
+    "use_row": {
+      "very_cold|pass": "cold|pass",
+      "cold|fail": "very_cold|fail"
+    },
+    "followup_contact": {
+      "en": "We're calling {contact}, your emergency contact, now to ask them to help. If we can't reach them, we'll request a crew.",
+      "es": "Estamos llamando ahora a {contact}, su contacto de emergencia, para pedirle ayuda. Si no lo localizamos, pediremos un equipo."
+    },
+    "followup_crew_assigned": {
+      "en": "{crew} is on the way to help you.",
+      "es": "{crew} va en camino para ayudarle."
+    },
+    "followup_crew_requested": {
+      "en": "We're requesting a crew to help you. We'll text you as soon as one is assigned.",
+      "es": "Estamos pidiendo un equipo para ayudarle. Le enviaremos un mensaje en cuanto se asigne un equipo."
+    },
+    "contact_helping": {
+      "en": "FreezeLine (simulated): {contact} said they can help you. We've texted them your address and the steps.",
+      "es": "FreezeLine (simulated): {contact} dijo que puede ayudarle. Le enviamos por mensaje su dirección y los pasos."
+    },
+    "contact_unavailable": {
+      "en": "FreezeLine (simulated): We couldn't get help from {contact}.",
+      "es": "FreezeLine (simulated): No pudimos conseguir ayuda de {contact}."
+    },
+    "to_contact": {
+      "en": "FreezeLine (simulated): Thank you for helping {homeowner}. Their address: {address}. Please check on them and help with the steps we texted them. If a pipe bursts, shut off their main water valve right away.",
+      "es": "FreezeLine (simulated): Gracias por ayudar a {homeowner}. Su dirección: {address}. Por favor vaya a verle y ayúdele con los pasos que le enviamos. Si se revienta una tubería, cierre de inmediato la llave de paso principal."
     },
     "drip_medium": {
       "en": "Drip one faucet slowly: the one farthest from your main water shutoff (where water enters your home). That keeps water moving through the longest stretch of your pipes.",

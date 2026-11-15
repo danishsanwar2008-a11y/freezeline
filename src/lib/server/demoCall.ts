@@ -1,18 +1,17 @@
 import "server-only";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { planAt, toTimestamp, weatherFor, type City } from "./cityState";
-import { buildPlanCard, displayLevel } from "@/lib/steps";
-import { renderPlan } from "@/lib/pregenerated";
 import { encodeHousehold, fromTwilioStatus, isFinalStatus, maskPhone, type CallHousehold, type CallStatus } from "@/lib/voiceCalls";
+import { signupForPhone } from "@/lib/signups";
 
 // The demo call that "Run agent" places: a real phone call, through the voice agent, to a
 // teammate's own phone (DEMO_CALL_TO) standing in for the highest-risk household this hour.
-// The household's facts (its 3 steps, the storm, its street) are that home's real plan; the
-// phone is the teammate's. Every call gets a voice_calls row first, so the agent's answers
-// (posted to /api/voice/result) are saved against it.
+// It is the research doc's pre-survey call: 7 questions, then the priority from the answers and
+// that home's temperature this hour, then the matching text. Every call gets a voice_calls row
+// first, so the agent's answers (posted to /api/voice/result) are saved against it.
 //
-// Works on a Twilio trial: with no TWILIO_PHONE_NUMBER the call is placed without From, so Twilio
-// uses a shared trial number and calls the phone the account was signed up with.
+// Twilio trial: TWILIO_PHONE_NUMBER is the From number. Older trials leave it empty (a shared
+// trial number calls the signup phone); newer trials pair the phone with one trial number.
 
 const RECENT_MS = 10 * 60 * 1000;
 
@@ -97,10 +96,11 @@ export async function placeDemoCall(city: City, hour: number, time: string): Pro
     return { kind: "failed", reason: "Demo call not placed: the voice agent isn't reachable (start voice\\start.ps1 and voice\\tunnel.ps1)." };
 
   const home = city.homes[idx];
-  const plan = planAt(city, hour).homes[idx];
   const weather = weatherFor(city, idx, hour);
-  const words = renderPlan(buildPlanCard(home, plan, weather), "en");
 
+  // The pre-survey call from the research doc: the 7 questions first, then the home's priority
+  // (its weighted answers + this hour's temperature there) and next steps, then the matching text.
+  // The priority is written to `level` by the call's final report, not guessed here.
   const { data: row, error: insertError } = await db
     .from("voice_calls")
     .insert({
@@ -110,26 +110,25 @@ export async function placeDemoCall(city: City, hour: number, time: string): Pro
       plan_for: toTimestamp(time),
       to_phone: cfg.to,
       lang: "en",
-      mode: "storm",
-      level: plan.level,
+      mode: "survey",
       status: "queued",
     })
     .select("id")
     .single();
   if (insertError || !row) return { kind: "failed", reason: `Demo call not placed: ${insertError?.message ?? "no row"}.` };
 
+  // The demo phone's own sign-up (/register): the emergency contact the agent offers to call.
+  const signup = await signupForPhone(db, cfg.to);
+  const firstName = cfg.name || signup?.firstName || "";
   const household: CallHousehold = {
     call_id: row.id,
     engine: "gather",
-    mode: "storm",
+    mode: "survey",
     home_id: home.id,
     lang: "en",
-    level: displayLevel(plan.level),
     temp: Math.round(weather.temperature_f),
-    hours: weather.hoursBelow20,
-    steps: words.steps.map((s) => s.text),
-    faucet: home.outdoor_faucets > 0,
-    ...(cfg.name ? { first_name: cfg.name } : {}),
+    ...(firstName ? { first_name: firstName } : {}),
+    ...(signup?.emergencyName && signup.emergencyPhone ? { emergency_name: signup.emergencyName } : {}),
     street: home.street,
   };
   const form = new URLSearchParams({ To: cfg.to, Url: `https://${cfg.host}/voice/start?home=${encodeHousehold(household)}` });

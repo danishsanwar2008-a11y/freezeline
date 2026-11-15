@@ -20,15 +20,25 @@ Run agent (on /console)
                               /console/calls  ◄──────────────┘  (refreshes itself while a call is live)
 ```
 
-- **Demo call:** your own phone stands in for the highest-risk home at that storm hour. The call
-  reads that home's real street and real 3 steps from the drip plan. Off unless you set `DEMO_CALL_TO`.
+- **Demo call:** your own phone stands in for the highest-risk home at that storm hour. It's the
+  pre-survey call from the research doc: the 7 questions first, then the home's priority (Low /
+  Medium / High, from the weighted answers and the forecast), then what happens next (a neighbor or
+  the emergency contact, then a crew), then the text for that priority. Off unless you set
+  `DEMO_CALL_TO`. From the terminal: `npm run call:me` (`-- --temp 25` for another forecast).
 - **Saved after every answer**, so a hang-up keeps what was said. Questions never reached are stored
   as "not answered", not as "No". The outcome (Ready / Needs a reminder / Needs a crew) is only set
   once the call reaches its end.
 - **Honesty rule holds:** a household that can't do the steps hears "I'm requesting a crew", never
   "a crew is on the way".
-- **Checklist text after the call:** when a call reaches its end, the app texts the called phone the
-  3 steps plus one line for how it ended ("before 8 PM", "you're all set", or "we're requesting a
+- **Can't reach the water shutoff:** the agent asks "Is there a neighbor who can help you? I can call
+  your emergency contact, Sam" (only if your `/register` sign-up has an emergency contact). Yes → right
+  after the call it phones Sam ("can you go over and help them?"); Sam says yes → Sam gets your address
+  by text. Sam says no, doesn't answer or hangs up, or you said no → the nearest free crew in your area
+  is assigned (it shows on the map at Feb 16, 12 PM) and only then does the call or text say it's on
+  the way. Needs `supabase/008_call_followup.sql`. On a Twilio trial Sam's phone must be verified too,
+  and `EMERGENCY_CALL_FROM` = the trial number Twilio pairs with it.
+- **Text after the call:** a pre-survey call gets the research doc's text for its priority row plus
+  one line for who helps next. A storm call (the older script) gets its 3 steps plus one line for how it ended ("before 8 PM", "you're all set", or "we're requesting a
   crew"; never "a crew is on the way"). It goes through `SMS_PROVIDER` (`textbee` = an Android phone's
   SIM, so it comes from that phone's number; `twilio` needs an upgraded account with a registered
   number). Run `supabase/007_call_texts.sql` once so each text is recorded and never sent twice.
@@ -60,7 +70,7 @@ On top of the values from `docs/TEAMMATE_SETUP.md` (Supabase keys, console passw
 | `VOICE_RESULT_URL` | `http://localhost:3000/api/voice/result` | The agent saving answers |
 | `WHISPER_MODEL` | `base` | The agent |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | From your own Twilio account | Real phone calls only |
-| `TWILIO_PHONE_NUMBER` | **Empty on a Twilio trial** | Real phone calls only |
+| `TWILIO_PHONE_NUMBER` | The number calls come **from**, never your own phone. Older trials: empty. Newer trials pair your phone with one trial number (Console → Voice → Try it out shows it); put that here | Real phone calls only |
 | `PUBLIC_HOSTNAME` | Your ngrok domain, no `https://` | Real phone calls only |
 | `DEMO_CALL_TO` | Your phone, `+1XXXXXXXXXX` (on a trial: the one you signed up to Twilio with) | Demo call from Run agent |
 | `DEMO_CALL_NAME` | Your first name (optional) | The greeting |
@@ -93,6 +103,9 @@ Tests the whole save path: the agent hears answers, posts them, the web app save
    ```powershell
    npm run calls:rehearse                    # full call -> "Needs a reminder"
    npm run calls:rehearse -- --crew          # can't do the steps -> "Needs a crew" (crew *requested*)
+   npm run calls:rehearse -- --survey        # the pre-survey call: 7 questions -> High; can't reach the shutoff, no contact on file -> a crew
+   npm run calls:rehearse -- --survey --neighbor yes   # ... "call my emergency contact" (none on a 555 number -> a crew instead)
+   npm run calls:rehearse -- --survey --neighbor no    # ... no neighbor -> a crew assigned during the call
    npm run calls:rehearse -- --hangup 3      # hangs up after 3 answers -> 3 answers saved, not finished
    npm run calls:rehearse -- --keep          # keep the row so it shows on /console/calls
    ```
@@ -145,5 +158,6 @@ cloudflared tunnel and sets `PUBLIC_HOSTNAME` itself; it reads `.env`, so copy t
 | Decision trace: "Demo call off: set …" | Add the named values to `.env.local`, restart `npm run dev` |
 | Decision trace: "voice agent isn't reachable" | Start the agent (window 2) and the tunnel (window 4); check `PUBLIC_HOSTNAME` |
 | Decision trace: "No home needs action this hour" | Pick a colder storm hour on the timeline (Feb 15–16) |
+| Twilio error **573003** / **573002** ("from number isn't assigned to this verified voice recipient") | Your trial pairs your phone with one trial number: put it in `TWILIO_PHONE_NUMBER` (Console → Voice → Try it out). Your own phone goes in `DEMO_CALL_TO` |
 | Twilio error **21219** / **21606** / **20003** | Phone not verified on the trial / `TWILIO_PHONE_NUMBER` not yours (leave empty on a trial) / wrong SID or token |
 | Call stays "On the call" after hanging up | It updates from Twilio when the Calls page loads; reload it |

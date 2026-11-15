@@ -15,6 +15,8 @@ import {
   maskPhone,
   OUTCOME_LABEL,
   STATUS_LABEL,
+  SURVEY_FIELDS,
+  surveyNextSteps,
   type CallAssessment,
   type CallOutcome,
   type CallSource,
@@ -38,6 +40,9 @@ interface Row {
   to_phone: string;
   lang: "en" | "es";
   level: "High" | "Medium" | "Low" | null;
+  /** From supabase/008_call_followup.sql (absent until it has been run). */
+  mode?: string;
+  followup?: string | null;
   status: CallStatus;
   finished: boolean;
   answers: Record<string, unknown>;
@@ -133,11 +138,19 @@ function CallCard({ r }: { r: Row }) {
   const street = r.homes?.street;
   const area = areaName(r.homes?.zone_id);
   const said = r.transcript.length;
+  // A pre-survey call (research doc): 8 tiles in two full rows, and the next step it decided.
+  const survey = SURVEY_FIELDS.some((f) => f in r.answers);
+  const next = survey ? surveyNextSteps(r.answers, r.followup) : null;
   return (
     <li className="rounded-panel border border-border bg-bg/40 p-4">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <p className="font-medium">{street ? `${street} home` : "Household"}</p>
         {r.source === "sample" && <span className="rounded-full border border-warn/50 px-2 py-0.5 text-[11px] text-warn">sample</span>}
+        {r.mode === "contact" && (
+          <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted" title="The household's emergency contact, called after their pre-survey call">
+            emergency contact
+          </span>
+        )}
         {r.source === "demo" && (
           <span className="rounded-full border border-accent/60 px-2 py-0.5 text-[11px] text-accent" title="A real call to a teammate's phone standing in for this household">
             demo call
@@ -163,11 +176,17 @@ function CallCard({ r }: { r: Row }) {
         <span className="font-medium">{OUTCOME_LABEL[outcome]}</span>
         {r.error && <span className="text-danger">· {r.error}</span>}
       </p>
-      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
-        {answerTiles(r.answers).map((t) => (
+      <div className={`mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 ${survey ? "" : "lg:grid-cols-7"}`}>
+        {answerTiles(r.answers, r.level).map((t) => (
           <Tile key={t.label} label={t.label} value={t.value} />
         ))}
       </div>
+      {survey && r.finished && (
+        <p className="mt-2 text-sm">
+          <span className="text-muted">Next step: </span>
+          {next ?? "Text only"}
+        </p>
+      )}
       {said > 0 && (
         <details className="mt-3 text-sm">
           <summary className="cursor-pointer text-xs text-muted hover:text-text">What was said ({plural(said, "line")})</summary>
@@ -222,17 +241,20 @@ async function Calls({ searchParams }: { searchParams: Promise<Record<string, st
   const byOutcome = BAR_ORDER.map((o) => ({ o, n: everything.filter((c) => callOutcome(c) === o).length })).filter((x) => x.n > 0);
   const live = everything.some((c) => c.source !== "sample" && !isFinalStatus(c.status));
 
-  let list = db
-    .from("voice_calls")
-    .select(
-      "id,source,home_id,plan_for,to_phone,lang,level,status,finished,answers,questions_answered,assessment,transcript,duration_s,error,created_at,homes(street,zone_id)",
-      { count: "exact" },
-    )
-    .order("created_at", { ascending: false })
-    .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
-  if (filter === "demo") list = list.in("source", ["demo", "live"]);
-  if (filter === "sample") list = list.eq("source", "sample");
-  const { data, count, error } = await list;
+  const BASE = "id,source,home_id,plan_for,to_phone,lang,level,status,finished,answers,questions_answered,assessment,transcript,duration_s,error,created_at,homes(street,zone_id)";
+  const query = (columns: string) => {
+    let list = db
+      .from("voice_calls")
+      .select(columns, { count: "exact" })
+      .order("created_at", { ascending: false })
+      .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+    if (filter === "demo") list = list.in("source", ["demo", "live"]);
+    if (filter === "sample") list = list.eq("source", "sample");
+    return list;
+  };
+  // The follow-up columns come from supabase/008_call_followup.sql; without them, the page still loads.
+  let { data, count, error } = await query(`${BASE},mode,followup`);
+  if (error && /followup|column/i.test(error.message)) ({ data, count, error } = await query(BASE));
   if (error && error.code !== "PGRST103") return <Notice title="Couldn't load calls">{error.message}</Notice>;
   const rows = (data ?? []) as unknown as Row[];
   const pages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));

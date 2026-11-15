@@ -17,6 +17,7 @@ from __future__ import annotations
 import re
 import sys
 from pathlib import Path
+from typing import Callable
 
 HERE = Path(__file__).resolve().parent
 if str(HERE) not in sys.path:
@@ -37,23 +38,47 @@ from script import (  # noqa: E402  (path set above so this works from anywhere)
 SEVERITY = {"low": 0, "medium": 1, "high": 2}
 BAND_NAME = {0: "Low", 1: "Medium", 2: "High"}
 
-# The five questions, in the doc's order.
+# The seven questions, in the doc's order (FreezeLine Research, section 2).
 QUESTION_KEYS = (
     "q_pipe_runs",
+    "q_pipe_material",
+    "q_home_age",
     "q_insulated",
     "q_shutoff_access",
     "q_frozen_before",
     "q_someone_home",
 )
-FIELDS = ("pipe_runs", "insulated", "shutoff_access", "frozen_before", "someone_home")
+FIELDS = ("pipe_runs", "pipe_material", "home_age", "insulated", "shutoff_access", "frozen_before", "someone_home")
+
+# The team's weights. Pipe material, home age and past frozen pipes carry 75% (25% each);
+# insulation and where the pipes run carry 25% (12.5% each). Shutoff access and whether anyone
+# is home don't score: they decide what happens next (a neighbor, the emergency contact, a crew).
+WEIGHTS = {
+    "pipe_material": 0.25,
+    "home_age": 0.25,
+    "frozen_before": 0.25,
+    "insulated": 0.125,
+    "pipe_runs": 0.125,
+}
+BAND_POINTS = {"low": 0.0, "medium": 0.5, "high": 1.0}
+# A weighted score at or above this fails the pre-survey (the text table's X).
+FAIL_AT = 0.5
+
+# Forecast temperature, the text table's other column.
+MILD_AT_F = 32   # >= 32F: mild (the table's check mark)
+COLD_AT_F = 20   # 20-31F: cold; below 20F: very cold
+
 FIELD_OF = {
     "q_pipe_runs": "pipe_runs",
+    "q_pipe_material": "pipe_material",
+    "q_home_age": "home_age",
     "q_insulated": "insulated",
     "q_shutoff_access": "shutoff_access",
     "q_frozen_before": "frozen_before",
     "q_someone_home": "someone_home",
     "q_is_you": "is_household",
     "q_sees_list": "sees_list",
+    "q_neighbor_help": "neighbor_help",
 }
 
 # ---------- reading the answers ----------
@@ -81,7 +106,60 @@ INSULATED_MOSTLY = ("mostly", "most of", "most", "some of", "some", "partly", "p
 INSULATED_NO = ("not insulated", "no insulation", "none", "bare", "uncovered", "uninsulated", "nada", "no estan", "sin aislar")
 INSULATED_YES = ("insulated", "wrapped", "covered", "all of them", "all", "aisladas", "forradas", "cubiertas")
 
-SHUTOFF_CANNOT = ("cant", "cannot", "can not", "not able", "unable", "hard to", "too heavy", "too low", "no puedo", "dificil")
+SHUTOFF_CANNOT = (
+    "cant", "cannot", "can not", "not able", "unable", "hard to", "too heavy", "too low", "no puedo", "dificil",
+    # Checked before SHUTOFF_OK, whose "get to it" / "i know where" sit inside these sentences.
+    "wont", "will not", "not be able", "wouldnt", "would not", "couldnt", "could not", "no way",
+    "dont think i can", "do not think i can", "no podria", "no voy a poder",
+)
+# Not knowing where it is counts as not being able to get to it (scored High, like "can't").
+SHUTOFF_UNKNOWN = ("dont know where", "do not know where", "no idea where", "not sure where", "never found", "no se donde", "no sé donde")
+
+# Pipe material, as people say it and as speech-to-text spells it. Copper first: "copper and
+# some PEX" is still copper in places, the riskier answer.
+MATERIAL_COPPER = ("copper", "cobre", "metal", "galvanized", "steel", "iron")
+MATERIAL_PVC = ("cpvc", "c p v c", "pvc", "p v c", "white plastic", "rigid plastic")
+MATERIAL_PEX = ("pex", "pecs", "pecks", "peks", "p e x", "flexible", "red and blue", "plastic tubing", "plastico flexible")
+
+NUMBER_WORDS = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9,
+    "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16,
+    "seventeen": 17, "eighteen": 18, "nineteen": 19, "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50,
+    "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90, "hundred": 100,
+    "uno": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6, "siete": 7, "ocho": 8, "nueve": 9,
+    "diez": 10, "quince": 15, "veinte": 20, "treinta": 30, "cuarenta": 40, "cincuenta": 50,
+    "sesenta": 60, "setenta": 70, "ochenta": 80, "noventa": 90, "cien": 100,
+}
+NEW_HOME = ("brand new", "new build", "new construction", "just built", "nueva", "recien construida")
+
+
+def home_age_years(t: str, this_year: int | None = None) -> int | None:
+    """Years old, from "built in 1978", "about 45 years", "forty five", "it's brand new"."""
+    import datetime
+
+    year_now = this_year or datetime.date.today().year
+    for m in re.finditer(r"\b(1[89]\d\d|20[0-4]\d)(?!\d)", t):  # 1978, also "the 1970s"
+        y = int(m.group(1))
+        if y <= year_now:
+            return year_now - y
+    m = re.search(r"\b([1-9]0)s\b", t)  # "built in the 70s"
+    if m:
+        d = int(m.group(1))
+        return year_now - (1900 + d if 1900 + d <= year_now - 25 else 2000 + d)
+    m = re.search(r"\b(\d{1,3})\b", t)
+    if m:
+        return int(m.group(1))
+    total, seen = 0, False
+    for w in t.split():
+        if w in NUMBER_WORDS:
+            n = NUMBER_WORDS[w]
+            total = total * n if n == 100 and total else total + n
+            seen = True
+    if seen:
+        return total
+    if any(p in t for p in NEW_HOME):
+        return 0
+    return None
 SHUTOFF_OK = ("i can", "can get", "reach it", "get to it", "turn it", "i know where", "easy", "puedo", "llego", "cierro")
 
 
@@ -113,8 +191,21 @@ def read_survey(field: str, text: str) -> object:
             return "yes"
         a = classify(text)
         return "yes" if a else ("no" if a is False else None)
+    if field == "pipe_material":
+        for value, words in (("copper", MATERIAL_COPPER), ("pvc", MATERIAL_PVC), ("pex", MATERIAL_PEX)):
+            if any(w in t for w in words):
+                return value
+        return None
+    if field == "home_age":
+        return home_age_years(t)
     if field == "shutoff_access":
+        if any(w in t for w in SHUTOFF_UNKNOWN):
+            return "cannot"
         if any(w in t for w in SHUTOFF_CANNOT):
+            return "cannot"
+        # "No, I know where it is but I won't be able to..." opens with the answer: the question
+        # asks whether they'd be able to, so a leading "no" is a no ("no problem" is the exception).
+        if re.match(r"(no|nope|nah)\b", t) and not t.startswith("no problem"):
             return "cannot"
         if any(w in t for w in SHUTOFF_OK):
             return "ok"
@@ -125,10 +216,21 @@ def read_survey(field: str, text: str) -> object:
     return None
 
 
+def survey_texts() -> dict:
+    """data/messages.json `surveyTexts`: the doc's text table, which also gives each row's priority."""
+    return __import__("script").messages()["surveyTexts"]
+
+
 def band_of(field: str, value: object) -> str:
     """The risk band the doc gives one answer. Unknown is medium: never quietly low."""
     if field == "pipe_runs":
         return {"interior": "low", "slab": "medium", "outside": "high"}.get(str(value), "medium")
+    if field == "pipe_material":
+        return {"pex": "low", "pvc": "medium", "copper": "high"}.get(str(value), "medium")
+    if field == "home_age":
+        if not isinstance(value, int):
+            return "medium"
+        return "low" if value < 20 else ("medium" if value <= 40 else "high")
     if field == "insulated":
         return {"yes": "low", "mostly": "medium", "no": "high"}.get(str(value), "medium")
     if field == "shutoff_access":
@@ -151,10 +253,23 @@ class Survey:
         street: str = "",
         text_sent: bool = False,
         replies: dict | None = None,
+        temp: float | None = None,
+        emergency_name: str = "",
+        assign_crew: Callable[[list[str]], str | None] | None = None,
     ) -> None:
         if lang not in LANGS:
             raise ValueError(f"lang must be one of {LANGS}")
         self.lang = lang
+        # The forecast low for the home's area, in F. Unknown = no freeze forecast = mild.
+        self.temp = temp
+        # The emergency contact from the household's sign-up (/register). Empty = none on file,
+        # so the agent never offers to call someone it can't reach.
+        self.emergency_name = emergency_name.strip()
+        # Asks the web app to assign the nearest free crew in the home's area; returns the crew's
+        # name only once a crew is really assigned (None = all busy, or no app to ask). Only then
+        # may the call say a crew is on the way.
+        self.assign_crew = assign_crew
+        self.crew: str | None = None
         self.first_name = first_name.strip()
         self.street = street.strip()
         self.text_sent = text_sent
@@ -209,7 +324,21 @@ class Survey:
         if self.ended or self.closed or self.i < len(self.turns):
             return
         self.closed = True
+        # Priority, then what happens next, then the text. "On the way" is said only for a crew
+        # the web app has actually assigned; everything else is "I'll call" / "I'm requesting".
         self.turns.append(self._say({"Low": "survey_low", "Medium": "survey_medium", "High": "survey_high"}[self.level()]))
+        followup = self.followup()
+        if followup == "contact":
+            self.turns.append(self._say("survey_followup_contact", {"emergency_name": self.emergency_name}))
+        elif followup == "crew":
+            try:
+                self.crew = self.assign_crew(self.contact_reasons()) if self.assign_crew else None
+            except Exception:  # noqa: BLE001 - no answer from the app means no crew assigned
+                self.crew = None
+            if self.crew:
+                self.turns.append(self._say("survey_followup_crew_assigned", {"crew": self.crew}))
+            else:
+                self.turns.append(self._say("survey_followup_crew_requested"))
         if self.text_sent:
             self.turns.append(self._ask("q_sees_list"))
         else:
@@ -230,6 +359,8 @@ class Survey:
         field = turn.field or ""
         if field in ("is_household", "sees_list"):
             answer = classify_for(field, transcript, self.first_name)
+        elif field == "neighbor_help":
+            answer = classify(transcript)
         else:
             answer = read_survey(field, transcript)
 
@@ -256,8 +387,12 @@ class Survey:
             self.sees_list = answer
             self.turns.append(self._say("agent_list_confirmed" if answer else "agent_list_resend"))
             return "ok"
-        if field in FIELDS:
+        if field in FIELDS or field == "neighbor_help":
             self.answers[field] = answer
+        # Knows where the shutoff is but can't get to it: is there someone who can help? Asked
+        # only when the sign-up names an emergency contact, since that is who the agent will call.
+        if field == "shutoff_access" and answer == "cannot" and self.emergency_name:
+            self.turns.insert(self.i, self._ask("q_neighbor_help", {"emergency_name": self.emergency_name}))
         return "ok"
 
     def next_speech(self) -> str | None:
@@ -280,19 +415,71 @@ class Survey:
     def bands(self) -> dict[str, str]:
         return {f: band_of(f, self.answers.get(f)) for f in FIELDS}
 
+    def score(self) -> float:
+        """Weighted pre-survey risk, 0 (all Low) to 1 (all High). Unanswered counts as Medium."""
+        return round(sum(w * BAND_POINTS[band_of(f, self.answers.get(f))] for f, w in WEIGHTS.items()), 4)
+
+    def survey_pass(self) -> bool:
+        return self.score() < FAIL_AT
+
+    def temp_band(self) -> str:
+        if self.temp is None or self.temp >= MILD_AT_F:
+            return "mild"
+        return "cold" if self.temp >= COLD_AT_F else "very_cold"
+
+    def text_row(self) -> str:
+        """The row of the doc's text table this home lands on (the 2 missing rows use their nearest)."""
+        key = f"{self.temp_band()}|{'pass' if self.survey_pass() else 'fail'}"
+        return survey_texts()["use_row"].get(key, key)
+
     def level(self) -> str:
-        """The worst band of the five answers, which is the home's band."""
-        worst = 0
-        for field in FIELDS:
-            if field not in self.answers:
-                continue
-            worst = max(worst, SEVERITY[band_of(field, self.answers[field])])
-        return BAND_NAME[worst]
+        """The home's priority: the category of its row in the text table (Low / Medium / High)."""
+        return survey_texts()["messages"][self.text_row()]["level"]
+
+    def contact_reasons(self) -> list[str]:
+        """Why the home needs someone there: can't reach the shutoff, and/or nobody home 3 days."""
+        out = []
+        if self.answers.get("shutoff_access") == "cannot":
+            out.append("shutoff")
+        if self.answers.get("someone_home") is False:
+            out.append("away")
+        return out
+
+    def followup(self) -> str | None:
+        """Who helps next: "contact" (the emergency contact, called right after this call; a crew
+        if they can't), "crew" (a crew now), or None.
+
+        Can't reach the shutoff: "is there a neighbor who can help? I can call {emergency
+        contact}" - yes calls them, no (or nobody on file) is a crew. Nobody home for three days:
+        the emergency contact, else a crew.
+        """
+        reasons = self.contact_reasons()
+        if not reasons:
+            return None
+        if "shutoff" in reasons:
+            return "contact" if self.emergency_name and self.answers.get("neighbor_help") is True else "crew"
+        return "contact" if self.emergency_name else "crew"
+
+    def assessment(self) -> str:
+        """The officials' outcome: hands-on help needed, a reminder, or ready."""
+        if self.followup():
+            return "needs_crew"
+        return "ready" if self.level() == "Low" else "needs_reminder"
 
     def result(self) -> dict:
         return {
             "mode": "survey",
             "level": self.level(),
+            "score": self.score(),
+            "survey_pass": self.survey_pass(),
+            "temp_band": self.temp_band(),
+            "text_row": self.text_row(),
+            "followup": self.followup(),
+            "contact_reasons": self.contact_reasons(),
+            "emergency_name": self.emergency_name,
+            "crew": self.crew,
+            "assessment": self.assessment(),
+            "first_name": self.first_name,
             "bands": self.bands(),
             "answers": dict(self.answers),
             "sees_list": self.sees_list,
@@ -308,7 +495,8 @@ def check() -> int:
     """Every question and closing exists in both languages, and the scoring follows the doc."""
     problems: list[str] = []
     pack = __import__("script").messages()["call"]
-    keys = (*QUESTION_KEYS, "q_is_you", "survey_low", "survey_medium", "survey_high", "survey_text_pending")
+    keys = (*QUESTION_KEYS, "q_is_you", "survey_low", "survey_medium", "survey_high", "survey_text_pending",
+            "q_neighbor_help", "survey_followup_contact", "survey_followup_crew_assigned", "survey_followup_crew_requested")
     for key in keys:
         for lang in LANGS:
             if not pack.get(key, {}).get(lang):
@@ -319,11 +507,32 @@ def check() -> int:
         ("pipe_runs", "inside the walls in a heated space", "low"),
         ("pipe_runs", "under the concrete slab", "medium"),
         ("pipe_runs", "they run through the garage and basement", "high"),
+        ("pipe_material", "they're PEX", "low"),
+        ("pipe_material", "I think it's the red and blue flexible kind", "low"),
+        ("pipe_material", "white PVC", "medium"),
+        ("pipe_material", "c p v c", "medium"),
+        ("pipe_material", "copper", "high"),
+        ("home_age", "about 10 years", "low"),
+        ("home_age", "it's brand new", "low"),
+        ("home_age", "thirty five years", "medium"),
+        ("home_age", "40", "medium"),
+        ("home_age", "it was built in 1965", "high"),
+        ("home_age", "built in the 70s", "high"),
+        ("home_age", "fifty years old", "high"),
         ("insulated", "yes, all insulated", "low"),
         ("insulated", "mostly", "medium"),
         ("insulated", "no, they're bare", "high"),
         ("shutoff_access", "yes I know where it is and I can turn it", "low"),
         ("shutoff_access", "I know where it is but I can't turn it", "high"),
+        ("shutoff_access", "I don't know where it is", "high"),
+        # Said on a real demo call, and once scored "can reach it":
+        ("shutoff_access", "No, I know where they are but I won't be able to get to it and turn it.", "high"),
+        ("shutoff_access", "I know where it is but I wouldn't be able to turn it", "high"),
+        ("shutoff_access", "I don't think I can get to it", "high"),
+        ("shutoff_access", "no", "high"),
+        ("shutoff_access", "No problem, I can get to it", "low"),
+        ("shutoff_access", "yeah it's in the garage and I can turn it", "low"),
+        ("shutoff_access", "yes", "low"),
         ("frozen_before", "yes, two years ago", "high"),
         ("frozen_before", "no, never", "low"),
         ("someone_home", "yes", "low"),
@@ -335,28 +544,110 @@ def check() -> int:
         if band != want:
             problems.append(f"{field}: {said!r} scored {band}, expected {want}")
 
-    # A full survey in each language, worst answers, must end at High and stay honest.
+    # The weights: the three 25% questions alone decide a fail; the two 12.5% ones can't.
+    def scored(answers: dict, temp: float | None) -> Survey:
+        s = Survey(lang="en", temp=temp)
+        s.answers = dict(answers)
+        return s
+
+    best = {"pipe_runs": "interior", "pipe_material": "pex", "home_age": 5, "insulated": "yes",
+            "shutoff_access": "ok", "frozen_before": False, "someone_home": True}
+    if scored(best, 40).score() != 0:
+        problems.append("all-Low answers should score 0")
+    if not scored({**best, "frozen_before": True}, 40).survey_pass():
+        problems.append("a past frozen pipe alone (25%) should still pass")
+    if scored({**best, "pipe_material": "copper", "home_age": 60}, 40).survey_pass():
+        problems.append("copper pipes in a 60-year-old home (50%) should fail")
+    if not scored({**best, "insulated": "no", "pipe_runs": "outside"}, 40).survey_pass():
+        problems.append("bare pipes in the garage alone (25%) should still pass")
+
+    # The doc's 4 rows, and the 2 combinations it has no row for.
+    worst = {"pipe_runs": "outside", "pipe_material": "copper", "home_age": 60, "insulated": "no",
+             "shutoff_access": "cannot", "frozen_before": True, "someone_home": False}
+    rows = [
+        (best, 40, "mild|pass", "Low"),
+        (worst, 40, "mild|fail", "Medium"),
+        (worst, 10, "very_cold|fail", "High"),
+        (best, 25, "cold|pass", "Medium"),
+        (best, 10, "cold|pass", "Medium"),        # very cold + pass: nearest row
+        (worst, 25, "very_cold|fail", "High"),    # cold + fail: nearest row
+        (best, None, "mild|pass", "Low"),         # no forecast: mild
+    ]
+    for answers, temp, row, level in rows:
+        s = scored(answers, temp)
+        if (s.text_row(), s.level()) != (row, level):
+            problems.append(f"temp {temp}, {'best' if answers is best else 'worst'} answers: got {s.text_row()} {s.level()}, expected {row} {level}")
+    # Who helps next (the team's rule): can't reach the shutoff -> "is there a neighbor who can
+    # help? I can call {emergency contact}"; yes -> call them, no / none on file -> a crew.
+    # Nobody home -> the emergency contact, else a crew.
+    def follow(answers: dict, emergency: str) -> str | None:
+        s = Survey(lang="en", temp=10, emergency_name=emergency)
+        s.answers = dict(answers)
+        return s.followup()
+
+    cases = [
+        ({**best, "shutoff_access": "cannot", "neighbor_help": True}, "Sam Lee", "contact"),
+        ({**best, "shutoff_access": "cannot", "neighbor_help": False}, "Sam Lee", "crew"),
+        ({**best, "shutoff_access": "cannot"}, "", "crew"),                 # nobody on file: never asked
+        ({**best, "someone_home": False}, "Sam Lee", "contact"),
+        ({**best, "someone_home": False}, "", "crew"),
+        (best, "Sam Lee", None),
+    ]
+    for answers, emergency, want in cases:
+        if (got := follow(answers, emergency)) != want:
+            problems.append(f"followup for {answers.get('shutoff_access')}/{answers.get('neighbor_help')}/home={answers.get('someone_home')} with contact {emergency!r}: got {got}, expected {want}")
+
+    # Full calls in each language, worst answers on a very cold night, three ways the shutoff
+    # follow-up can go. "On the way" may be said only for a crew the app actually assigned.
+    on_the_way = re.compile(r"on (the|their) way|va en camino|van en camino|dispatched|(help|crew|someone|neighbor|they) (is |are )?coming", re.I)
+    runs = [
+        # (neighbor answer, the app's crew answer, expected follow-up, expected crew)
+        ("yes, please call them", "Crew 3", "contact", None),
+        ("no, there isn't anyone", "Crew 3", "crew", "Crew 3"),
+        ("no", None, "crew", None),
+    ]
     for lang in LANGS:
-        s = Survey(lang=lang, first_name="Danish", street="Harvard St")
-        i = 0
-        while (turn := s.current) is not None:
-            s.next_speech()
-            if turn.kind == "ask":
-                said = {
-                    "is_household": "yes",
-                    "pipe_runs": "they run through the garage",
-                    "insulated": "no, they're bare",
-                    "shutoff_access": "I can't turn it",
-                    "frozen_before": "yes, it burst last winter",
-                    "someone_home": "no, we're leaving",
-                }.get(turn.field or "", "yes")
-                s.hear(said)
-            i += 1
-            if i > 30:
-                problems.append(f"{lang}: the survey never ended")
-                break
-        if s.result()["level"] != "High":
-            problems.append(f"{lang}: expected High, got {s.result()['level']}")
+        for neighbor, crew, want_follow, want_crew in runs:
+            asked_crew: list[bool] = []
+
+            def fake_assign(reasons: list[str], c: str | None = crew) -> str | None:
+                asked_crew.append(True)
+                return c
+
+            s = Survey(lang=lang, first_name="Danish", street="Harvard St", temp=12, emergency_name="Sam Lee", assign_crew=fake_assign)
+            i = 0
+            while (turn := s.current) is not None:
+                s.next_speech()
+                if turn.kind == "ask":
+                    said = {
+                        "is_household": "yes",
+                        "pipe_runs": "they run through the garage",
+                        "pipe_material": "copper",
+                        "home_age": "built in 1960",
+                        "insulated": "no, they're bare",
+                        "shutoff_access": "I know where it is but I can't get to it",
+                        "neighbor_help": neighbor,
+                        "frozen_before": "yes, it burst last winter",
+                        "someone_home": "yes",
+                    }.get(turn.field or "", "yes")
+                    s.hear(said)
+                i += 1
+                if i > 50:
+                    problems.append(f"{lang}: the survey never ended")
+                    break
+            r = s.result()
+            tag = f"{lang} / neighbor {neighbor!r} / app crew {crew}"
+            if r["level"] != "High" or r["followup"] != want_follow or r["crew"] != want_crew:
+                problems.append(f"{tag}: got {r['level']} {r['followup']} {r['crew']}")
+            if "neighbor_help" not in r["answers"]:
+                problems.append(f"{tag}: never asked whether a neighbor can help")
+            if bool(asked_crew) != (want_follow == "crew"):
+                problems.append(f"{tag}: asked the app for a crew {len(asked_crew)} times")
+            promised = any(on_the_way.search(t) for w, t in s.said if w == "agent")
+            if promised != (want_crew is not None):
+                problems.append(f"{tag}: 'on the way' said={promised}, but crew assigned={want_crew}")
+            if len([k for k, _ in s.said if k == "agent"]) < len(QUESTION_KEYS):
+                problems.append(f"{tag}: the call said too little")
 
     # A wrong number must not be surveyed.
     w = Survey(lang="en", first_name="Danish")
@@ -381,12 +672,14 @@ def check() -> int:
         return 1
     print(f"survey questions checked: {len(QUESTION_KEYS)} in {len(LANGS)} languages")
     print(f"bands checked against the doc: {len(expect)} answers")
-    print("full surveys completed: 2 (both High)")
+    print(f"weights and table rows checked: {len(rows)} combinations")
+    print(f"follow-up rules checked: {len(cases)} cases")
+    print(f"full surveys completed: {len(runs) * len(LANGS)} (contact / crew assigned / crew requested; 'on the way' only with a crew)")
     return 0
 
 
-def demo(lang: str) -> int:
-    s = Survey(lang=lang, first_name="Danish", street="Harvard St")
+def demo(lang: str, temp: float | None = 19) -> int:
+    s = Survey(lang=lang, first_name="Danish", street="Harvard St", temp=temp)
     print(f"--- pre-survey ({lang}) ---")
     while (turn := s.current) is not None:
         print(f"agent: {s.next_speech()}")
@@ -400,7 +693,8 @@ def demo(lang: str) -> int:
         if outcome == "repeat":
             print(f"agent: {s.repeat_last()}")
     r = s.result()
-    print(f"\nlevel: {r['level']}  bands: {r['bands']}")
+    print(f"\npriority: {r['level']}  score: {r['score']}  pre-survey: {'pass' if r['survey_pass'] else 'fail'}  "
+          f"forecast: {r['temp_band']}  text row: {r['text_row']}  actions: {r['actions']}")
     return 0
 
 
@@ -411,11 +705,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--demo", action="store_true")
     ap.add_argument("--lang", choices=LANGS, default="en")
+    ap.add_argument("--temp", type=float, default=19, help="forecast low in F (default 19, very cold)")
     a = ap.parse_args(argv)
     if a.check:
         return check()
     if a.demo:
-        return demo(a.lang)
+        return demo(a.lang, a.temp)
     ap.print_help()
     return 0
 

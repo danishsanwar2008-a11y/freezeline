@@ -246,14 +246,31 @@ def build_pipeline(transport: Any, call: Call, speed: float, on_done: Callable[[
 def call_from_params(params: dict[str, Any]) -> Any:
     """Everything the script needs, from the TwiML <Parameter> the server put on the call."""
     if str(params.get("mode") or "").lower() == "survey":
-        # The pre-survey days before the storm: same driver, five different questions.
+        # The pre-survey call (the research doc's 7 questions): questions first, then the
+        # home's priority from its answers and the forecast (`temp`, F), then the text.
         from survey import Survey
 
+        temp = params.get("temp")
+        call_id = str(params.get("call_id") or "")
         return Survey(
             lang=params.get("lang", "en"),
             first_name=str(params.get("first_name") or ""),
             street=str(params.get("street") or ""),
             text_sent=bool(params.get("text_sent", False)),
+            temp=float(temp) if isinstance(temp, (int, float)) else None,
+            emergency_name=str(params.get("emergency_name") or ""),
+            # Only a call the web app placed can get a crew: it is the app that assigns one.
+            assign_crew=(lambda reasons: ask_app_for_crew(call_id, reasons)) if call_id else None,
+        )
+    if str(params.get("mode") or "").lower() == "contact":
+        # The household's emergency contact, called right after a pre-survey call that needs help.
+        from contact import ContactCall
+
+        return ContactCall(
+            lang=params.get("lang", "en"),
+            contact_name=str(params.get("contact_name") or ""),
+            homeowner=str(params.get("homeowner") or ""),
+            reasons=list(params.get("reasons") or []),
         )
     steps = params.get("steps") or []
     steps = tuple((list(steps) + ["", "", ""])[:3])
@@ -322,6 +339,37 @@ def report(
             print(f"[agent] posted result: {r.status}", file=sys.stderr)
     except Exception as e:  # noqa: BLE001 - never break the call over reporting
         print(f"[agent] could not post result: {e}", file=sys.stderr)
+
+
+def app_url(path: str) -> str | None:
+    """Another route on the web app that VOICE_RESULT_URL points at (same host, same secret)."""
+    url = os.environ.get("VOICE_RESULT_URL") or ""
+    return url.replace("/api/voice/result", path) if "/api/voice/result" in url else None
+
+
+def post_app(path: str, payload: dict[str, Any], timeout: float = 8) -> dict[str, Any] | None:
+    url = app_url(path)
+    if not url:
+        return None
+    req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), method="POST")
+    req.add_header("content-type", "application/json")
+    if os.environ.get("VOICE_SHARED_SECRET"):
+        req.add_header("x-voice-secret", os.environ["VOICE_SHARED_SECRET"])
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read().decode("utf-8") or "{}")
+    except Exception as e:  # noqa: BLE001 - the caller decides what "no answer" means
+        print(f"[agent] {path} failed: {e}", file=sys.stderr, flush=True)
+        return None
+
+
+def ask_app_for_crew(call_id: str, reasons: list[str] | None = None) -> str | None:
+    """Ask the web app to assign the nearest free crew in the home's area, mid-call. Returns the
+    crew's name only when one was really assigned; the call then says it is on the way."""
+    reply = post_app("/api/voice/crew", {"call_id": call_id, "reasons": reasons or []})
+    crew = (reply or {}).get("crew")
+    print(f"[agent] crew for {call_id}: {crew or 'none free (requested)'}", flush=True)
+    return crew if isinstance(crew, str) and crew else None
 
 
 def twiml(host: str, params: dict[str, Any]) -> str:
@@ -432,7 +480,8 @@ def make_app():
     HINTS = (
         "yes, no, yeah, nope, correct, speaking, garage, basement, crawlspace, slab, concrete, "
         "interior, walls, heated, attic, insulated, mostly, wrapped, none, shutoff, valve, "
-        "turn, reach, frozen, burst, away, home, traveling, work, alone, neighbor"
+        "turn, reach, frozen, burst, away, home, traveling, work, alone, neighbor, "
+        "PEX, PVC, CPVC, copper, plastic, flexible, years, years old, built"
     )
 
     def _xml(inner: str) -> Any:
@@ -528,6 +577,24 @@ def make_app():
             sessions.pop(sid, None)
             homes.pop(sid, None)
         return reply
+
+    @app.api_route("/voice/status", methods=["POST"])
+    async def voice_status(request: Request) -> Any:
+        """Twilio's "call ended" notice for an emergency-contact call (StatusCallback). Passed on to
+        the web app, which decides: they said they'd help, or a crew goes instead (no answer, busy,
+        a no, a hang-up). Waits for this call's reports to be posted first, so the app sees the
+        final answer before the outcome."""
+        form = await _form(request)
+        call_id = request.query_params.get("call_id") or ""
+        status = form.get("CallStatus") or ""
+        print(f"[agent] contact call {call_id} ended: {status}", flush=True)
+        if call_id:
+            def forward() -> None:
+                report_queue.join()
+                post_app("/api/voice/status", {"call_id": call_id, "call_status": status}, timeout=20)
+
+            threading.Thread(target=forward, daemon=True).start()
+        return Response("", status_code=204)
 
     @app.post("/twiml")
     async def twiml_route(request: Request) -> Any:
