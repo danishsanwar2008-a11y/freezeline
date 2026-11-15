@@ -148,3 +148,35 @@ export const MAP_LOOK = {
   crewRing: [255, 255, 255] as RGB,
   route: [74, 131, 204] as RGB,
 };
+
+// ---------- The /present deck's map (dark navy; cyan = FreezeLine acting, amber = risk) ----------
+export const PRESENT_LOOK = {
+  /** CARTO Positron recoloured to dark navy by src/lib/basemapStyle.ts (no key). */
+  ground: {
+    land: "#07111f",
+    park: "rgba(18, 38, 52, 0.55)",
+    water: "#0b1b30",
+    building: "#0c1a2d",
+    buildingEdge: "#10213a",
+    roadLocal: "#111f33",
+    roadMain: "#162740",
+    roadHighway: "#1c304e",
+    rail: "#111f33",
+    label: "#3b4f6b",
+  },
+  /** Homes by risk level: Low a quiet slate, Watch dim amber, High full amber. */
+  level: {
+    Low: [120, 146, 178, 120],
+    Watch: [242, 180, 65, 120],
+    High: [255, 190, 72, 235],
+  } as Record<DisplayLevel, RGBA>,
+  /** Outreach: reached homes in cyan (brighter the further the funnel went), door checks in amber. */
+  outreach: {
+    quiet: [70, 92, 122, 90] as RGBA,
+    texted: [95, 211, 230, 110] as RGBA,
+    called: [95, 211, 230, 220] as RGBA,
+    door: [242, 180, 65, 235] as RGBA,
+  },
+  crewRoute: [95, 211, 230] as RGB,
+  crewDepot: [233, 239, 247, 255] as RGBA,
+};

@@ -11,7 +11,8 @@ export interface StyleLike {
   [k: string]: unknown;
 }
 
-const G = MAP_LOOK.ground;
+/** The colours a recoloured basemap uses (MAP_LOOK.ground for the console). */
+export type Ground = typeof MAP_LOOK.ground;
 
 /** Line widths by zoom (px): thin local streets, bolder main roads, the boldest highways. */
 export const ROAD_WIDTH = {
@@ -33,11 +34,11 @@ export function roadClass(id: string): "local" | "main" | "highway" | null {
   return null;
 }
 
-const ROAD_COLOR = { local: G.roadLocal, main: G.roadMain, highway: G.roadHighway } as const;
 const hidden = (l: Json): Json => ({ ...l, layout: { ...((l.layout as Json) ?? {}), visibility: "none" } });
 const paint = (l: Json, p: Json): Json => ({ ...l, paint: { ...((l.paint as Json) ?? {}), ...p } });
 
-function restyle(l: Json): Json {
+function restyle(l: Json, G: Ground): Json {
+  const ROAD_COLOR = { local: G.roadLocal, main: G.roadMain, highway: G.roadHighway } as const;
   const id = String(l.id);
   if (id === "background") return paint(l, { "background-color": G.land });
   if (id === "landuse_residential") return paint(l, { "fill-color": "rgba(0, 0, 0, 0)" });
@@ -63,7 +64,12 @@ function restyle(l: Json): Json {
   return l;
 }
 
-/** Positron, recoloured. Leaves the input untouched; running it twice gives the same result. */
+/** Positron, recoloured with any palette. Leaves the input untouched; running it twice gives the same result. */
+export function recolorBasemap<T extends StyleLike>(style: T, ground: Ground): T {
+  return { ...style, layers: style.layers.map((l) => restyle(l, ground)) };
+}
+
+/** The console's look: Positron recoloured with MAP_LOOK.ground. */
 export function warmBasemap<T extends StyleLike>(style: T): T {
-  return { ...style, layers: style.layers.map(restyle) };
+  return recolorBasemap(style, MAP_LOOK.ground);
 }

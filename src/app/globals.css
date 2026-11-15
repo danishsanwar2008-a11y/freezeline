@@ -256,3 +256,41 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .crew-beacon { animation: none; transform: translate(-50%, -50%) scale(0.75); opacity: 0.6; }
 }
+
+/* ---------- /present: the pitch deck (separate from the console). Dark navy, restrained cyan + amber.
+   Cyan = FreezeLine acting / safe; amber = risk and the blanket-message failure. Scoped to .present-theme. ---------- */
+:root {
+  --present-night: #07111f;
+  --present-raised: #0f1d33;
+  --present-line: #1d2e48;
+  --present-ink: #e9eff7;
+  --present-muted: #8fa3bd;
+  --present-cyan: #5fd3e6;
+  --present-amber: #f2b441;
+  /* Chart fills (validated on --present-night with the dataviz checks: lightness band, CVD, contrast). */
+  --present-chart-amber: #bf8420;
+  --present-chart-cyan: #2898ad;
+}
+@theme inline {
+  --color-present-night: var(--present-night);
+  --color-present-raised: var(--present-raised);
+  --color-present-line: var(--present-line);
+  --color-present-ink: var(--present-ink);
+  --color-present-muted: var(--present-muted);
+  --color-present-cyan: var(--present-cyan);
+  --color-present-amber: var(--present-amber);
+  --color-present-chart-amber: var(--present-chart-amber);
+  --color-present-chart-cyan: var(--present-chart-cyan);
+}
+.present-theme {
+  color-scheme: dark;
+  background: var(--present-night);
+  color: var(--present-ink);
+  font-feature-settings: "tnum" 1;
+}
+.present-theme .deck-eyebrow { font-size: 22px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--present-cyan); }
+.present-theme .deck-title { font-size: 84px; line-height: 1.02; font-weight: 600; letter-spacing: -0.03em; }
+.present-theme .deck-figure { font-size: 128px; line-height: 0.95; font-weight: 600; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+.present-theme .deck-lede { font-size: 34px; line-height: 1.3; color: var(--present-ink); }
+.present-theme .deck-label { font-size: 24px; line-height: 1.3; color: var(--present-muted); }
+.present-theme .deck-note { font-size: 20px; line-height: 1.4; color: var(--present-muted); }
