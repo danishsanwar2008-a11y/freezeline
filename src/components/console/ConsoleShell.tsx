@@ -37,7 +37,8 @@ const URI_HOURS = (uri as WeatherSeries).hours;
 const ZONE_HOURS = Object.fromEntries(
   Object.entries((uriNeighborhoods as unknown as { zones: Record<string, WeatherSeries> }).zones).map(([id, s]) => [id, s.hours]),
 );
-const MS_PER_HOUR = 140; // full 168-hour replay ≈ 24 s
+// 0.2× the old pace (Agentation note): 700 ms per replay hour, the full 168 hours ≈ 2 min.
+const MS_PER_HOUR = 700;
 
 /** Plan per replay hour, computed once per hour and reused (map + pressure monitor). */
 function cachedPlanner(zones: ConsoleZone[], homes: ConsoleHome[], model: ReplayModel): (h: number) => CityPlan {
@@ -152,9 +153,14 @@ function ConsoleBody({
     [model, homes, plan, hour],
   );
 
+  // The timeline only replays the storm (weather, cells, pressure). Outreach (home colours, Homes
+  // contacted, crews driving) comes alive only once Run agent is clicked on this page: until then every
+  // home stays "not contacted", even for hours an earlier session already ran. A reload starts over.
+  const [started, setStarted] = useState(false);
   // Outreach statuses + crews for this hour (saved by the agent; gray until it runs).
-  const ops = useOps(agent ? time : null, agent?.version ?? 0);
-  const data = agent ? ops.data : null;
+  const live = !!agent && started;
+  const ops = useOps(live ? time : null, agent?.version ?? 0);
+  const data = live ? ops.data : null;
   const statusOf = useCallback((i: number): HomeStatus => statusAt(data, i), [data]);
 
   const counts = useMemo(() => {
@@ -248,7 +254,10 @@ function ConsoleBody({
 
   const agentControls: AgentControls = {
     running: run?.status === "running",
-    onRun: () => agent?.run(time),
+    onRun: () => {
+      setStarted(true);
+      agent?.run(time);
+    },
   };
 
   return (
@@ -306,8 +315,8 @@ function ConsoleBody({
             total={counts.total}
             funnel={data?.funnel ?? { texted: 0, called: 0, doorChecks: 0, neighborFlags: 0 }}
             ran={!!data?.ran}
-            loading={!!agent && !data && !ops.error}
-            refreshing={!!agent && !!data && !ops.fresh && !ops.error}
+            loading={live && !data && !ops.error}
+            refreshing={live && !!data && !ops.fresh && !ops.error}
             lowHomes={homes.length - counts.total}
           />
         </div>
