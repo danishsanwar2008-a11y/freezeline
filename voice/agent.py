@@ -55,6 +55,10 @@ except Exception:  # noqa: BLE001 - no fastapi means no web app, not a broken sc
 
 
 IDLE_SECONDS = float(os.environ.get("VOICE_IDLE_SECONDS", "12"))
+# Turn-by-turn calls (Twilio <Gather>): seconds to wait for an answer to start, and seconds of
+# silence that end it. 5 + 1: about 2 s after an answer (1 s of silence + transcription).
+ANSWER_WAIT = int(os.environ.get("VOICE_ANSWER_WAIT", "5"))
+SPEECH_END = int(os.environ.get("VOICE_SPEECH_END", "1"))
 SAMPLE_RATE = 24_000          # Kokoro's output; the transport resamples to 8 kHz for the phone
 MAX_UTTERANCE_ATTEMPTS = 2
 
@@ -513,9 +517,10 @@ def make_app():
             inner = "".join(_say_xml(s, lang) for s in spoken)
             inner += (
                 f'<Gather input="speech" language="{"es-US" if lang == "es" else "en-US"}"'
-                # 4 seconds of silence before it decides they are done: "auto" hangs up on
-                # a thinking pause mid-sentence, which is what cut the household off.
-                f' speechTimeout="4" timeout="10" enhanced="true" hints="{HINTS}"'
+                # Up to ANSWER_WAIT s for them to start answering, then SPEECH_END s of silence
+                # before their answer counts as finished (was 10 + 4: a ~12 s gap after every
+                # answer). Not "auto": that hangs up on a thinking pause mid-sentence.
+                f' speechTimeout="{SPEECH_END}" timeout="{ANSWER_WAIT}" enhanced="true" hints="{HINTS}"'
                 f' method="POST" action="https://{host}/voice/step">'
                 + _say_xml(question, lang)
                 + "</Gather>"

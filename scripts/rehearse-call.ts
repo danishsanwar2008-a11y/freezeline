@@ -42,11 +42,13 @@ const survey = args.includes("--survey");
 // nobody is on file: a crew is assigned during the call.
 const neighborAt = args.indexOf("--neighbor");
 const neighbor = neighborAt >= 0 ? args[neighborAt + 1] : null;
-const SURVEY_ANSWERS = [
-  "Yes", "They run through the garage", "Copper", "It was built in 1965", "No, they're bare", "I know where it is but I can't turn it",
-  ...(neighbor ? [neighbor === "yes" ? "Yes, please call them" : "No, there's nobody"] : []),
-  "Yes, one burst last winter", "Yes, we'll be home",
-];
+const neighborAnswer = neighbor ? [neighbor === "yes" ? "Yes, please call them" : "No, there's nobody"] : [];
+// The demo call asks only the doc's questions 3-6 (voice/survey.py DEMO_QUESTION_KEYS); with
+// VOICE_FULL_SURVEY=1 the agent asks all seven, and so does this rehearsal.
+const SURVEY_ANSWERS =
+  process.env.VOICE_FULL_SURVEY?.trim() === "1"
+    ? ["Yes", "They run through the garage", "Copper", "It was built in 1965", "No, they're bare", "I know where it is but I can't turn it", ...neighborAnswer, "Yes, one burst last winter", "Yes, we'll be home"]
+    : ["Yes", "It was built in 1965", "No, they're bare", "I know where it is but I can't turn it", ...neighborAnswer, "Yes, one burst last winter"];
 const PLAN_FOR = "2021-02-16T12:00:00-06:00"; // Feb 16 noon: crews free (see DEMO_REPLAY_TIME)
 const startedAt = new Date().toISOString();
 const phone = textMe ? (process.env.DEMO_CALL_TO ?? "").trim() : "+17135550100";

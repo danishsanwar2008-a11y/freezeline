@@ -14,6 +14,7 @@ days before, which is why it asks about insulation and past bursts instead of to
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -39,7 +40,7 @@ SEVERITY = {"low": 0, "medium": 1, "high": 2}
 BAND_NAME = {0: "Low", 1: "Medium", 2: "High"}
 
 # The seven questions, in the doc's order (FreezeLine Research, section 2).
-QUESTION_KEYS = (
+FULL_QUESTION_KEYS = (
     "q_pipe_runs",
     "q_pipe_material",
     "q_home_age",
@@ -48,6 +49,11 @@ QUESTION_KEYS = (
     "q_frozen_before",
     "q_someone_home",
 )
+# The demo call asks only these 4 (the doc's questions 3-6), to keep it short. The score is worked
+# out over the questions asked (score()), so dropped ones never count against a home.
+# VOICE_FULL_SURVEY=1 asks all seven again.
+DEMO_QUESTION_KEYS = ("q_home_age", "q_insulated", "q_shutoff_access", "q_frozen_before")
+QUESTION_KEYS = FULL_QUESTION_KEYS if os.environ.get("VOICE_FULL_SURVEY", "").strip() == "1" else DEMO_QUESTION_KEYS
 FIELDS = ("pipe_runs", "pipe_material", "home_age", "insulated", "shutoff_access", "frozen_before", "someone_home")
 
 # The team's weights. Pipe material, home age and past frozen pipes carry 75% (25% each);
@@ -288,10 +294,14 @@ class Survey:
         temp: float | None = None,
         emergency_name: str = "",
         assign_crew: Callable[[list[str]], str | None] | None = None,
+        questions: tuple[str, ...] | None = None,
     ) -> None:
         if lang not in LANGS:
             raise ValueError(f"lang must be one of {LANGS}")
         self.lang = lang
+        # Which questions this call asks (QUESTION_KEYS: the 4-question demo set unless
+        # VOICE_FULL_SURVEY=1); the score is worked out over these only.
+        self.questions = tuple(questions or QUESTION_KEYS)
         # The forecast low for the home's area, in F. Unknown = no freeze forecast = mild.
         self.temp = temp
         # Questions the household said they don't know (moved on politely; scored as Medium).
@@ -340,7 +350,7 @@ class Survey:
         self.turns.append(self._greeting())
         if self.first_name:
             self.turns.append(self._ask("q_is_you", {"first_name": self.first_name}))
-        for key in QUESTION_KEYS:
+        for key in self.questions:
             self.turns.append(self._ask(key))
 
     # --- runtime (the interface voice/agent.py drives) ---
@@ -460,8 +470,14 @@ class Survey:
         return {f: band_of(f, self.answers.get(f)) for f in FIELDS}
 
     def score(self) -> float:
-        """Weighted pre-survey risk, 0 (all Low) to 1 (all High). Unanswered counts as Medium."""
-        return round(sum(w * BAND_POINTS[band_of(f, self.answers.get(f))] for f, w in WEIGHTS.items()), 4)
+        """Weighted pre-survey risk, 0 (all Low) to 1 (all High), over the questions this call asks
+        (their weights scaled to add up to 1). Asked but unanswered counts as Medium."""
+        asked = {FIELD_OF[k] for k in self.questions}
+        weights = {f: w for f, w in WEIGHTS.items() if f in asked}
+        total = sum(weights.values())
+        if not total:
+            return 0.0
+        return round(sum(w * BAND_POINTS[band_of(f, self.answers.get(f))] for f, w in weights.items()) / total, 4)
 
     def survey_pass(self) -> bool:
         return self.score() < FAIL_AT
@@ -539,7 +555,7 @@ def check() -> int:
     """Every question and closing exists in both languages, and the scoring follows the doc."""
     problems: list[str] = []
     pack = __import__("script").messages()["call"]
-    keys = (*QUESTION_KEYS, "q_is_you", "survey_low", "survey_medium", "survey_high", "survey_text_pending",
+    keys = (*FULL_QUESTION_KEYS, "q_is_you", "survey_low", "survey_medium", "survey_high", "survey_text_pending",
             "q_neighbor_help", "agent_skip", "survey_followup_contact", "survey_followup_crew_assigned", "survey_followup_crew_requested")
     for key in keys:
         for lang in LANGS:
@@ -590,7 +606,7 @@ def check() -> int:
 
     # The weights: the three 25% questions alone decide a fail; the two 12.5% ones can't.
     def scored(answers: dict, temp: float | None) -> Survey:
-        s = Survey(lang="en", temp=temp)
+        s = Survey(questions=FULL_QUESTION_KEYS, lang="en", temp=temp)
         s.answers = dict(answers)
         return s
 
@@ -625,7 +641,7 @@ def check() -> int:
     # one "Got it, no problem. I'll move on." and the next question, never a re-ask; scored Medium.
     for lang in LANGS:
         for said in ("I don't know", "no", "not sure, sorry", "No idea."):
-            s = Survey(lang=lang, first_name="Danish", temp=12)
+            s = Survey(questions=FULL_QUESTION_KEYS, lang=lang, first_name="Danish", temp=12)
             heard = {"is_household": "yes", "pipe_runs": said, "pipe_material": said, "home_age": said,
                      "insulated": "no", "shutoff_access": "yes I can turn it", "frozen_before": "no", "someone_home": "yes"}
             asked: list[str] = []
@@ -664,7 +680,7 @@ def check() -> int:
     # help? I can call {emergency contact}"; yes -> call them, no / none on file -> a crew.
     # Nobody home -> the emergency contact, else a crew.
     def follow(answers: dict, emergency: str) -> str | None:
-        s = Survey(lang="en", temp=10, emergency_name=emergency)
+        s = Survey(questions=FULL_QUESTION_KEYS, lang="en", temp=10, emergency_name=emergency)
         s.answers = dict(answers)
         return s.followup()
 
@@ -697,7 +713,7 @@ def check() -> int:
                 asked_crew.append(True)
                 return c
 
-            s = Survey(lang=lang, first_name="Danish", street="Harvard St", temp=12, emergency_name="Sam Lee", assign_crew=fake_assign)
+            s = Survey(questions=FULL_QUESTION_KEYS, lang=lang, first_name="Danish", street="Harvard St", temp=12, emergency_name="Sam Lee", assign_crew=fake_assign)
             i = 0
             while (turn := s.current) is not None:
                 s.next_speech()
@@ -729,11 +745,11 @@ def check() -> int:
             promised = any(on_the_way.search(t) for w, t in s.said if w == "agent")
             if promised != (want_crew is not None):
                 problems.append(f"{tag}: 'on the way' said={promised}, but crew assigned={want_crew}")
-            if len([k for k, _ in s.said if k == "agent"]) < len(QUESTION_KEYS):
+            if len([k for k, _ in s.said if k == "agent"]) < len(FULL_QUESTION_KEYS):
                 problems.append(f"{tag}: the call said too little")
 
     # A wrong number must not be surveyed.
-    w = Survey(lang="en", first_name="Danish")
+    w = Survey(questions=FULL_QUESTION_KEYS, lang="en", first_name="Danish")
     w.next_speech()
     if (t := w.current) is None or t.field != "is_household":
         problems.append("a named survey does not confirm who answered")
@@ -748,12 +764,40 @@ def check() -> int:
                 problems.append("a wrong-number survey did not end")
                 break
 
+    # The demo call: only the doc's questions 3-6, in that order, scored over those 4 alone
+    # (home age and frozen before 40% each, insulation 20%); dropped questions never count.
+    d = Survey(lang="en", first_name="Danish", temp=12, questions=DEMO_QUESTION_KEYS)
+    asked_demo: list[str] = []
+    n = 0
+    while (turn := d.current) is not None and n < 40:
+        n += 1
+        d.next_speech()
+        if turn.kind == "ask":
+            asked_demo.append(turn.field or "")
+            d.hear({"is_household": "yes", "home_age": "built in 1960", "insulated": "no, they're bare",
+                    "shutoff_access": "yes I can turn it", "frozen_before": "no"}.get(turn.field or "", "yes"))
+    if asked_demo != ["is_household", "home_age", "insulated", "shutoff_access", "frozen_before"]:
+        problems.append(f"demo call asked {asked_demo}, expected identity then the 4 questions")
+    if d.score() != 0.6:  # old home (1 x 0.4) + bare pipes (1 x 0.2) + never froze (0) = 0.6
+        problems.append(f"demo call scored {d.score()}, expected 0.6 over its 4 questions")
+    for answers, want, why in (
+        ({"home_age": 5, "insulated": "yes", "frozen_before": False}, 0.0, "all Low"),
+        ({"home_age": 5, "insulated": "yes", "frozen_before": True}, 0.4, "a past freeze alone passes"),
+        ({"home_age": 60, "insulated": "yes", "frozen_before": True}, 0.8, "old home + past freeze fails"),
+        ({"home_age": 5, "insulated": "no", "frozen_before": False}, 0.2, "bare pipes alone pass"),
+        ({"home_age": 30, "insulated": "mostly", "frozen_before": False}, 0.3, "two Mediums pass"),
+    ):
+        sd = Survey(lang="en", temp=10, questions=DEMO_QUESTION_KEYS)
+        sd.answers = dict(answers)
+        if sd.score() != want:
+            problems.append(f"demo score ({why}): {sd.score()}, expected {want}")
+
     if problems:
         print(f"{len(problems)} problem(s):")
         for p in problems:
             print(f"  - {p}")
         return 1
-    print(f"survey questions checked: {len(QUESTION_KEYS)} in {len(LANGS)} languages")
+    print(f"survey questions checked: {len(FULL_QUESTION_KEYS)} in {len(LANGS)} languages; demo call asks {len(DEMO_QUESTION_KEYS)}")
     print(f"bands checked against the doc: {len(expect)} answers")
     print(f"weights and table rows checked: {len(rows)} combinations")
     print(f"follow-up rules checked: {len(cases)} cases")
