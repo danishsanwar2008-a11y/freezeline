@@ -66,11 +66,6 @@ export default function TopBar({ agent, panelsHidden, onTogglePanels }: Props) {
         Calls
       </Link>
       <InfoTip />
-      <form method="post" action="/api/logout">
-        <button type="submit" className="btn btn-quiet btn-sm">
-          Sign out
-        </button>
-      </form>
       <button type="button" onClick={onTogglePanels} className="btn btn-quiet btn-sm gap-1.5">
         <Chevron open={!panelsHidden} />
         {panelsHidden ? "Show panels" : "Hide panels"}

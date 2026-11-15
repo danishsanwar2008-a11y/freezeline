@@ -1,6 +1,9 @@
-// Password gate (Next 16 Proxy, Node.js runtime): /console, /status and their APIs need the console
-// session cookie. Pages redirect to /login; APIs get 401. Every protected page and route checks again
-// itself (see src/lib/server/consoleAuth.ts), so a matcher change can't silently open anything.
+// Password gate (Next 16 Proxy, Node.js runtime). The main console (/console, /api/ops*, /api/agent*)
+// is open: no sign-in to see City Operations. The pages that show real people's details stay behind the
+// console session cookie: /console/registrations (real sign-ups: names, phones, emails, addresses),
+// /console/calls (real phone numbers and transcripts) and /status. Pages redirect to /login; APIs get
+// 401. Every protected page and route checks again itself (see src/lib/server/consoleAuth.ts), so a
+// matcher change can't silently open anything.
 
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, validSession } from "@/lib/server/consoleAuth";
@@ -15,5 +18,5 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/console/:path*", "/status/:path*", "/api/ops/:path*", "/api/agent/:path*"],
+  matcher: ["/console/registrations/:path*", "/console/calls/:path*", "/status/:path*", "/api/sms/:path*", "/api/voice/call/:path*"],
 };

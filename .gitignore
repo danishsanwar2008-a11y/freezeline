@@ -55,3 +55,9 @@ demo-screens/
 .playwright-cli/
 # local Claude Code settings (personal)
 .claude/settings.local.json
+
+# Devpost video (Remotion): the team's recordings and the rendered MP4 stay out of git
+/video/media/
+/video/out/
+/video/node_modules/
+/video/ffmpeg.exe

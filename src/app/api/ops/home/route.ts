@@ -1,4 +1,3 @@
-import { requireConsole } from "@/lib/server/consoleAuth";
 import { getCity, hourIndex } from "@/lib/server/cityState";
 import { loadHomeRecord } from "@/lib/server/outreachState";
 import { STATUS_OF, type ReasonFactor } from "@/lib/household";
@@ -6,8 +5,6 @@ import { assessmentSentence, STATUS_LABEL } from "@/lib/cityWording";
 
 // One home's summary for the City Operations dot card (officials' third-person wording).
 export async function GET(req: Request) {
-  const denied = requireConsole(req);
-  if (denied) return denied;
   const q = new URL(req.url).searchParams;
   const id = q.get("id") ?? "";
   const time = q.get("time") ?? "";

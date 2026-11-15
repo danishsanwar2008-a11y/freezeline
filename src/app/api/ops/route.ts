@@ -1,4 +1,3 @@
-import { requireConsole } from "@/lib/server/consoleAuth";
 import { getCity, hourIndex } from "@/lib/server/cityState";
 import { getCrews, loadCrewJobs, loadHourRecords } from "@/lib/server/outreachState";
 import { routedTrip } from "@/lib/server/crewRoutes";
@@ -11,8 +10,6 @@ import type { ReasonFactor } from "@/lib/household";
 // order as the console's home list), the outreach funnel, crews and the crew queue.
 // Officials only (the /console); never used by homeowner pages.
 export async function GET(req: Request) {
-  const denied = requireConsole(req);
-  if (denied) return denied;
   const time = new URL(req.url).searchParams.get("time") ?? "";
   if (hourIndex(time) < 0) return Response.json({ error: "Unknown replay time" }, { status: 400 });
   try {

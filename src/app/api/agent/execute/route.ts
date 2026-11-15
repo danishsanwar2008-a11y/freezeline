@@ -1,4 +1,3 @@
-import { requireConsole } from "@/lib/server/consoleAuth";
 import { z } from "zod";
 import { getCity, hourIndex } from "@/lib/server/cityState";
 import { executeApproved } from "@/lib/server/agent/run";
@@ -15,8 +14,6 @@ const Body = z.object({
 });
 
 export async function POST(req: Request) {
-  const denied = requireConsole(req);
-  if (denied) return denied;
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Expected { time, pending }" }, { status: 400 });
   const hour = hourIndex(parsed.data.time);
