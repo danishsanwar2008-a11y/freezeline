@@ -77,7 +77,10 @@ export async function placeDemoCall(city: City, hour: number, time: string): Pro
   const idx = topHome(city, hour);
   if (idx === null) return { kind: "skipped", reason: "No home needs action this hour, so no demo call." };
 
-  // One live demo call at a time: a second click shouldn't ring the phone twice.
+  // One live demo call at a time: a second click shouldn't ring the phone twice. Statuses are
+  // refreshed from Twilio first: a call someone hung up on stays "in progress" in the table until
+  // then, and would wrongly block this one.
+  await syncCallStatuses();
   const since = new Date(Date.now() - RECENT_MS).toISOString();
   const { data: active, error: activeError } = await db
     .from("voice_calls")

@@ -156,23 +156,29 @@ function ConsoleBody({
   // The timeline only replays the storm (weather, cells, pressure). Outreach (home colours, Homes
   // contacted, crews driving) comes alive only once Run agent is clicked on this page: until then every
   // home stays "not contacted", even for hours an earlier session already ran. A reload starts over.
-  const [started, setStarted] = useState(false);
-  // Outreach statuses + crews for this hour (saved by the agent; gray until it runs).
-  const live = !!agent && started;
-  const ops = useOps(live ? time : null, agent?.version ?? 0);
+  // After Run agent, the outreach view stays on the hour it ran (runHour): moving the timeline then
+  // replays only the weather, cells and pressure, and never swaps in results an older session saved
+  // for another hour. Run agent again at another hour to move the outreach view there.
+  const [runHour, setRunHour] = useState<number | null>(null);
+  const runTime = runHour === null ? null : hours[runHour].time;
+  // Outreach statuses + crews for the run's hour (saved by the agent; gray until it runs).
+  const live = !!agent && runTime !== null;
+  const ops = useOps(live ? runTime : null, agent?.version ?? 0);
   const data = live ? ops.data : null;
   const statusOf = useCallback((i: number): HomeStatus => statusAt(data, i), [data]);
+  // Homes contacted counts the homes that needed action at the run's hour (its plan), not the needle's.
+  const runPlan = useMemo(() => (runHour === null ? plan : planFor(runHour)), [runHour, plan, planFor]);
 
   const counts = useMemo(() => {
     const c: Record<HomeStatus, number> = { ready: 0, needs_help: 0, waiting: 0, no_answer: 0, not_contacted: 0 };
     let total = 0;
-    plan.homes.forEach((p, i) => {
+    runPlan.homes.forEach((p, i) => {
       if (p.level === "Low") return;
       total++;
       c[statusAt(data, i)]++;
     });
     return { c, total };
-  }, [plan, data]);
+  }, [runPlan, data]);
 
 
   // Crews drive in real time from the moment they were dispatched (CREW_TIME_SCALE in src/lib/crewTrip.ts), so they
@@ -213,7 +219,8 @@ function ConsoleBody({
   );
 
   // Anything that waits for approval (always a Stage 2 alert) is approved in the decision trace.
-  const run = agent?.runs[time];
+  const traceTime = runTime ?? time;
+  const run = runTime ? agent?.runs[runTime] : undefined;
   const entries = run?.entries ?? [];
 
   const selectHex = useCallback((h3: string | null) => {
@@ -231,10 +238,10 @@ function ConsoleBody({
       lngLat: [h.lng, h.lat],
       title: h.label,
       subtitle: `${h.neighborhood} · household details simulated`,
-      body: <HomeQuickView homeId={h.id} time={time} level={displayLevel(plan.homes[selectedHome].level)} crews={crewsData} now={now} />,
+      body: <HomeQuickView homeId={h.id} time={traceTime} level={displayLevel(runPlan.homes[selectedHome].level)} crews={crewsData} now={now} />,
       onClose: () => setSelectedHome(null),
     };
-  }, [selectedHome, homes, time, plan, crewsData, now]);
+  }, [selectedHome, homes, traceTime, runPlan, crewsData, now]);
 
   // The selected crew's quick view, pinned to the crew on the map.
   const crewCallout = useMemo<PinnedCallout | null>(() => {
@@ -255,7 +262,7 @@ function ConsoleBody({
   const agentControls: AgentControls = {
     running: run?.status === "running",
     onRun: () => {
-      setStarted(true);
+      setRunHour(hour);
       agent?.run(time);
     },
   };
@@ -341,10 +348,10 @@ function ConsoleBody({
             onSelectCrew={selectCrew}
           />
           <DecisionTrace
-            time={time}
+            time={traceTime}
             run={run}
-            onApprove={(e) => agent?.approve(time, e)}
-            onSkip={(e) => agent?.skip(time, e)}
+            onApprove={(e) => agent?.approve(traceTime, e)}
+            onSkip={(e) => agent?.skip(traceTime, e)}
             approving={agent?.approving ?? null}
           />
           {ops.error && (
