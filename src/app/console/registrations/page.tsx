@@ -5,7 +5,7 @@ import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { SESSION_COOKIE, validSession } from "@/lib/server/consoleAuth";
 import { getSupabaseAdmin } from "@/lib/server/supabaseAdmin";
-import { formatPhone, PIPE_LABEL, type PipeLocation } from "@/lib/registration";
+import { formatPhone } from "@/lib/registration";
 import { MATCH_LABEL, type MatchStatus } from "@/lib/addressMatch";
 import { NEIGHBORHOODS } from "@/lib/seed/generate";
 import { plural } from "@/lib/plural";
@@ -28,11 +28,6 @@ interface Row {
   address_line2: string | null;
   city: string;
   zip: string;
-  dwelling_type: "house" | "apartment" | null;
-  pipe_locations: PipeLocation[] | null;
-  knows_shutoff: boolean | null;
-  has_generator: boolean | null;
-  someone_home_3_days: "yes" | "no" | "not_sure" | null;
   emergency_name: string | null;
   emergency_phone: string | null;
   source: "signup" | "placeholder";
@@ -55,8 +50,6 @@ const BAR: { status: MatchStatus; cls: string }[] = [
 const SWATCH = Object.fromEntries(BAR.map((b) => [b.status, b.cls])) as Record<MatchStatus, string>;
 
 const areaName = (id: string | null) => NEIGHBORHOODS.find((n) => n.id === id)?.name ?? null;
-const yesNo = (v: boolean | null) => (v === null ? null : v ? "Yes" : "No");
-const HOME_3_DAYS = { yes: "Yes", no: "No", not_sure: "Not sure" } as const;
 const when = (iso: string) =>
   new Date(iso).toLocaleString("en-US", { timeZone: "America/Chicago", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
@@ -132,7 +125,6 @@ function SignupCard({ r }: { r: Row }) {
     r.match_status === "nearby_on_street" && r.match_distance_m !== null
       ? `${MATCH_LABEL[r.match_status]} · ${r.match_distance_m} m away`
       : MATCH_LABEL[r.match_status];
-  const pipes = r.pipe_locations?.map((p) => PIPE_LABEL[p].replace(" (under the house)", "")).join(", ") ?? null;
   return (
     <li className="rounded-panel border border-border bg-bg/40 p-4">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -155,12 +147,8 @@ function SignupCard({ r }: { r: Row }) {
         {matchLine}
         {estimated && <span>(estimated)</span>}
       </p>
-      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-        <Tile label="Lives in" value={r.dwelling_type === null ? null : r.dwelling_type === "house" ? "House" : "Apartment"} />
-        <Tile label="Pipes run through" value={pipes} />
-        <Tile label="Knows shutoff" value={yesNo(r.knows_shutoff)} />
-        <Tile label="Generator" value={yesNo(r.has_generator)} />
-        <Tile label="Home next 3 days" value={r.someone_home_3_days ? HOME_3_DAYS[r.someone_home_3_days] : null} />
+      {/* The home questions are asked on the call (see /console/calls), not on the sign-up form. */}
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         <Tile label="Emergency contact" value={r.emergency_name ? `${r.emergency_name} · ${formatPhone(r.emergency_phone!)}` : null} />
       </div>
     </li>
@@ -211,7 +199,7 @@ async function Signups({ searchParams }: { searchParams: Promise<Record<string, 
   let list = db
     .from("registrations")
     .select(
-      "id,full_name,email,phone,preferred_language,address_line1,address_line2,city,zip,dwelling_type,pipe_locations,knows_shutoff,has_generator,someone_home_3_days,emergency_name,emergency_phone,source,created_at,match_status,match_distance_m,zone_id",
+      "id,full_name,email,phone,preferred_language,address_line1,address_line2,city,zip,emergency_name,emergency_phone,source,created_at,match_status,match_distance_m,zone_id",
       { count: "exact" },
     )
     .order("source", { ascending: false }) // real sign-ups ("signup") before samples ("placeholder")

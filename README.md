@@ -1,6 +1,6 @@
 # FreezeLine
 
-FreezeLine is an AI agent for water utilities during hard freezes: it scores freeze risk house by house and builds a coordinated drip plan, so at-risk homes are protected while water pressure stays above 20 psi. The demo replays Winter Storm Uri (Feb 14–18, 2021) over Houston on the City Operations console, the only screen, which is for utility officials. Households never see the console: they get texts and calls (Phase 4) and, later, a sign-up and home survey page.
+FreezeLine is an AI agent for water utilities during hard freezes: it scores freeze risk house by house and builds a coordinated drip plan, so at-risk homes are protected while water pressure stays above 20 psi. The demo replays Winter Storm Uri (Feb 14–18, 2021) over Houston on the City Operations console, the only screen, which is for utility officials. Households never see the console: they get texts and calls, and sign up on the public `/register` page.
 
 ## Run it on Windows
 

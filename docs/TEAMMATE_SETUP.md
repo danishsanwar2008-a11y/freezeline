@@ -15,7 +15,7 @@ Saved calls (Calls page, demo call from Run agent, testing without a phone): `do
 | Address | What it is | Who it's for |
 |---|---|---|
 | http://localhost:3000/ | Front door: links to sign-up and the console | Everyone |
-| http://localhost:3000/register | Public sign-up + home survey (saves to Supabase) | Residents |
+| http://localhost:3000/register | Public sign-up (saves to Supabase) | Residents |
 | http://localhost:3000/console | City Operations: map, pressure, crews, agent (password) | Utility staff |
 | http://localhost:3000/console/registrations | Every sign-up, with its address match (password) | Utility staff |
 | http://localhost:3000/console/calls | Every call the agent placed and what the household said (password) | Utility staff |
@@ -111,9 +111,9 @@ Open http://localhost:3000. Before you push changes: `npm test` and `npm run mes
 
 ### Sign-ups (`/register`)
 
-- Name, email, phone, address (required); the home survey (optional: house/apartment, pipes in a
-  basement/crawlspace/garage, knows the shutoff, generator, someone home for 3 days, emergency
-  contact); and a **required** consent box for texts and calls.
+- Name, email, phone, address (required); an emergency contact (optional); and a **required**
+  consent box for texts and calls. The questions about the home (pipes, shutoff, someone home for
+  3 days, ...) are asked on the call, not on the form.
 - Saved to the `registrations` table. Only the server can read or write it (no public access).
 - **Address matching:** the address is looked up with OpenStreetMap (Nominatim; only the address is
   sent) and matched to a mapped home: within 40 m = *matched*, else the nearest mapped home on the same

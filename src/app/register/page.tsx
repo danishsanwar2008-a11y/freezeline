@@ -1,7 +1,7 @@
 import Link from "next/link";
 import RegisterForm from "@/components/register/RegisterForm";
 
-// Household sign-up + home survey. Public (not behind the console password).
+// Household sign-up (the home questions are asked on the call). Public (not behind the console password).
 // Household-facing: friendly "you" wording, nothing that needs explaining.
 
 export const metadata = {

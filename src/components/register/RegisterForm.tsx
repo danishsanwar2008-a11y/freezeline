@@ -6,12 +6,8 @@
 import { useId, useRef, useState } from "react";
 import {
   CONSENT_TEXT,
-  EXCLUSIVE_PIPE,
-  PIPE_LABEL,
-  PIPE_LOCATIONS,
   parseRegistration,
   type FieldErrors,
-  type PipeLocation,
   type RegistrationInputRaw,
 } from "@/lib/registration";
 
@@ -24,11 +20,6 @@ type Form = {
   addressLine2: string;
   city: string;
   zip: string;
-  dwellingType: "" | "house" | "apartment";
-  pipeLocations: PipeLocation[];
-  knowsShutoff: "" | "yes" | "no";
-  hasGenerator: "" | "yes" | "no";
-  someoneHome3Days: "" | "yes" | "no" | "not_sure";
   emergencyName: string;
   emergencyPhone: string;
   consent: boolean;
@@ -44,11 +35,6 @@ const EMPTY: Form = {
   addressLine2: "",
   city: "Houston",
   zip: "",
-  dwellingType: "",
-  pipeLocations: [],
-  knowsShutoff: "",
-  hasGenerator: "",
-  someoneHome3Days: "",
   emergencyName: "",
   emergencyPhone: "",
   consent: false,
@@ -58,7 +44,6 @@ const EMPTY: Form = {
 /** Field order on the page (to focus the first one that needs fixing). */
 const ORDER: (keyof Form)[] = [
   "fullName", "email", "phone", "addressLine1", "addressLine2", "city", "zip",
-  "dwellingType", "pipeLocations", "knowsShutoff", "hasGenerator", "someoneHome3Days",
   "emergencyName", "emergencyPhone", "consent",
 ];
 
@@ -184,20 +169,10 @@ export default function RegisterForm() {
   const [done, setDone] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const consentId = useId();
-  const pipesId = useId();
 
   const set = <K extends keyof Form>(key: K, value: Form[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
     if (errors[key as keyof FieldErrors]) setErrors((e) => ({ ...e, [key]: undefined }));
-  };
-
-  const togglePipe = (p: PipeLocation) => {
-    const has = form.pipeLocations.includes(p);
-    let next: PipeLocation[];
-    if (has) next = form.pipeLocations.filter((x) => x !== p);
-    else if (EXCLUSIVE_PIPE.includes(p)) next = [p];
-    else next = [...form.pipeLocations.filter((x) => !EXCLUSIVE_PIPE.includes(x)), p];
-    set("pipeLocations", next);
   };
 
   const showErrors = (errs: FieldErrors) => {
@@ -331,75 +306,6 @@ export default function RegisterForm() {
             inputMode="numeric"
           />
         </div>
-      </Section>
-
-      <Section title="A few questions about your home" note="Optional, but they help us decide what your home needs. Skip any you don’t know.">
-        <Choice
-          name="dwellingType"
-          label="Do you live in a house or an apartment?"
-          options={[
-            { value: "house", label: "House" },
-            { value: "apartment", label: "Apartment" },
-          ]}
-          value={form.dwellingType}
-          error={e.dwellingType}
-          onChange={(v) => set("dwellingType", v)}
-        />
-        <div role="group" aria-labelledby={`${pipesId}-label`} aria-describedby={e.pipeLocations ? `${pipesId}-err` : undefined} data-field="pipeLocations">
-          <p id={`${pipesId}-label`} className="text-sm font-medium">
-            Do your water pipes run through any of these?
-          </p>
-          <p className="mt-0.5 text-sm text-muted">Pick all that apply.</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {PIPE_LOCATIONS.map((p) => {
-              const on = form.pipeLocations.includes(p);
-              return (
-                <label
-                  key={p}
-                  className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-full border px-4 text-sm transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${
-                    on ? "border-accent bg-accent/15 text-text" : "border-border text-muted hover:text-text"
-                  }`}
-                >
-                  <input type="checkbox" checked={on} onChange={() => togglePipe(p)} className="sr-only" />
-                  <span aria-hidden className={`size-3.5 rounded-sm border ${on ? "border-accent bg-accent" : "border-muted"}`} />
-                  {PIPE_LABEL[p]}
-                </label>
-              );
-            })}
-          </div>
-          <ErrorText id={`${pipesId}-err`} text={e.pipeLocations} />
-        </div>
-        <Choice
-          name="knowsShutoff"
-          label="Do you know where your main water shutoff valve is?"
-          options={[
-            { value: "yes", label: "Yes" },
-            { value: "no", label: "No" },
-          ]}
-          value={form.knowsShutoff}
-          onChange={(v) => set("knowsShutoff", v)}
-        />
-        <Choice
-          name="hasGenerator"
-          label="Do you have a power generator?"
-          options={[
-            { value: "yes", label: "Yes" },
-            { value: "no", label: "No" },
-          ]}
-          value={form.hasGenerator}
-          onChange={(v) => set("hasGenerator", v)}
-        />
-        <Choice
-          name="someoneHome3Days"
-          label="Will someone be at home for the next three days?"
-          options={[
-            { value: "yes", label: "Yes" },
-            { value: "no", label: "No" },
-            { value: "not_sure", label: "Not sure" },
-          ]}
-          value={form.someoneHome3Days}
-          onChange={(v) => set("someoneHome3Days", v)}
-        />
       </Section>
 
       <Section title="Emergency contact" note="Optional. Who can we call if we can’t reach you?">
