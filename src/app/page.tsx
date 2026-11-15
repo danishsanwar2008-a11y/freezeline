@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Topography from "@/components/react-bits/Topography";
 
 // Front door: residents go to the public sign-up page; utility staff go to City Operations
 // (password-protected); anyone can open the /present pitch deck. Nothing here reads data.
@@ -23,8 +24,44 @@ function Door({ href, eyebrow, title, body, cta }: { href: string; eyebrow: stri
 
 export default function Home() {
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-bg px-4 py-12 text-text">
-      <div className="w-full max-w-3xl">
+    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-bg px-4 py-12 text-text">
+      {/* Background: animated topographic lines (React Bits "Topography"). Clicks pass through to the
+          page; the component follows the pointer across the whole window for its hover and click effects. */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-0">
+        <Topography
+          color="#4f7cff"
+          lineCount={22}
+          lineWidth={1.2}
+          elevation={1}
+          foreground={0.2}
+          tilt={32}
+          speed={0.25}
+          direction="forward"
+          glow={0.6}
+          depthOfField={0.4}
+          fog={0.35}
+          hoverEffect="lift"
+          clickEffect="pulse"
+          majorLines
+          scale={1}
+          detail={0.35}
+          morph={0.2}
+          brightness={1}
+          markers="none"
+          glitch={0}
+          opacity={1}
+          mouseInteraction
+          mouseRadius={1}
+          mouseStrength={0.6}
+          trail={0.3}
+          parallax={0.5}
+          intro
+          lightMode={false}
+        />
+        {/* Keeps the text readable over the brightest lines. */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgb(11_16_22/0.78)_0%,rgb(11_16_22/0.35)_70%,transparent_100%)]" />
+      </div>
+      <div className="relative z-10 w-full max-w-3xl">
         <p className="font-mono text-xs tracking-[0.2em] text-accent">FREEZELINE</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">House-by-house freeze plans for water utilities</h1>
         <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted">

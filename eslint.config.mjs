@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Vendored MapLibre worker copied on install.
     "public/maplibre-gl-worker.mjs",
+    // Vendored React Bits component, kept exactly as published.
+    "src/components/react-bits/**",
   ]),
 ]);
 

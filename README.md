@@ -234,5 +234,6 @@ docs/               setup guides and project history
 ## Credits
 
 Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors (ODbL). Basemap tiles ©
-[CARTO](https://carto.com/attributions). Weather from [Open-Meteo](https://open-meteo.com). Built by the
-FreezeLine team.
+[CARTO](https://carto.com/attributions). Weather from [Open-Meteo](https://open-meteo.com). Home-page
+background: the "Topography" component from [React Bits](https://reactbits.dev) (vendored in
+`src/components/react-bits/`). Built by the FreezeLine team.
