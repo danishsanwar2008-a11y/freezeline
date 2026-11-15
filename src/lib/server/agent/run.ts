@@ -265,6 +265,9 @@ export async function runAgent(
   onEvent?: (e: TraceEvent) => void,
 ): Promise<RunResult> {
   const ctx: AgentCtx = { city, hour, time: URI_HOURS[hour].time, mode, origin, reserves: {}, entries: [], onEvent };
+  // The demo call starts the moment Run agent is clicked, alongside the rest of the run (planning
+  // and saving outreach for thousands of homes takes ~20 s); its trace step is added at the end.
+  const demoCall = startDemoCall(ctx);
   let texted = 0;
   const usage: RunResult["usage"] = { calls: 0, input_tokens: 0, output_tokens: 0, model: null };
   const claude = getClaude();
@@ -285,19 +288,29 @@ export async function runAgent(
   }
   proposeStage2(ctx);
   await notifyOthers(ctx, texted);
-  await demoCallStep(ctx);
+  await demoCallStep(ctx, demoCall);
   return { time: ctx.time, mode, source: claude ? "claude" : "rules", entries: ctx.entries, usage };
 }
 
 /**
- * Last step of a run: a real demo call to a teammate's phone (DEMO_CALL_TO), standing in for the
- * highest-risk home this hour. Its answers arrive from the voice agent and are saved in Supabase
- * (voice_calls); officials see them on /console/calls. Off unless .env.local configures it.
+ * A real demo call to a teammate's phone (DEMO_CALL_TO), standing in for the highest-risk home this
+ * hour, placed as soon as the run starts so the phone rings right away. Its answers arrive from the
+ * voice agent and are saved in Supabase (voice_calls); officials see them on /console/calls. Off
+ * (null) unless .env.local configures it. Never throws: a failure becomes the step's outcome.
  */
-async function demoCallStep(ctx: AgentCtx): Promise<void> {
-  if (!process.env.DEMO_CALL_TO?.trim()) return; // not set up on this laptop: say nothing
+function startDemoCall(ctx: AgentCtx): Promise<Awaited<ReturnType<typeof placeDemoCall>>> | null {
+  if (!process.env.DEMO_CALL_TO?.trim()) return null; // not set up on this laptop: say nothing
+  return placeDemoCall(ctx.city, ctx.hour, ctx.time).catch((err: unknown) => ({
+    kind: "failed" as const,
+    reason: `Demo call not placed: ${err instanceof Error ? err.message : String(err)}`,
+  }));
+}
+
+/** Last trace step: how the demo call (started with the run) went. */
+async function demoCallStep(ctx: AgentCtx, call: ReturnType<typeof startDemoCall>): Promise<void> {
+  if (!call) return;
   ctx.onEvent?.({ type: "start", label: "Placing the demo call" });
-  const out = await placeDemoCall(ctx.city, ctx.hour, ctx.time);
+  const out = await call;
   if (out.kind === "placed")
     readStep(ctx, `Demo call placed: the demo phone stands in for the ${out.street} home`, `${out.phone} · answers on the Calls page`);
   else if (out.kind === "skipped") readStep(ctx, out.reason, "skipped");
