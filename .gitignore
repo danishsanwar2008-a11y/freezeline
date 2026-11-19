@@ -61,3 +61,6 @@ demo-screens/
 /video/out/
 /video/node_modules/
 /video/ffmpeg.exe
+
+.vercel
+.env*

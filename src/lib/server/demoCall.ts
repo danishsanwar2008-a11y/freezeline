@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "./supabaseAdmin";
 import { planAt, toTimestamp, weatherFor, type City } from "./cityState";
 import { encodeHousehold, fromTwilioStatus, isFinalStatus, maskPhone, type CallHousehold, type CallStatus } from "@/lib/voiceCalls";
 import { signupForPhone } from "@/lib/signups";
+import { demoHomeIndex } from "@/lib/demoHome";
 
 // The demo call that "Run agent" places: a real phone call, through the voice agent, to a
 // teammate's own phone (DEMO_CALL_TO) standing in for the highest-risk household this hour.
@@ -55,12 +56,9 @@ async function agentReachable(host: string): Promise<boolean> {
 
 /** The highest-risk home this hour (ties: input order). */
 function topHome(city: City, hour: number): number | null {
-  const plan = planAt(city, hour);
-  let best = -1;
-  plan.homes.forEach((p, i) => {
-    if (p.level !== "Low" && (best < 0 || p.score > plan.homes[best].score)) best = i;
-  });
-  return best >= 0 ? best : null;
+  // The highest-risk home that needs action; at a calm hour (all Low) still the highest-risk home,
+  // so Run agent always makes the call (src/lib/demoHome.ts).
+  return demoHomeIndex(planAt(city, hour).homes);
 }
 
 export type DemoCallOutcome =
@@ -75,7 +73,7 @@ export async function placeDemoCall(city: City, hour: number, time: string): Pro
   if (!db) return { kind: "skipped", reason: "Demo call off: the server has no Supabase service key." };
 
   const idx = topHome(city, hour);
-  if (idx === null) return { kind: "skipped", reason: "No home needs action this hour, so no demo call." };
+  if (idx === null) return { kind: "skipped", reason: "There are no homes to call." };
 
   // One live demo call at a time: a second click shouldn't ring the phone twice. Statuses are
   // refreshed from Twilio first: a call someone hung up on stays "in progress" in the table until

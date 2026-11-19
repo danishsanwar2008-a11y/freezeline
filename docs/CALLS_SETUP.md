@@ -158,7 +158,6 @@ cloudflared tunnel and sets `PUBLIC_HOSTNAME` itself; it reads `.env`, so copy t
 | Agent log: `could not post result: 403` | `VOICE_SHARED_SECRET` differs between the agent and the web app (same `.env.local`, restart both) |
 | Decision trace: "Demo call off: set …" | Add the named values to `.env.local`, restart `npm run dev` |
 | Decision trace: "voice agent isn't reachable" | Start the agent (window 2) and the tunnel (window 4); check `PUBLIC_HOSTNAME` |
-| Decision trace: "No home needs action this hour" | Pick a colder storm hour on the timeline (Feb 15–16) |
 | Twilio error **573003** / **573002** ("from number isn't assigned to this verified voice recipient") | Your trial pairs your phone with one trial number: put it in `TWILIO_PHONE_NUMBER` (Console → Voice → Try it out). Your own phone goes in `DEMO_CALL_TO` |
 | Twilio error **21219** / **21606** / **20003** | Phone not verified on the trial / `TWILIO_PHONE_NUMBER` not yours (leave empty on a trial) / wrong SID or token |
 | Call stays "On the call" after hanging up | It updates from Twilio when the Calls page loads; reload it |
