@@ -2,6 +2,8 @@ import { z } from "zod";
 import { getCity, hourIndex } from "@/lib/server/cityState";
 import { runAgent } from "@/lib/server/agent/run";
 import type { TraceEvent } from "@/lib/server/agent/tools";
+import { callerForRequest } from "@/lib/server/signupCookie";
+import { getSupabaseAdmin } from "@/lib/server/supabaseAdmin";
 
 // Runs only when the official clicks "Run agent" (never per frame). Server-side only.
 // With ?stream=1 the run is streamed as it happens (one JSON object per line: plan / start / entry
@@ -16,11 +18,13 @@ export async function POST(req: Request) {
   const hour = hourIndex(parsed.data.time);
   if (hour < 0) return Response.json({ error: "Unknown replay time" }, { status: 400 });
   const origin = new URL(req.url).origin;
+  // The demo call rings whoever clicked: their sign-up on this browser (or the team's phone on its own machine).
+  const caller = await callerForRequest(getSupabaseAdmin(), req);
 
   if (new URL(req.url).searchParams.get("stream") !== "1") {
     try {
       const city = await getCity();
-      return Response.json(await runAgent(city, hour, parsed.data.mode, origin));
+      return Response.json(await runAgent(city, hour, parsed.data.mode, origin, undefined, caller));
     } catch (err) {
       return Response.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
     }
@@ -41,7 +45,7 @@ export async function POST(req: Request) {
       };
       try {
         const city = await getCity();
-        const result = await runAgent(city, hour, parsed.data.mode, origin, send);
+        const result = await runAgent(city, hour, parsed.data.mode, origin, send, caller);
         send({ type: "done", result });
       } catch (err) {
         send({ type: "error", error: err instanceof Error ? err.message : String(err) });

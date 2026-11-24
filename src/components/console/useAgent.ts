@@ -17,6 +17,9 @@ export interface AgentEntry {
   result?: string;
   /** Notify entries: who was notified. */
   party?: string;
+  /** A link from this entry (the demo call's sign-up). */
+  href?: string;
+  linkText?: string;
   /** The area an approved or skipped action was for (its input is cleared once decided). */
   zoneId?: string;
 }

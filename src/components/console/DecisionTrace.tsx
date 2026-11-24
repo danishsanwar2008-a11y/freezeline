@@ -6,6 +6,7 @@
 // Below: who else was notified, display only (simulated · nothing is sent).
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import type { AgentEntry, AgentRun } from "./useAgent";
 import { NOTIFY_TAG } from "@/lib/agentNotify";
 import { plural } from "@/lib/plural";
@@ -180,10 +181,17 @@ export default function DecisionTrace({
                 <Dot tone={tone} />
                 <div className="min-w-0 flex-1">
                   {e.kind === "step" ? (
-                    <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                      <p className="text-[13px] text-text">{e.summary}</p>
-                      <p className="ml-auto text-right font-mono text-xs tabular-nums text-muted">{e.result}</p>
-                    </div>
+                    <>
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                        <p className="text-[13px] text-text">{e.summary}</p>
+                        <p className="ml-auto text-right font-mono text-xs tabular-nums text-muted">{e.result}</p>
+                      </div>
+                      {e.href && (
+                        <Link href={e.href} className="mt-1 inline-block text-[13px] font-medium text-accent underline-offset-2 hover:underline">
+                          {e.linkText ?? "Open"} →
+                        </Link>
+                      )}
+                    </>
                   ) : e.status === "pending" ? (
                     <>
                       <p className="text-[13px] text-psi-warn">{e.tool === "send_stage2_alert" ? "Waiting for supervisor approval" : "Waiting for approval"}</p>

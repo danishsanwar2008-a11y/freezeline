@@ -35,6 +35,9 @@ export interface LogEntry {
   result?: string;
   /** Notify entries: who was notified (always simulated; nothing is sent). */
   party?: string;
+  /** A link the official can follow from this entry (the demo call's sign-up). */
+  href?: string;
+  linkText?: string;
 }
 
 /** What the run reports as it goes (streamed to the decision trace). */
@@ -56,6 +59,8 @@ export interface AgentCtx {
   onEvent?: (e: TraceEvent) => void;
   /** The published plan for this hour, read once per run (cleared when the plan is published again). */
   published?: Promise<Map<string, { id: string; action: string; faucet: string | null }>>;
+  /** Who the demo call rings (src/lib/demoCaller.ts). */
+  caller?: import("@/lib/demoCaller").DemoCaller;
 }
 
 let seq = 0;

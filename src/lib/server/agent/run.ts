@@ -9,6 +9,7 @@ import { stage2Reason, stage2Sentence } from "@/lib/pressure";
 import { formatHour } from "@/components/console/format";
 import { ZodError } from "zod";
 import { placeDemoCall } from "../demoCall";
+import type { DemoCaller } from "@/lib/demoCaller";
 import { monitorAt, planAt, toTimestamp } from "../cityState";
 import { ACTION_TOOLS, TOOL_DEFS, cityStatus, entryId, runTool, type ActionTool, type AgentCtx, type AgentMode, type LogEntry, type TraceEvent } from "./tools";
 import { alsoNotified } from "@/lib/agentNotify";
@@ -263,8 +264,10 @@ export async function runAgent(
   mode: AgentMode,
   origin: string,
   onEvent?: (e: TraceEvent) => void,
+  /** Who the demo call rings (the clicker's sign-up; src/lib/server/signupCookie.ts). Unset: the team's DEMO_CALL_TO, if any. */
+  caller?: DemoCaller,
 ): Promise<RunResult> {
-  const ctx: AgentCtx = { city, hour, time: URI_HOURS[hour].time, mode, origin, reserves: {}, entries: [], onEvent };
+  const ctx: AgentCtx = { city, hour, time: URI_HOURS[hour].time, mode, origin, reserves: {}, entries: [], onEvent, caller };
   // The demo call starts the moment Run agent is clicked, alongside the rest of the run (planning
   // and saving outreach for thousands of homes takes ~20 s); its trace step is added at the end.
   const demoCall = startDemoCall(ctx);
@@ -293,14 +296,18 @@ export async function runAgent(
 }
 
 /**
- * A real demo call to a teammate's phone (DEMO_CALL_TO), standing in for the highest-risk home this
- * hour, placed as soon as the run starts so the phone rings right away. Its answers arrive from the
+ * A real demo call to the person who clicked Run agent (their /register sign-up), or on the team's
+ * own machine to DEMO_CALL_TO, standing in for the highest-risk home this hour, placed as soon as
+ * the run starts so the phone rings right away. No sign-up on the hosted site: the trace asks for one. Its answers arrive from the
  * voice agent and are saved in Supabase (voice_calls); officials see them on /console/calls. Off
  * (null) unless .env.local configures it. Never throws: a failure becomes the step's outcome.
  */
 function startDemoCall(ctx: AgentCtx): Promise<Awaited<ReturnType<typeof placeDemoCall>>> | null {
-  if (!process.env.DEMO_CALL_TO?.trim()) return null; // not set up on this laptop: say nothing
-  return placeDemoCall(ctx.city, ctx.hour, ctx.time).catch((err: unknown) => ({
+  const owner = process.env.DEMO_CALL_TO?.trim();
+  const caller: DemoCaller | null =
+    ctx.caller ?? (owner ? { kind: "owner", to: owner, firstName: process.env.DEMO_CALL_NAME?.trim() ?? "" } : null);
+  if (!caller) return null; // no caller and no team phone set up: say nothing
+  return placeDemoCall(ctx.city, ctx.hour, ctx.time, caller).catch((err: unknown) => ({
     kind: "failed" as const,
     reason: `Demo call not placed: ${err instanceof Error ? err.message : String(err)}`,
   }));
@@ -312,7 +319,21 @@ async function demoCallStep(ctx: AgentCtx, call: ReturnType<typeof startDemoCall
   ctx.onEvent?.({ type: "start", label: "Placing the demo call" });
   const out = await call;
   if (out.kind === "placed")
-    readStep(ctx, `Demo call placed: the demo phone stands in for the ${out.street} home`, `${out.phone} · answers on the Calls page`);
+    readStep(
+      ctx,
+      `Demo call placed: ${out.whose === "signup" ? "the signed-up phone" : "the demo phone"} stands in for the ${out.street} home`,
+      `${out.phone} · answers on the Calls page`,
+    );
+  else if (out.kind === "needs_signup")
+    emit(ctx, {
+      id: entryId(),
+      kind: "step",
+      summary: "Demo call needs a sign-up: sign up with a phone number, then run the agent again to get the call.",
+      result: "no call",
+      status: "done",
+      href: "/register?next=/console",
+      linkText: "Sign up for the demo call",
+    });
   else if (out.kind === "skipped") readStep(ctx, out.reason, "skipped");
   else emit(ctx, { id: entryId(), kind: "error", summary: out.reason, status: "failed" });
 }

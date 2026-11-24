@@ -167,6 +167,8 @@ export default function RegisterForm() {
   const [message, setMessage] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState<string | null>(null);
+  // Came here from City Operations' "Sign up for the demo call" link: offer the way back.
+  const [fromConsole, setFromConsole] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const consentId = useId();
 
@@ -200,6 +202,7 @@ export default function RegisterForm() {
       });
       const out = (await res.json().catch(() => ({}))) as { ok?: boolean; firstName?: string; errors?: FieldErrors; message?: string };
       if (out.ok) {
+        setFromConsole(new URLSearchParams(window.location.search).get("next") === "/console");
         setDone(out.firstName ?? "");
         window.scrollTo({ top: 0, behavior: "smooth" });
       } else if (out.errors) showErrors(out.errors);
@@ -224,7 +227,18 @@ export default function RegisterForm() {
           <li className="rounded-md border border-border bg-bg px-4 py-3">Find your main water shutoff valve now, while it&rsquo;s warm.</li>
           <li className="rounded-md border border-border bg-bg px-4 py-3">Reply STOP to any text if you want us to stop.</li>
         </ul>
-        <p className="mt-5 text-sm text-muted">FreezeLine is a demo right now, so we won&rsquo;t text or call you yet.</p>
+        {fromConsole ? (
+          <>
+            <p className="mt-5 text-base leading-relaxed">
+              Go back and click <strong className="font-medium">Run agent</strong>. FreezeLine will call this phone in a few seconds.
+            </p>
+            <a href="/console" className="btn btn-primary mt-4 w-full !min-h-12 !text-base">
+              Back to City Operations
+            </a>
+          </>
+        ) : (
+          <p className="mt-5 text-sm text-muted">FreezeLine is a demo right now: we&rsquo;ll call you only when someone on this device clicks Run agent in City Operations.</p>
+        )}
       </section>
     );
   }

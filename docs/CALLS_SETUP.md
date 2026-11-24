@@ -20,7 +20,14 @@ Run agent (on /console)
                               /console/calls  ◄──────────────┘  (refreshes itself while a call is live)
 ```
 
-- **Demo call:** your own phone stands in for the highest-risk home at that storm hour. It's the
+- **Who gets the demo call:** whoever clicks Run agent, once they've signed up on `/register` from that
+  browser (it remembers them with a private cookie for 30 days). A visitor with no sign-up gets a
+  "Sign up for the demo call" link in the Decision trace instead of a call; on your own laptop
+  (localhost) with no sign-up, `DEMO_CALL_TO` is called as before. One call per sign-up per hour and 40
+  a day across everyone (`DEMO_CALL_PER_SIGNUP_MINUTES`, `DEMO_CALL_DAILY_CAP`). **A Twilio trial can
+  only call phones verified in the Twilio console**, so other people's phones need either verifying
+  there or an upgraded account.
+- **Demo call:** the caller's phone stands in for the highest-risk home at that storm hour. It's the
   pre-survey call from the research doc: the 7 questions first, then the home's priority (Low /
   Medium / High, from the weighted answers and the forecast), then what happens next (a neighbor or
   the emergency contact, then a crew), then the text for that priority. Off unless you set

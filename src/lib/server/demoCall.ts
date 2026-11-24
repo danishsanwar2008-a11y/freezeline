@@ -4,9 +4,11 @@ import { planAt, toTimestamp, weatherFor, type City } from "./cityState";
 import { encodeHousehold, fromTwilioStatus, isFinalStatus, maskPhone, type CallHousehold, type CallStatus } from "@/lib/voiceCalls";
 import { signupForPhone } from "@/lib/signups";
 import { demoHomeIndex } from "@/lib/demoHome";
+import { limitReason, limits, twilioReason, type DemoCaller } from "@/lib/demoCaller";
 
-// The demo call that "Run agent" places: a real phone call, through the voice agent, to a
-// teammate's own phone (DEMO_CALL_TO) standing in for the highest-risk household this hour.
+// The demo call that "Run agent" places: a real phone call, through the voice agent, to the person
+// who clicked (their own /register sign-up; src/lib/demoCaller.ts says who), standing in for the
+// highest-risk household this hour. On the team's own machine with no sign-up: DEMO_CALL_TO.
 // It is the research doc's pre-survey call: 7 questions, then the priority from the answers and
 // that home's temperature this hour, then the matching text. Every call gets a voice_calls row
 // first, so the agent's answers (posted to /api/voice/result) are saved against it.
@@ -17,24 +19,19 @@ import { demoHomeIndex } from "@/lib/demoHome";
 const RECENT_MS = 10 * 60 * 1000;
 
 export interface DemoCallConfig {
-  to: string;
-  name: string;
   sid: string;
   token: string;
   host: string;
   from: string | null;
 }
 
-/** The settings a demo call needs, or the names of the ones missing from .env.local. */
+/** The Twilio and tunnel settings a demo call needs, or the names of the ones missing from .env.local. */
 export function demoCallConfig(): DemoCallConfig | { missing: string[] } {
   const env = (k: string) => process.env[k]?.trim() ?? "";
-  const need = { DEMO_CALL_TO: env("DEMO_CALL_TO"), TWILIO_ACCOUNT_SID: env("TWILIO_ACCOUNT_SID"), TWILIO_AUTH_TOKEN: env("TWILIO_AUTH_TOKEN"), PUBLIC_HOSTNAME: env("PUBLIC_HOSTNAME") };
+  const need = { TWILIO_ACCOUNT_SID: env("TWILIO_ACCOUNT_SID"), TWILIO_AUTH_TOKEN: env("TWILIO_AUTH_TOKEN"), PUBLIC_HOSTNAME: env("PUBLIC_HOSTNAME") };
   const missing = Object.entries(need).filter(([, v]) => !v).map(([k]) => k);
   if (missing.length) return { missing };
-  if (!/^\+1[2-9]\d{9}$/.test(need.DEMO_CALL_TO)) return { missing: ["DEMO_CALL_TO (as +1XXXXXXXXXX)"] };
   return {
-    to: need.DEMO_CALL_TO,
-    name: env("DEMO_CALL_NAME"),
     sid: need.TWILIO_ACCOUNT_SID,
     token: need.TWILIO_AUTH_TOKEN,
     host: need.PUBLIC_HOSTNAME.replace(/^https?:\/\//, "").replace(/\/+$/, ""),
@@ -62,11 +59,13 @@ function topHome(city: City, hour: number): number | null {
 }
 
 export type DemoCallOutcome =
-  | { kind: "placed"; callId: string; street: string; phone: string }
+  | { kind: "placed"; callId: string; street: string; phone: string; whose: "signup" | "owner" }
   | { kind: "skipped"; reason: string }
+  | { kind: "needs_signup" }
   | { kind: "failed"; reason: string };
 
-export async function placeDemoCall(city: City, hour: number, time: string): Promise<DemoCallOutcome> {
+export async function placeDemoCall(city: City, hour: number, time: string, caller: DemoCaller): Promise<DemoCallOutcome> {
+  if (caller.kind === "needs_signup") return { kind: "needs_signup" };
   const cfg = demoCallConfig();
   if ("missing" in cfg) return { kind: "skipped", reason: `Demo call off: set ${cfg.missing.join(", ")} in .env.local.` };
   const db = getSupabaseAdmin();
@@ -93,6 +92,18 @@ export async function placeDemoCall(city: City, hour: number, time: string): Pro
   }
   if (active?.length) return { kind: "skipped", reason: "A demo call is already in progress; no second call placed." };
 
+  // Limits: one call per sign-up per hour, and a daily cap across everyone (src/lib/demoCaller.ts).
+  const day = new Date(Date.now() - 24 * 3_600_000).toISOString();
+  const [{ count: today }, last] = await Promise.all([
+    db.from("voice_calls").select("id", { count: "exact", head: true }).eq("source", "demo").eq("mode", "survey").gte("created_at", day),
+    caller.kind === "signup"
+      ? db.from("voice_calls").select("created_at").eq("registration_id", caller.registrationId).order("created_at", { ascending: false }).limit(1)
+      : Promise.resolve({ data: [] as { created_at: string }[] }),
+  ]);
+  const lastAt = last.data?.[0]?.created_at ? Date.parse(last.data[0].created_at) : null;
+  const held = limitReason({ caller, lastCallForSignupAt: lastAt, callsLast24h: today ?? 0, now: Date.now(), ...limits(process.env) });
+  if (held) return { kind: "skipped", reason: held };
+
   if (!(await agentReachable(cfg.host)))
     return { kind: "failed", reason: "Demo call not placed: the voice agent isn't reachable (start voice\\start.ps1 and voice\\tunnel.ps1)." };
 
@@ -109,7 +120,8 @@ export async function placeDemoCall(city: City, hour: number, time: string): Pro
       simulated: false,
       home_id: home.id,
       plan_for: toTimestamp(time),
-      to_phone: cfg.to,
+      to_phone: caller.to,
+      ...(caller.kind === "signup" ? { registration_id: caller.registrationId } : {}),
       lang: "en",
       mode: "survey",
       status: "queued",
@@ -118,9 +130,11 @@ export async function placeDemoCall(city: City, hour: number, time: string): Pro
     .single();
   if (insertError || !row) return { kind: "failed", reason: `Demo call not placed: ${insertError?.message ?? "no row"}.` };
 
-  // The demo phone's own sign-up (/register): the emergency contact the agent offers to call.
-  const signup = await signupForPhone(db, cfg.to);
-  const firstName = cfg.name || signup?.firstName || "";
+  // The name to greet and the emergency contact the agent offers to call: the clicker's own sign-up,
+  // or for the team's phone, its sign-up if it has one.
+  const signup = caller.kind === "owner" ? await signupForPhone(db, caller.to) : null;
+  const firstName = caller.firstName || signup?.firstName || "";
+  const emergencyName = caller.kind === "signup" ? caller.emergencyName : signup?.emergencyName && signup.emergencyPhone ? signup.emergencyName : null;
   const household: CallHousehold = {
     call_id: row.id,
     engine: "gather",
@@ -129,10 +143,10 @@ export async function placeDemoCall(city: City, hour: number, time: string): Pro
     lang: "en",
     temp: Math.round(weather.temperature_f),
     ...(firstName ? { first_name: firstName } : {}),
-    ...(signup?.emergencyName && signup.emergencyPhone ? { emergency_name: signup.emergencyName } : {}),
+    ...(emergencyName ? { emergency_name: emergencyName } : {}),
     street: home.street,
   };
-  const form = new URLSearchParams({ To: cfg.to, Url: `https://${cfg.host}/voice/start?home=${encodeHousehold(household)}` });
+  const form = new URLSearchParams({ To: caller.to, Url: `https://${cfg.host}/voice/start?home=${encodeHousehold(household)}` });
   // Trial accounts own no number: leave From out and Twilio uses a shared trial number.
   if (cfg.from) form.set("From", cfg.from);
 
@@ -145,7 +159,7 @@ export async function placeDemoCall(city: City, hour: number, time: string): Pro
     });
     const json = (await res.json().catch(() => ({}))) as { sid?: string; status?: string; code?: number; message?: string };
     if (!res.ok || !json.sid) {
-      const reason = `Twilio refused the call${json.code ? ` (${json.code})` : ""}: ${json.message ?? res.statusText}`;
+      const reason = twilioReason(json.code, json.message ?? res.statusText);
       await db.from("voice_calls").update({ status: "failed", error: reason, updated_at: new Date().toISOString() }).eq("id", row.id);
       return { kind: "failed", reason: `Demo call not placed. ${reason}` };
     }
@@ -153,7 +167,7 @@ export async function placeDemoCall(city: City, hour: number, time: string): Pro
       .from("voice_calls")
       .update({ call_sid: json.sid, status: fromTwilioStatus(json.status) ?? "queued", updated_at: new Date().toISOString() })
       .eq("id", row.id);
-    return { kind: "placed", callId: row.id, street: home.street, phone: maskPhone(cfg.to) };
+    return { kind: "placed", callId: row.id, street: home.street, phone: maskPhone(caller.to), whose: caller.kind };
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     await db.from("voice_calls").update({ status: "failed", error: reason, updated_at: new Date().toISOString() }).eq("id", row.id);
