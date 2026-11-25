@@ -1,9 +1,8 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { cookies } from "next/headers";
 import { connection } from "next/server";
-import { redirect } from "next/navigation";
-import { SESSION_COOKIE, validSession } from "@/lib/server/consoleAuth";
+import { viewerForPage } from "@/lib/server/signupCookie";
+import { canSeeCall } from "@/lib/privacy";
 import { getSupabaseAdmin } from "@/lib/server/supabaseAdmin";
 import { syncCallStatuses } from "@/lib/server/demoCall";
 import { NEIGHBORHOODS } from "@/lib/seed/generate";
@@ -53,6 +52,10 @@ interface Row {
   error: string | null;
   created_at: string;
   homes: { street: string | null; zone_id: string | null } | null;
+  /** The sign-up this call was made for (demo calls from a visitor's own Run agent click). */
+  registration_id?: string | null;
+  /** An emergency-contact call points at the household call it followed (008_call_followup.sql). */
+  parent_call_id?: string | null;
 }
 
 /** Outcome colors are home-status colors (green ready, yellow waiting, red needs help, black no answer). */
@@ -91,11 +94,6 @@ function Shell({ children }: { children: React.ReactNode }) {
         <Link href="/console" className="btn btn-quiet btn-sm">
           ← Map
         </Link>
-        <form method="post" action="/api/logout">
-          <button type="submit" className="btn btn-quiet btn-sm">
-            Sign out
-          </button>
-        </form>
       </header>
       <main className="mx-auto max-w-5xl space-y-3 px-4 py-6">{children}</main>
     </div>
@@ -133,6 +131,34 @@ function FilterLink({ href, active, children }: { href: string; active: boolean;
   );
 }
 
+/** Stands in for a detail that isn't this viewer's to see. Decorative: the real value is never sent. */
+function Hidden({ width = "w-40" }: { width?: string }) {
+  return <span aria-hidden className={`inline-block h-3.5 ${width} select-none rounded-sm bg-text/30 align-middle blur-[3px]`} />;
+}
+
+/** Someone else's call: when, and how far it got; the phone, answers and transcript stay hidden. */
+function HiddenCallCard({ r }: { r: Row }) {
+  return (
+    <li className="rounded-panel border border-border bg-bg/40 p-4">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <p className="font-medium text-muted">Someone&rsquo;s demo call</p>
+        <span className="flex-1" />
+        <p className="text-xs text-muted">Called {when(r.created_at)}</p>
+      </div>
+      <p className="mt-1 text-sm text-muted">{STATUS_LABEL[r.status]}</p>
+      <p className="mt-2 space-x-3">
+        <Hidden width="w-28" />
+        <Hidden width="w-52" />
+      </p>
+      <p className="mt-2 space-x-3">
+        <Hidden width="w-44" />
+        <Hidden width="w-36" />
+      </p>
+      <p className="mt-2 text-xs text-muted">Hidden for privacy: only the person who was called sees their answers and transcript.</p>
+    </li>
+  );
+}
+
 function CallCard({ r }: { r: Row }) {
   const outcome = callOutcome(r);
   const street = r.homes?.street;
@@ -152,7 +178,7 @@ function CallCard({ r }: { r: Row }) {
           </span>
         )}
         {r.source === "demo" && (
-          <span className="rounded-full border border-accent/60 px-2 py-0.5 text-[11px] text-accent" title="A real call to a teammate's phone standing in for this household">
+          <span className="rounded-full border border-accent/60 px-2 py-0.5 text-[11px] text-accent" title="A real call to the phone of whoever clicked Run agent, standing in for this household">
             demo call
           </span>
         )}
@@ -206,8 +232,9 @@ function CallCard({ r }: { r: Row }) {
 
 async function Calls({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await connection();
-  // Checked here too, not only in src/proxy.ts (defense in depth).
-  if (!validSession((await cookies()).get(SESSION_COOKIE)?.value)) redirect("/login?next=/console/calls");
+  // Demo mode: open to everyone. A visitor sees their own calls and the sample ones in full; every other
+  // call's phone, answers and transcript are hidden here on the server (src/lib/privacy.ts).
+  const viewer = await viewerForPage();
 
   const q = await searchParams;
   const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : "");
@@ -241,7 +268,7 @@ async function Calls({ searchParams }: { searchParams: Promise<Record<string, st
   const byOutcome = BAR_ORDER.map((o) => ({ o, n: everything.filter((c) => callOutcome(c) === o).length })).filter((x) => x.n > 0);
   const live = everything.some((c) => c.source !== "sample" && !isFinalStatus(c.status));
 
-  const BASE = "id,source,home_id,plan_for,to_phone,lang,level,status,finished,answers,questions_answered,assessment,transcript,duration_s,error,created_at,homes(street,zone_id)";
+  const BASE = "id,source,home_id,plan_for,to_phone,lang,level,status,finished,answers,questions_answered,assessment,transcript,duration_s,error,created_at,registration_id,homes(street,zone_id)";
   const query = (columns: string) => {
     let list = db
       .from("voice_calls")
@@ -253,10 +280,12 @@ async function Calls({ searchParams }: { searchParams: Promise<Record<string, st
     return list;
   };
   // The follow-up columns come from supabase/008_call_followup.sql; without them, the page still loads.
-  let { data, count, error } = await query(`${BASE},mode,followup`);
+  let { data, count, error } = await query(`${BASE},mode,followup,parent_call_id`);
   if (error && /followup|column/i.test(error.message)) ({ data, count, error } = await query(BASE));
   if (error && error.code !== "PGRST103") return <Notice title="Couldn't load calls">{error.message}</Notice>;
   const rows = (data ?? []) as unknown as Row[];
+  // The viewer's own household calls (their emergency-contact calls follow these).
+  const ownCallIds = new Set(rows.filter((r) => viewer.registrationId && r.registration_id === viewer.registrationId).map((r) => r.id));
   const pages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
   const href = (o: { filter?: Filter; page?: number }) => {
     const p = new URLSearchParams();
@@ -275,7 +304,7 @@ async function Calls({ searchParams }: { searchParams: Promise<Record<string, st
           {total.toLocaleString("en-US")} <span className="stat-unit">{total === 1 ? "household called" : "households called"}</span>
         </p>
         <p className="mt-1 text-xs text-muted">
-          {plural(demoCount, "demo call")} (a teammate&rsquo;s phone standing in for the household) · {plural(total - demoCount, "sample call")} (simulated)
+          {plural(demoCount, "demo call")} (real calls to whoever clicked Run agent, standing in for a household) · {plural(total - demoCount, "sample call")} (simulated)
         </p>
         {total > 0 && (
           <>
@@ -297,7 +326,7 @@ async function Calls({ searchParams }: { searchParams: Promise<Record<string, st
           </>
         )}
         <p className="mt-3 text-[11px] leading-relaxed text-muted">
-          Run agent places a demo call to a teammate&rsquo;s phone for the highest-risk home that hour; the agent saves each answer as it is
+          Run agent calls the phone of whoever clicked it (their own sign-up) for the highest-risk home that hour; the agent saves each answer as it is
           given. Answers are the household&rsquo;s own words, scored by the call script; questions not reached are shown dashed.
         </p>
       </section>
@@ -325,15 +354,13 @@ async function Calls({ searchParams }: { searchParams: Promise<Record<string, st
           </Notice>
         ) : (
           <Notice title="No calls yet.">
-            {filter === "sample" ? "Run npm run seed:calls to add sample calls." : "Click Run agent on the map to place a demo call (DEMO_CALL_TO in .env.local)."}
+            {filter === "sample" ? "Run npm run seed:calls to add sample calls." : "Sign up on the Sign-ups page, then click Run agent on the map: FreezeLine calls your phone."}
           </Notice>
         )
       ) : (
         <>
           <ul className="space-y-2">
-            {rows.map((r) => (
-              <CallCard key={r.id} r={r} />
-            ))}
+            {rows.map((r) => (canSeeCall(r, viewer, ownCallIds) ? <CallCard key={r.id} r={r} /> : <HiddenCallCard key={r.id} r={r} />))}
           </ul>
           {pages > 1 && (
             <nav aria-label="Pages" className="flex items-center justify-between pt-2 text-sm">

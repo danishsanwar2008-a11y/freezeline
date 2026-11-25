@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { requireConsole } from "@/lib/server/consoleAuth";
+import { requireTeamMachine } from "@/lib/server/teamMachine";
 import { getSupabaseAdmin } from "@/lib/server/supabaseAdmin";
 import { isUsMobile, sendSms, smsConfigured, smsProvider, type SmsResult } from "@/lib/sms";
 
@@ -44,7 +44,7 @@ async function consentedHouseholds(): Promise<Recipient[] | { error: string }> {
 }
 
 export async function POST(req: Request) {
-  const denied = requireConsole(req);
+  const denied = requireTeamMachine(req); // demo mode: no password, but only the team's machine can text or call people in bulk
   if (denied) return denied;
 
   const parsed = Body.safeParse(await req.json().catch(() => null));

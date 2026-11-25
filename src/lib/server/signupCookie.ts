@@ -2,7 +2,9 @@ import "server-only";
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SIGNUP_COOKIE, SIGNUP_DAYS, signSignup, verifySignup } from "@/lib/signupToken";
-import { chooseCaller, isLocalHost, type DemoCaller, type SignupForCall } from "@/lib/demoCaller";
+import { chooseCaller, type DemoCaller, type SignupForCall } from "@/lib/demoCaller";
+import { isTeamMachine } from "./teamMachine";
+import type { Viewer } from "@/lib/privacy";
 
 // The browser that signed up on /register gets an httpOnly cookie naming its sign-up, so Run agent
 // can call that person (src/lib/demoCaller.ts). Signed with a key derived from the Supabase
@@ -49,16 +51,25 @@ export async function signupFromRequest(db: SupabaseClient, req: Request): Promi
   };
 }
 
+/**
+ * Who is looking at the open Sign-ups / Calls pages (src/lib/privacy.ts): their own sign-up from the
+ * signed cookie, and whether this is the team's own machine (which sees everything).
+ */
+export async function viewerForPage(): Promise<Viewer> {
+  const { cookies, headers } = await import("next/headers");
+  const [jar, h] = await Promise.all([cookies(), headers()]);
+  return {
+    registrationId: verifySignup(jar.get(SIGNUP_COOKIE)?.value, key()),
+    seeAll: isTeamMachine(h.get("host"), h.get("x-forwarded-host")),
+  };
+}
+
 /** Who this Run agent click should ring: the clicker's sign-up, the team's phone on its own machine, or nobody. */
 export async function callerForRequest(db: SupabaseClient | null, req: Request): Promise<DemoCaller> {
   const signup = db ? await signupFromRequest(db, req).catch(() => null) : null;
-  // The team's own machine only when the real host AND any forwarded host are local: a visitor can't
-  // claim to be "localhost" through a header on the hosted site.
-  const forwarded = req.headers.get("x-forwarded-host");
-  const local = isLocalHost(req.headers.get("host")) && (!forwarded || isLocalHost(forwarded));
   return chooseCaller({
     signup,
-    local,
+    local: isTeamMachine(req.headers.get("host"), req.headers.get("x-forwarded-host")),
     ownerPhone: process.env.DEMO_CALL_TO?.trim() ?? "",
     ownerName: process.env.DEMO_CALL_NAME?.trim() ?? "",
   });

@@ -53,7 +53,7 @@ Then fill it in. It is git-ignored: **never commit it, and never paste its value
 | `NEXT_PUBLIC_SUPABASE_URL` | Ends at `.supabase.co` (nothing after it) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | The **publishable** key (`sb_publishable_...`) |
 | `SUPABASE_SERVICE_ROLE_KEY` | The **secret** key (`sb_secret_...`, the one named for teammates). Needed to save sign-ups and load the console |
-| `CONSOLE_PASSWORD` | The shared password for `/console` |
+| `CONSOLE_PASSWORD` | Unused in demo mode (no sign-in anywhere); kept for a real sign-in later |
 | `LLM_PROVIDER` | Keep `pregenerated` (pre-written text, no AI calls, free) |
 
 If you were invited to the Supabase project you can also copy the keys yourself: Project Settings → API Keys.

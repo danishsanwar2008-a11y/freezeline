@@ -1,9 +1,8 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { cookies } from "next/headers";
 import { connection } from "next/server";
-import { redirect } from "next/navigation";
-import { SESSION_COOKIE, validSession } from "@/lib/server/consoleAuth";
+import { viewerForPage } from "@/lib/server/signupCookie";
+import { canSeeSignup, visibleSignupsFilter } from "@/lib/privacy";
 import { getSupabaseAdmin } from "@/lib/server/supabaseAdmin";
 import { formatPhone } from "@/lib/registration";
 import { MATCH_LABEL, type MatchStatus } from "@/lib/addressMatch";
@@ -68,20 +67,12 @@ function Shell({ children }: { children: React.ReactNode }) {
           <span className="px-1.5 text-muted">/</span>Sign-ups
         </h1>
         <span className="flex-1" />
-        <a href="/register" target="_blank" rel="noopener" className="btn btn-quiet btn-sm">
-          Public sign-up page ↗
-        </a>
         <Link href="/console/calls" className="btn btn-quiet btn-sm">
           Calls
         </Link>
         <Link href="/console" className="btn btn-quiet btn-sm">
           ← Map
         </Link>
-        <form method="post" action="/api/logout">
-          <button type="submit" className="btn btn-quiet btn-sm">
-            Sign out
-          </button>
-        </form>
       </header>
       <main className="mx-auto max-w-5xl space-y-3 px-4 py-6">{children}</main>
     </div>
@@ -115,6 +106,35 @@ function FilterLink({ href, active, children }: { href: string; active: boolean;
     >
       {children}
     </Link>
+  );
+}
+
+/** Stands in for a detail that isn't this viewer's to see. Decorative: the real value is never sent. */
+function Hidden({ width = "w-40" }: { width?: string }) {
+  return (
+    <span aria-hidden className={`inline-block h-3.5 ${width} select-none rounded-sm bg-text/30 align-middle blur-[3px]`} />
+  );
+}
+
+/** Someone else's real sign-up: only that it exists and when. */
+function HiddenSignupCard({ createdAt }: { createdAt: string }) {
+  return (
+    <li className="rounded-panel border border-border bg-bg/40 p-4">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <p className="font-medium text-muted">Someone signed up</p>
+        <span className="flex-1" />
+        <p className="text-xs text-muted">Signed up {when(createdAt)}</p>
+      </div>
+      <p className="mt-2 space-x-3">
+        <Hidden width="w-56" />
+        <Hidden width="w-24" />
+      </p>
+      <p className="mt-2 space-x-3">
+        <Hidden width="w-32" />
+        <Hidden width="w-44" />
+      </p>
+      <p className="mt-2 text-xs text-muted">Hidden for privacy: only the person who signed up sees these details.</p>
+    </li>
   );
 }
 
@@ -157,8 +177,9 @@ function SignupCard({ r }: { r: Row }) {
 
 async function Signups({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await connection();
-  // Checked here too, not only in src/proxy.ts (defense in depth).
-  if (!validSession((await cookies()).get(SESSION_COOKIE)?.value)) redirect("/login?next=/console/registrations");
+  // Demo mode: open to everyone. A visitor sees their own sign-up and the sample ones in full; every
+  // other real sign-up is hidden here on the server (src/lib/privacy.ts), never sent to the browser.
+  const viewer = await viewerForPage();
 
   const q = await searchParams;
   const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : "");
@@ -207,11 +228,20 @@ async function Signups({ searchParams }: { searchParams: Promise<Record<string, 
     .order("email")
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
   if (source !== "all") list = list.eq("source", source);
-  if (search) list = list.or(`full_name.ilike.%${search}%,address_line1.ilike.%${search}%,email.ilike.%${search}%,zip.ilike.%${search}%`);
+  if (search) {
+    list = list.or(`full_name.ilike.%${search}%,address_line1.ilike.%${search}%,email.ilike.%${search}%,zip.ilike.%${search}%`);
+    // A search only looks through rows this viewer may see, so it can't reveal who signed up.
+    const visible = visibleSignupsFilter(viewer);
+    if (visible) list = list.or(visible);
+  }
   const { data, count: shown, error } = await list;
   // A page past the end (e.g. page 2 of a short search) comes back as "range not satisfiable": show it as empty.
   if (error && error.code !== "PGRST103") return <Notice title="Couldn't load sign-ups">{error.message}</Notice>;
   const rows = (data ?? []) as Row[];
+  // The viewer's own sign-up, pinned at the top (and left out of the list below).
+  const own = viewer.registrationId
+    ? ((await db.from("registrations").select("id,full_name,email,phone,preferred_language,address_line1,address_line2,city,zip,emergency_name,emergency_phone,source,created_at,match_status,match_distance_m,zone_id").eq("id", viewer.registrationId).maybeSingle()).data as Row | null)
+    : null;
   const pages = Math.max(1, Math.ceil((shown ?? 0) / PAGE_SIZE));
 
   const href = (o: { source?: Source; page?: number }) => {
@@ -226,6 +256,31 @@ async function Signups({ searchParams }: { searchParams: Promise<Record<string, 
 
   return (
     <>
+      {own ? (
+        <section aria-label="Your sign-up" className="space-y-2">
+          <p className="eyebrow">Your sign-up</p>
+          <ul>
+            <SignupCard r={own} />
+          </ul>
+          <p className="text-sm text-muted">
+            Click <strong className="font-medium text-text">Run agent</strong> on the{" "}
+            <Link href="/console" className="text-accent underline-offset-2 hover:underline">
+              map
+            </Link>{" "}
+            and FreezeLine calls this phone.
+          </p>
+        </section>
+      ) : (
+        <section className="flex flex-wrap items-center gap-3 rounded-panel border border-border bg-surface p-4">
+          <p className="flex-1 text-sm">
+            Want FreezeLine to call you? Sign up with your phone, then click <strong className="font-medium">Run agent</strong> on the map.
+          </p>
+          <Link href="/register?next=/console" className="btn btn-primary btn-sm">
+            Sign up for the demo call
+          </Link>
+        </section>
+      )}
+
       <section className="rounded-panel border border-border bg-surface p-4">
         <p className="eyebrow">Sign-ups</p>
         <p className="stat mt-2">
@@ -280,7 +335,7 @@ async function Signups({ searchParams }: { searchParams: Promise<Record<string, 
             id="signup-search"
             name="q"
             defaultValue={search}
-            placeholder="Search name, street, email or ZIP"
+            placeholder={viewer.seeAll ? "Search name, street, email or ZIP" : "Search the sample sign-ups and yours"}
             className="min-w-0 flex-1 rounded-full border border-border bg-surface px-4 py-2 text-sm text-text outline-none placeholder:text-muted/70 focus-visible:border-accent"
           />
           <button type="submit" className="btn btn-quiet btn-sm">
@@ -306,9 +361,9 @@ async function Signups({ searchParams }: { searchParams: Promise<Record<string, 
             {plural(shown ?? 0, "sign-up")}
           </p>
           <ul className="space-y-2">
-            {rows.map((r) => (
-              <SignupCard key={r.id} r={r} />
-            ))}
+            {rows.map((r) =>
+              canSeeSignup(r, viewer) ? <SignupCard key={r.id} r={r} /> : <HiddenSignupCard key={r.id} createdAt={r.created_at} />,
+            )}
           </ul>
           {pages > 1 && (
             <nav aria-label="Pages" className="flex items-center justify-between pt-2 text-sm">

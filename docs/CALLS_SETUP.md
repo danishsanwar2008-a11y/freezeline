@@ -51,7 +51,7 @@ Run agent (on /console)
   SIM, so it comes from that phone's number; `twilio` needs an upgraded account with a registered
   number). Run `supabase/007_call_texts.sql` once so each text is recorded and never sent twice.
   Test without a phone call: `npm run calls:rehearse -- --text` (texts `DEMO_CALL_TO`).
-- **Calls page** (`/console/calls`, top bar → **Calls**, password-protected): outcome bar, filter
+- **Calls page** (`/console/calls`, top bar → **Calls**, no password in demo mode; a visitor sees their own calls and the sample ones, everyone else's details are hidden): outcome bar, filter
   (All / Demo calls / Sample), one card per call with the answers as tiles and the full transcript.
 - **Sample data:** 36 simulated calls over 3 storm hours (fictional 555-01XX numbers, tagged "sample").
 
